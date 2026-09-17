@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "mechanic.server:app", "--port", "8000", "--reload", "--reload-dir", "src"],
+      "port": 8000
+    }
+  ]
+}
