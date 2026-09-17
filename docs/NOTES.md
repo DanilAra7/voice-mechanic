@@ -12,6 +12,12 @@
 ```
 src/mechanic/
   vehicles.py            # 5 машин MVP (+ ключи источников данных)
+  knowledge/dtc.py       # OBDex: 9533 кода; normalize_code() понимает "P zero one seven one"
+  knowledge/search.py    # гибридный поиск: bm25s + bge-small (fastembed, CPU), RRF, буст по машине
+  agent/tools.py         # 8 тулов + Session + ToolRunner
+  agent/prompt.py        # системный промпт (короткий: это кэшируемый префикс)
+  agent/loop.py          # стриминг по предложениям, фразы-заглушки, вызовы тулов, тайминги
+  evals/run.py           # прогон evals/scenarios.yaml против любого OpenAI-совместимого сервера
   server.py              # FastAPI: /torque, /api/catalog, /api/sim/{device}, /api/sensors/{device}
   torque/pids.py         # PID-ы, ключи Torque (k5, kc, ...)
   torque/receiver.py     # парсер Torque web upload → store, ответ "OK!"
@@ -35,6 +41,10 @@ uv run python -m mechanic.torque.simulator --vehicle audi_a4_b8 --mode idle --fa
 uv run python -m mechanic.data.stackexchange       # ~3 с
 uv run python -m mechanic.data.carcarekiosk        # ~5 мин с нуля, из кэша — секунды
 uv run python -m mechanic.data.startmycar          # долго (сотни запросов по 1/с), из кэша — быстро
+uv run python -m mechanic.knowledge.dtc            # пересобрать кэш кодов
+uv run python -m mechanic.knowledge.search build   # индекс (~56k пассажей; bm25 быстро, эмбеддинги долго)
+uv run python -m mechanic.knowledge.search query "high fuel trim at idle" --vehicle audi_a4_b8
+uv run python -m mechanic.evals.run --model <name> --base-url http://127.0.0.1:8001/v1
 # запустить симулятор через API:
 curl -X POST localhost:8000/api/sim/demo -H 'content-type: application/json' -d '{"vehicle":"audi_a4_b8","mode":"idle","fault":"vacuum_leak","time_scale":20}'
 curl localhost:8000/api/sensors/demo
@@ -61,6 +71,9 @@ SE: матчинг машин по тегу модели (+ год из заго
 - Torque web upload: подтверждено — GET, ключи `k<hex pid>` без ведущих нулей (`k5`, `kc`, `kff1005`), метаданные `userFullName<pid>` и т.п., ответ `OK!`. В HA-интеграции единица приходит как `\xC2\xB0C` — заменяем на `°`.
 - В симуляторе `dt = interval_s * time_scale`; при тестах с маленьким interval нужен большой time_scale, иначе неисправность не успевает «развиться».
 - carcarekiosk: страница поколения, напр. `Audi/A4_Quattro/2009`, покрывает все годы поколения («produced from 2009 - 2016»).
+- Тесты фейкового LLM: `AsyncOpenAI`-клиент подменяется объектом со скриптом чанков; список `messages` мутируется циклом, поэтому в фейке его надо копировать.
+- `pytest` не видит `tests` как пакет — общие хелперы кладём в `tests/conftest.py` и импортируем как `from conftest import ...`.
+- Ruff: длинные строки описаний тулов и промпта разрешены через per-file-ignores (E501).
 
 ## Бенчмарки
 

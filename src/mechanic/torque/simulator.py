@@ -224,7 +224,7 @@ class VehicleModel:
         # --- faults ------------------------------------------------------
         if self.fault == "coolant_leak":
             # Effective set-point rises as coolant is lost; airflow helps a bit.
-            coolant_target = v.coolant_target_c + min(40.0, ft * 0.12) - (4 if s.speed_kmh > 60 else 0)
+            coolant_target = v.coolant_target_c + min(30.0, ft * 0.12) - (4 if s.speed_kmh > 60 else 0)
             cooling_time_constant = 90.0
         elif self.fault == "thermostat_stuck_open":
             coolant_target = AMBIENT_C + (38 if s.speed_kmh > 80 else 48)
