@@ -106,13 +106,17 @@ def passages_from_docs(docs: list[Doc]) -> list[Passage]:
     return out
 
 
-def tokenize(texts: list[str]) -> list[list[str]]:
+def tokenize_corpus(texts: list[str]):
+    """Token ids + vocabulary for indexing."""
     return bm25s.tokenize(texts, stopwords="en", show_progress=False)
 
 
-def build(index_dir: Path = INDEX_DIR, batch_size: int = 256) -> None:
-    from fastembed import TextEmbedding
+def tokenize_query(query: str) -> list[str]:
+    """Plain tokens for scoring: ids from a fresh tokenizer would index a different vocabulary."""
+    return bm25s.tokenize(query, stopwords="en", return_ids=False, show_progress=False)[0]
 
+
+def build(index_dir: Path = INDEX_DIR, batch_size: int = 256, threads: int | None = None, dense: bool = True) -> None:
     docs: list[Doc] = []
     for source in SOURCES:
         path = PROCESSED_DIR / f"{source}.jsonl"
@@ -122,24 +126,43 @@ def build(index_dir: Path = INDEX_DIR, batch_size: int = 256) -> None:
             print(f"{source}: {len(part)} docs")
         else:
             print(f"{source}: MISSING ({path})")
-    passages = passages_from_docs(docs)
-    print(f"{len(passages)} passages")
+    passages = build_sparse(docs, index_dir)
+    print(f"{len(passages)} passages; bm25 index -> {index_dir / 'bm25'}")
+    if dense:
+        build_dense(passages, index_dir, batch_size=batch_size, threads=threads)
 
+
+def build_sparse(docs: list[Doc], index_dir: Path) -> list[Passage]:
+    """Chunk documents and build the BM25 half of the index (fast, no model needed)."""
+    passages = passages_from_docs(docs)
     index_dir.mkdir(parents=True, exist_ok=True)
     with (index_dir / "passages.jsonl").open("w", encoding="utf-8") as f:
         for p in passages:
             f.write(json.dumps(asdict(p), ensure_ascii=False) + "\n")
-
     retriever = bm25s.BM25()
-    retriever.index(tokenize([p.text for p in passages]), show_progress=False)
+    retriever.index(tokenize_corpus([p.text for p in passages]), show_progress=False)
     retriever.save(str(index_dir / "bm25"))
+    return passages
+
+
+def build_dense(passages: list[Passage], index_dir: Path, batch_size: int = 256, threads: int | None = None) -> None:
+    """Embed every passage, reporting progress. `threads` caps CPU use (a fanless laptop cooks otherwise)."""
+    from fastembed import TextEmbedding
 
     started = time.monotonic()
-    model = TextEmbedding(EMBED_MODEL)
-    vectors = np.array(list(model.embed((p.text for p in passages), batch_size=batch_size)), dtype=np.float32)
+    model = TextEmbedding(EMBED_MODEL, threads=threads)
+    vectors = np.zeros((len(passages), 384), dtype=np.float32)
+    done = 0
+    for vector in model.embed((p.text for p in passages), batch_size=batch_size):
+        vectors[done] = vector
+        done += 1
+        if done % 5000 == 0:
+            rate = done / (time.monotonic() - started)
+            eta_min = (len(passages) - done) / rate / 60
+            print(f"  {done}/{len(passages)} ({rate:.0f}/s, eta {eta_min:.1f} min)", flush=True)
     vectors /= np.linalg.norm(vectors, axis=1, keepdims=True) + 1e-9
     np.save(index_dir / "dense.npy", vectors)
-    print(f"embedded {vectors.shape} in {time.monotonic() - started:.0f}s -> {index_dir}")
+    print(f"embedded {vectors.shape} in {time.monotonic() - started:.0f}s -> {index_dir / 'dense.npy'}")
 
 
 class SearchIndex:
@@ -148,8 +171,14 @@ class SearchIndex:
         with (index_dir / "passages.jsonl").open(encoding="utf-8") as f:
             self.passages = [Passage(**json.loads(line)) for line in f]
         self.bm25 = bm25s.BM25.load(str(index_dir / "bm25"), load_corpus=False)
-        self.dense = np.load(index_dir / "dense.npy")
+        # The dense half is optional: BM25 alone still answers, just less well on paraphrases.
+        dense_path = index_dir / "dense.npy"
+        self.dense = np.load(dense_path) if dense_path.exists() else None
         self._embedder = None
+
+    @property
+    def has_dense(self) -> bool:
+        return self.dense is not None
 
     def _embed_query(self, query: str) -> np.ndarray:
         if self._embedder is None:
@@ -174,12 +203,13 @@ class SearchIndex:
         if not keep.any():
             return []
 
-        sparse_ranks = self._bm25_ranks(query, keep, candidates)
-        dense_ranks = self._dense_ranks(query, keep, candidates)
+        rankings = [self._bm25_ranks(query, keep, candidates)]
+        if self.dense is not None:
+            rankings.append(self._dense_ranks(query, keep, candidates))
 
         make = VEHICLES[vehicle_id].make if vehicle_id else None
         fused: dict[int, float] = {}
-        for ranks in (sparse_ranks, dense_ranks):
+        for ranks in rankings:
             for rank, idx in enumerate(ranks):
                 fused[idx] = fused.get(idx, 0.0) + 1.0 / (RRF_K + rank + 1)
         for idx in fused:
@@ -215,8 +245,10 @@ class SearchIndex:
         return best
 
     def _bm25_ranks(self, query: str, keep: np.ndarray, candidates: int) -> list[int]:
-        tokens = tokenize([query])
-        scores = self.bm25.get_scores(tokens[0] if isinstance(tokens, list) else tokens.ids[0])
+        tokens = tokenize_query(query)
+        if not tokens:
+            return []
+        scores = self.bm25.get_scores(tokens)
         scores = np.where(keep, scores, -np.inf)
         top = np.argpartition(-scores, min(candidates, len(scores) - 1))[:candidates]
         return [int(i) for i in top[np.argsort(-scores[top])] if np.isfinite(scores[i])]
@@ -231,7 +263,10 @@ class SearchIndex:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("build")
+    b = sub.add_parser("build")
+    b.add_argument("--threads", type=int, default=None, help="Cap embedding threads (heat/throttling)")
+    b.add_argument("--no-dense", action="store_true", help="BM25 only; embed later (e.g. on the GPU box)")
+    b.add_argument("--dense-only", action="store_true", help="Reuse existing passages.jsonl, embed only")
     q = sub.add_parser("query")
     q.add_argument("text")
     q.add_argument("--vehicle", default=None, choices=list(VEHICLES))
@@ -240,9 +275,17 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "build":
-        build()
+        if args.dense_only:
+            with (INDEX_DIR / "passages.jsonl").open(encoding="utf-8") as f:
+                passages = [Passage(**json.loads(line)) for line in f]
+            print(f"{len(passages)} passages from disk")
+            build_dense(passages, INDEX_DIR, threads=args.threads)
+        else:
+            build(threads=args.threads, dense=not args.no_dense)
         return
     index = SearchIndex()
+    if not index.has_dense:
+        print("(BM25 only — dense vectors not built yet)")
     started = time.monotonic()
     hits = index.search(
         args.text,

@@ -4,6 +4,7 @@ uv run uvicorn mechanic.server:app --reload
 """
 
 import os
+import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 
@@ -54,6 +55,13 @@ class SimulatorManager:
 
 store = TorqueStore(DB_PATH)
 simulators = SimulatorManager(store, f"{SELF_URL}/torque")
+# Last time a human did something here. scripts/idle_shutdown.py polls this to stop a rented GPU.
+_last_activity = time.time()
+
+
+def mark_activity() -> None:
+    global _last_activity
+    _last_activity = time.time()
 
 
 @asynccontextmanager
@@ -96,7 +104,11 @@ def sim_status(sim: TorqueSimulator) -> dict:
 
 @app.get("/api/health")
 async def health() -> dict:
-    return {"ok": True}
+    return {
+        "ok": True,
+        "seconds_since_activity": round(time.time() - _last_activity, 1),
+        "simulators": len(simulators.sims),
+    }
 
 
 @app.get("/api/catalog")
@@ -110,6 +122,7 @@ async def catalog() -> dict:
 
 @app.post("/api/sim/{device}")
 async def start_sim(device: str, req: StartSimRequest) -> dict:
+    mark_activity()
     try:
         sim = await simulators.start(device, req.vehicle, req.mode, req.fault, req.time_scale)
     except (KeyError, ValueError) as e:
@@ -119,6 +132,7 @@ async def start_sim(device: str, req: StartSimRequest) -> dict:
 
 @app.patch("/api/sim/{device}")
 async def update_sim(device: str, req: UpdateSimRequest) -> dict:
+    mark_activity()
     sim = simulators.get(device)
     try:
         if req.mode:
@@ -145,6 +159,7 @@ async def get_sim(device: str) -> dict:
 
 @app.get("/api/sensors/{device}")
 async def sensors(device: str) -> dict:
+    mark_activity()
     return {
         "device": device,
         "readings": [asdict(r) for r in store.latest(device)],

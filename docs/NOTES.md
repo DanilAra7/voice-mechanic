@@ -74,6 +74,17 @@ SE: матчинг машин по тегу модели (+ год из заго
 - Тесты фейкового LLM: `AsyncOpenAI`-клиент подменяется объектом со скриптом чанков; список `messages` мутируется циклом, поэтому в фейке его надо копировать.
 - `pytest` не видит `tests` как пакет — общие хелперы кладём в `tests/conftest.py` и импортируем как `from conftest import ...`.
 - Ruff: длинные строки описаний тулов и промпта разрешены через per-file-ignores (E501).
+- **bm25s**: для запроса нужен `bm25s.tokenize(q, return_ids=False)` → список строк. Если передать `ids` от свежего токенизатора, они ссылаются на ДРУГОЙ словарь и выдача будет мусорной (попались 2026-09-17). Индексация — наоборот, через ids (`tokenize_corpus`). Тест `tests/test_search.py` это стережёт.
+- MacBook Air M4 без вентилятора: fastembed забирает ~490% CPU и ноутбук сильно греется + троттлит. Для локальных прогонов `--threads 4`; лучше считать эмбеддинги на арендованной GPU (`--dense-only`).
+
+## Качество поиска (BM25-only, 2026-09-17)
+
+Проверка на 3 запросах, поиск ~7 мс:
+- «high fuel trim at idle but normal on the highway» → тред SE «P0171: what to look at next…» (верно).
+- «engine overheating at idle but fine while driving» → треды про перегрев Civic/Mondeo (верно).
+- «how do I check the coolant level» + vehicle=audi_a4_b8 → страница carcarekiosk именно про A4 (буст по машине работает).
+
+Плотные векторы ещё не посчитаны: `data/index/dense.npy` отсутствует, `SearchIndex.has_dense == False`, поиск работает только на BM25.
 
 ## Бенчмарки
 
