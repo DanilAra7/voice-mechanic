@@ -5,6 +5,7 @@ appears, sound starts — and an interruption stops all of it.
 """
 
 import asyncio
+import time
 
 import numpy as np
 import pytest
@@ -170,6 +171,7 @@ async def test_speaking_up_again_does_interrupt():
     session, events, _ = build()
     session.detector = QuietDetector()
     session._speaking = True
+    session._speaking_since = time.monotonic() - 2.0   # the answer has been running a while
     session._speech_run_s = 0.0
 
     session.detector.is_speaking = True   # and they keep going, unlike an echo
@@ -177,6 +179,18 @@ async def test_speaking_up_again_does_interrupt():
         await session.push_audio(np.zeros(1600, dtype=np.float32))
 
     assert "flush" in [e for e, _ in events]
+
+
+async def test_the_start_of_an_answer_cannot_be_interrupted():
+    """Nobody interrupts a sentence that has not started; that reading is the previous question."""
+    session, events, _ = build()
+    session.detector = QuietDetector()
+    session._speaking = True
+    session._speaking_since = time.monotonic()         # just began
+    session.detector.is_speaking = True
+    for _ in range(6):
+        await session.push_audio(np.zeros(1600, dtype=np.float32))
+    assert "flush" not in [e for e, _ in events]
 
 
 async def test_a_click_is_not_a_question():

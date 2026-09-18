@@ -28,6 +28,9 @@ MIN_UTTERANCE_S = 0.4
 # Someone genuinely talking over the answer keeps going; a blip is buffered audio or a noise.
 # Requiring the speech to last stops the agent cutting itself off on the tail of the last question.
 BARGE_IN_SPEECH_S = 0.25
+# The detector's buffer still holds the end of the question when the answer begins. Nobody can
+# genuinely interrupt an answer before it has been going this long, so ignore anything sooner.
+BARGE_IN_GRACE_S = 0.8
 
 Event = Callable[[str, dict], Awaitable[None]]
 Audio = Callable[[np.ndarray, int], Awaitable[None]]
@@ -63,6 +66,7 @@ class VoiceSession:
         self.on_event = on_event
         self.on_audio = on_audio
         self._speaking = False
+        self._speaking_since = 0.0
         # How long the detector has been hearing speech while we are answering. Barge-in needs
         # this to last: when an answer starts the driver has only just stopped, and the tail of
         # their own question still reads as speech, so any instant trigger fires on the echo.
@@ -87,7 +91,8 @@ class VoiceSession:
             self._speech_run_s += chunk_s
         else:
             self._speech_run_s = 0.0
-        if self._speaking and self._speech_run_s >= BARGE_IN_SPEECH_S:
+        answering_for = time.monotonic() - self._speaking_since if self._speaking else 0.0
+        if answering_for > BARGE_IN_GRACE_S and self._speech_run_s >= BARGE_IN_SPEECH_S:
             await self._barge_in()
         for utterance in self.detector.push(pcm):
             if utterance.duration_s < MIN_UTTERANCE_S:
@@ -118,6 +123,7 @@ class VoiceSession:
         await self._emit("transcript", {"text": transcript.text, "ms": round(timings.asr_ms)})
 
         self._speaking = True
+        self._speaking_since = time.monotonic()
         try:
             async for sentence in self.agent.stream(transcript.text, on_event=self._agent_event):
                 if self._cancel.is_set():
