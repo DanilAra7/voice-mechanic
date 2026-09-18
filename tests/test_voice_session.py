@@ -170,6 +170,7 @@ async def test_the_tail_of_the_drivers_own_words_is_not_an_interruption():
 async def test_speaking_up_again_does_interrupt():
     session, events, _ = build()
     session.detector = QuietDetector()
+    session._confirmed.set()              # they can hear the answer, so they can talk over it
     session._speaking = True
     session._speaking_since = time.monotonic() - 2.0   # the answer has been running a while
     session._speech_run_s = 0.0
@@ -185,6 +186,7 @@ async def test_the_start_of_an_answer_cannot_be_interrupted():
     """Nobody interrupts a sentence that has not started; that reading is the previous question."""
     session, events, _ = build()
     session.detector = QuietDetector()
+    session._confirmed.set()
     session._speaking = True
     session._speaking_since = time.monotonic()         # just began
     session.detector.is_speaking = True
@@ -208,6 +210,7 @@ async def test_speech_during_the_grace_window_does_not_count_later():
     """The echo must not fill the interruption counter while it is being ignored."""
     session, events, _ = build()
     session.detector = QuietDetector()
+    session._confirmed.set()
     session._speaking = True
     session._speaking_since = time.monotonic()
     session.detector.is_speaking = True
@@ -276,3 +279,15 @@ async def test_carrying_on_drops_the_answer_and_keeps_the_words():
     assert "carry_on" in [e for e, _ in events]
     transcripts = [p["text"] for e, p in events if e == "transcript"]
     assert transcripts[-1] == "my idle feels rough what does that mean", "lost what they had said"
+
+
+async def test_an_unheard_answer_cannot_be_interrupted():
+    """Nothing has been played yet, so speech is them finishing the question, not cutting in."""
+    session, events, _ = build()
+    session.detector = QuietDetector()
+    session._speaking = True
+    session._speaking_since = time.monotonic() - 5.0   # grace long gone
+    session.detector.is_speaking = True                # and they are talking
+    for _ in range(6):
+        await session.push_audio(np.zeros(1600, dtype=np.float32))
+    assert "flush" not in [e for e, _ in events]

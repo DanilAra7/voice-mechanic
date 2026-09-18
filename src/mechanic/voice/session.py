@@ -112,7 +112,9 @@ class VoiceSession:
             # end of the question they just asked, still working through the detector's buffer.
             self._speech_run_s = 0.0
 
-        if self._speaking and not in_grace and self._speech_run_s >= BARGE_IN_SPEECH_S:
+        # Only a confirmed turn can be interrupted: before that nothing has been played, so there
+        # is nothing to talk over — speech then means they are still finishing their question.
+        if self._confirmed.is_set() and self._speaking and not in_grace and self._speech_run_s >= BARGE_IN_SPEECH_S:
             await self._barge_in()
         for utterance in self.detector.push(pcm):
             if utterance.duration_s < MIN_UTTERANCE_S:
