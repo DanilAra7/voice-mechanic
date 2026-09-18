@@ -140,3 +140,52 @@ async def test_late_audio_frames_are_not_dropped():
     session.synthesiser.frames = 12
     await session.handle(SPEECH)
     assert len(audio) == 12
+
+
+class QuietDetector:
+    """Reports whatever `is_speaking` is set to and never produces an utterance."""
+
+    is_speaking = False
+
+    def push(self, _chunk):
+        return iter(())
+
+
+async def test_the_tail_of_the_drivers_own_words_is_not_an_interruption():
+    """When an answer starts the driver has only just stopped; that is not them talking over it."""
+    session, events, _ = build()
+    session.detector = QuietDetector()
+    session._speaking = True
+    session._heard_speech = True          # as `handle` sets it when a turn begins
+
+    session.detector.is_speaking = True   # the tail of their own sentence still reads as speech
+    await session.push_audio(np.zeros(1600, dtype=np.float32))
+    session.detector.is_speaking = False
+    await session.push_audio(np.zeros(1600, dtype=np.float32))
+
+    assert "flush" not in [e for e, _ in events], "interrupted itself on its own echo"
+
+
+async def test_speaking_up_again_does_interrupt():
+    session, events, _ = build()
+    session.detector = QuietDetector()
+    session._speaking = True
+    session._heard_speech = True
+
+    session.detector.is_speaking = False  # they went quiet
+    await session.push_audio(np.zeros(1600, dtype=np.float32))
+    session.detector.is_speaking = True   # and then spoke over the answer
+    await session.push_audio(np.zeros(1600, dtype=np.float32))
+
+    assert "flush" in [e for e, _ in events]
+
+
+async def test_a_click_is_not_a_question():
+    from mechanic.voice.session import MIN_UTTERANCE_S
+    from mechanic.voice.vad import Utterance
+
+    session, _, _ = build()
+    tiny = Utterance(audio=np.zeros(int(16000 * MIN_UTTERANCE_S / 2), dtype=np.float32), start_sample=0)
+    session.detector = type("One", (), {"push": lambda self, c: iter([tiny]), "is_speaking": False})()
+    await session.push_audio(np.zeros(1600, dtype=np.float32))
+    assert session._turn is None
