@@ -86,13 +86,15 @@ class VoiceSession:
 
     async def push_audio(self, pcm: np.ndarray) -> None:
         """Feed one chunk of microphone audio. Utterances are handled as they complete."""
-        chunk_s = len(pcm) / SAMPLE_RATE
-        if self.detector.is_speaking:
-            self._speech_run_s += chunk_s
-        else:
-            self._speech_run_s = 0.0
         answering_for = time.monotonic() - self._speaking_since if self._speaking else 0.0
-        if answering_for > BARGE_IN_GRACE_S and self._speech_run_s >= BARGE_IN_SPEECH_S:
+        in_grace = self._speaking and answering_for <= BARGE_IN_GRACE_S
+        if self.detector.is_speaking and not in_grace:
+            self._speech_run_s += len(pcm) / SAMPLE_RATE
+        else:
+            # Nothing heard during the grace window counts, including towards the run: it is the
+            # end of the question they just asked, still working through the detector's buffer.
+            self._speech_run_s = 0.0
+        if self._speaking and not in_grace and self._speech_run_s >= BARGE_IN_SPEECH_S:
             await self._barge_in()
         for utterance in self.detector.push(pcm):
             if utterance.duration_s < MIN_UTTERANCE_S:

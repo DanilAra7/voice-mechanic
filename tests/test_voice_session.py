@@ -202,3 +202,23 @@ async def test_a_click_is_not_a_question():
     session.detector = type("One", (), {"push": lambda self, c: iter([tiny]), "is_speaking": False})()
     await session.push_audio(np.zeros(1600, dtype=np.float32))
     assert session._turn is None
+
+
+async def test_speech_during_the_grace_window_does_not_count_later():
+    """The echo must not fill the interruption counter while it is being ignored."""
+    session, events, _ = build()
+    session.detector = QuietDetector()
+    session._speaking = True
+    session._speaking_since = time.monotonic()
+    session.detector.is_speaking = True
+
+    for _ in range(6):                       # 600 ms of echo, inside the grace window
+        await session.push_audio(np.zeros(1600, dtype=np.float32))
+    assert "flush" not in [e for e, _ in events]
+
+    session._speaking_since = time.monotonic() - 5.0   # grace has now long expired
+    session.detector.is_speaking = False               # and they are quiet
+    await session.push_audio(np.zeros(1600, dtype=np.float32))
+    session.detector.is_speaking = True                # one blip must not be enough
+    await session.push_audio(np.zeros(1600, dtype=np.float32))
+    assert "flush" not in [e for e, _ in events], "the grace-window echo still counted"
