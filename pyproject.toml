@@ -13,6 +13,8 @@ dependencies = [
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
     "selectolax>=0.4.11",
+    "sherpa-onnx>=1.12.23",
+    "soundfile>=0.13.1",
     "uvicorn[standard]>=0.53.0",
 ]
 
