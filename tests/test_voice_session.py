@@ -222,3 +222,57 @@ async def test_speech_during_the_grace_window_does_not_count_later():
     session.detector.is_speaking = True                # one blip must not be enough
     await session.push_audio(np.zeros(1600, dtype=np.float32))
     assert "flush" not in [e for e, _ in events], "the grace-window echo still counted"
+
+
+async def test_nothing_is_played_before_the_turn_is_confirmed():
+    """The work runs early; only the sound waits. A half-question must never be heard."""
+    from mechanic.voice import session as mod
+
+    session, events, audio = build()
+    original = mod.CONFIRM_EXTRA_S
+    mod.CONFIRM_EXTRA_S = 5.0                     # confirmation will not arrive during this test
+    try:
+        turn = asyncio.create_task(session.handle(SPEECH))
+        await asyncio.sleep(0.4)                  # long enough for recognition and the model
+        assert [e for e, _ in events], "the turn did not start"
+        assert "audio_start" not in [e for e, _ in events], "spoke before the turn was confirmed"
+        assert audio == [], "sent audio before the turn was confirmed"
+        session._confirmed.set()
+        await asyncio.wait_for(turn, timeout=5)
+    finally:
+        mod.CONFIRM_EXTRA_S = original
+    assert audio, "never spoke even after confirmation"
+
+
+async def test_carrying_on_drops_the_answer_and_keeps_the_words():
+    """A second utterance before confirmation means they had not finished, not that they cut in."""
+    from mechanic.voice import session as mod
+    from mechanic.voice.vad import Utterance
+
+    session, events, audio = build()
+    more = Utterance(audio=np.zeros(16000, dtype=np.float32), start_sample=0)
+    pushes = [[], [more]]
+    session.detector = type(
+        "Continuing",
+        (),
+        {"push": lambda self, c: iter(pushes.pop(0) if pushes else []), "is_speaking": False},
+    )()
+
+    original = mod.CONFIRM_EXTRA_S
+    mod.CONFIRM_EXTRA_S = 5.0                     # confirmation will not arrive on its own
+    try:
+        await session.push_audio(np.zeros(1600, dtype=np.float32))   # nothing yet
+        session._turn = asyncio.create_task(session.handle(SPEECH))
+        await asyncio.sleep(0.3)
+        session.recognizer.text = "what does that mean"
+        await session.push_audio(np.zeros(1600, dtype=np.float32))   # they carry on
+        follow_up = session._turn
+        await asyncio.sleep(0.2)                  # let the new turn clear the flag, then confirm it
+        session._confirmed.set()
+        await asyncio.wait_for(follow_up, timeout=5)
+    finally:
+        mod.CONFIRM_EXTRA_S = original
+
+    assert "carry_on" in [e for e, _ in events]
+    transcripts = [p["text"] for e, p in events if e == "transcript"]
+    assert transcripts[-1] == "my idle feels rough what does that mean", "lost what they had said"
