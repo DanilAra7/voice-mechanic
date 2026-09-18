@@ -120,3 +120,23 @@ def test_synthesiser_reports_a_rate_before_it_is_loaded():
     from mechanic.voice.tts import SAMPLE_RATE, Synthesiser
 
     assert Synthesiser().sample_rate == SAMPLE_RATE
+
+
+async def test_a_turn_never_ends_in_silence():
+    """A model that says nothing must not leave the driver wondering if the line dropped."""
+    from mechanic.voice.session import NOTHING_TO_SAY
+
+    session, events, audio = build(sentences=[])
+    timings = await session.handle(SPEECH)
+
+    assert session.synthesiser.said == [NOTHING_TO_SAY]
+    assert timings.first_audio_ms is not None
+    assert audio, "the fallback has to be spoken, not just logged"
+
+
+async def test_late_audio_frames_are_not_dropped():
+    """Frames handed over from the worker thread can land after it finishes."""
+    session, _, audio = build(sentences=["One."])
+    session.synthesiser.frames = 12
+    await session.handle(SPEECH)
+    assert len(audio) == 12

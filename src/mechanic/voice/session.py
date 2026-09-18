@@ -21,6 +21,9 @@ from mechanic.voice.asr import Recognizer
 from mechanic.voice.tts import Synthesiser
 from mechanic.voice.vad import TurnDetector
 
+# Said when a turn would otherwise end in silence.
+NOTHING_TO_SAY = "Sorry, I did not catch that. Say it again?"
+
 Event = Callable[[str, dict], Awaitable[None]]
 Audio = Callable[[np.ndarray, int], Awaitable[None]]
 
@@ -110,6 +113,14 @@ class VoiceSession:
         finally:
             self._speaking = False
 
+        # A turn that produced nothing is the worst outcome for a voice agent: the driver is left
+        # wondering whether the line dropped. Seen in testing when the model returned only its
+        # internal reasoning and no spoken content.
+        if timings.first_sentence_ms is None and not timings.barged_in:
+            await self._emit("sentence", {"text": NOTHING_TO_SAY, "fallback": True})
+            timings.first_sentence_ms = (time.monotonic() - zero) * 1000
+            await self._speak(NOTHING_TO_SAY, zero, timings)
+
         timings.total_ms = (time.monotonic() - zero) * 1000
         await self._emit("turn_end", {k: v for k, v in asdict(timings).items() if v is not None})
         return timings
@@ -129,20 +140,31 @@ class VoiceSession:
         work = asyncio.create_task(asyncio.to_thread(self.synthesiser.say, sentence, on_frame))
         sample_rate = self.synthesiser_sample_rate
 
-        while not work.done() or not queue.empty():
+        async def drain_one() -> bool:
             try:
                 chunk = await asyncio.wait_for(queue.get(), timeout=0.05)
             except TimeoutError:
-                continue
+                return True
             if self._cancel.is_set():
                 timings.barged_in = True
-                break
+                return False
             if timings.first_audio_ms is None:
                 timings.first_audio_ms = (time.monotonic() - zero) * 1000
                 await self._emit("audio_start", {"ms": round(timings.first_audio_ms)})
             if self.on_audio:
                 await self.on_audio(chunk, sample_rate)
+            return True
+
+        while not work.done() or not queue.empty():
+            if not await drain_one():
+                break
         await work
+        # The worker thread hands frames over through call_soon_threadsafe, so the last of them can
+        # still be sitting in the loop's callback queue when the thread is already finished.
+        # Without this the final frames of a sentence are simply dropped.
+        await asyncio.sleep(0)
+        while not queue.empty() and not self._cancel.is_set():
+            await drain_one()
 
     @property
     def synthesiser_sample_rate(self) -> int:
