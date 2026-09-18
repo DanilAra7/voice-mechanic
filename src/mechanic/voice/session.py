@@ -17,7 +17,7 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 
 from mechanic.agent.loop import AgentLoop
-from mechanic.voice.asr import Recognizer
+from mechanic.voice.asr import SAMPLE_RATE, Recognizer
 from mechanic.voice.tts import Synthesiser
 from mechanic.voice.vad import TurnDetector
 
@@ -25,6 +25,9 @@ from mechanic.voice.vad import TurnDetector
 NOTHING_TO_SAY = "Sorry, I did not catch that. Say it again?"
 # Shorter than this is a cough, a door, a click — answering it wastes a turn and confuses the driver.
 MIN_UTTERANCE_S = 0.4
+# Someone genuinely talking over the answer keeps going; a blip is buffered audio or a noise.
+# Requiring the speech to last stops the agent cutting itself off on the tail of the last question.
+BARGE_IN_SPEECH_S = 0.25
 
 Event = Callable[[str, dict], Awaitable[None]]
 Audio = Callable[[np.ndarray, int], Awaitable[None]]
@@ -60,10 +63,10 @@ class VoiceSession:
         self.on_event = on_event
         self.on_audio = on_audio
         self._speaking = False
-        # True while the detector hears speech. Barge-in needs the rising edge of this, not its
-        # value: when an answer starts the driver has only just stopped talking, and the tail of
-        # their own utterance still reads as speech — the agent would interrupt itself.
-        self._heard_speech = True
+        # How long the detector has been hearing speech while we are answering. Barge-in needs
+        # this to last: when an answer starts the driver has only just stopped, and the tail of
+        # their own question still reads as speech, so any instant trigger fires on the echo.
+        self._speech_run_s = 0.0
         self._cancel = asyncio.Event()
         self._turn: asyncio.Task | None = None
 
@@ -79,10 +82,12 @@ class VoiceSession:
 
     async def push_audio(self, pcm: np.ndarray) -> None:
         """Feed one chunk of microphone audio. Utterances are handled as they complete."""
-        speech_now = self.detector.is_speaking
-        started_talking = speech_now and not self._heard_speech
-        self._heard_speech = speech_now
-        if self._speaking and started_talking:
+        chunk_s = len(pcm) / SAMPLE_RATE
+        if self.detector.is_speaking:
+            self._speech_run_s += chunk_s
+        else:
+            self._speech_run_s = 0.0
+        if self._speaking and self._speech_run_s >= BARGE_IN_SPEECH_S:
             await self._barge_in()
         for utterance in self.detector.push(pcm):
             if utterance.duration_s < MIN_UTTERANCE_S:
@@ -95,13 +100,14 @@ class VoiceSession:
         """The driver started talking over the answer: stop making noise and listen."""
         self._cancel.set()
         self._speaking = False
+        self._speech_run_s = 0.0
         await self._emit("flush", {"reason": "barge_in"})
 
     async def handle(self, speech: np.ndarray) -> TurnTimings:
         """Everything between the driver falling silent and the answer being spoken."""
         zero = time.monotonic()
         self._cancel.clear()
-        self._heard_speech = True     # they have only just stopped; do not read the tail as a new turn
+        self._speech_run_s = 0.0      # they have only just stopped; do not read the tail as a new turn
         timings = TurnTimings(speech_seconds=round(len(speech) / 16000, 2))
 
         transcript = await asyncio.to_thread(self.recognizer.transcribe, speech)

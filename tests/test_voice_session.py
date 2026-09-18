@@ -156,10 +156,10 @@ async def test_the_tail_of_the_drivers_own_words_is_not_an_interruption():
     session, events, _ = build()
     session.detector = QuietDetector()
     session._speaking = True
-    session._heard_speech = True          # as `handle` sets it when a turn begins
+    session._speech_run_s = 0.0           # as `handle` sets it when a turn begins
 
     session.detector.is_speaking = True   # the tail of their own sentence still reads as speech
-    await session.push_audio(np.zeros(1600, dtype=np.float32))
+    await session.push_audio(np.zeros(1600, dtype=np.float32))   # 100 ms
     session.detector.is_speaking = False
     await session.push_audio(np.zeros(1600, dtype=np.float32))
 
@@ -170,12 +170,11 @@ async def test_speaking_up_again_does_interrupt():
     session, events, _ = build()
     session.detector = QuietDetector()
     session._speaking = True
-    session._heard_speech = True
+    session._speech_run_s = 0.0
 
-    session.detector.is_speaking = False  # they went quiet
-    await session.push_audio(np.zeros(1600, dtype=np.float32))
-    session.detector.is_speaking = True   # and then spoke over the answer
-    await session.push_audio(np.zeros(1600, dtype=np.float32))
+    session.detector.is_speaking = True   # and they keep going, unlike an echo
+    for _ in range(4):                    # 400 ms, past BARGE_IN_SPEECH_S
+        await session.push_audio(np.zeros(1600, dtype=np.float32))
 
     assert "flush" in [e for e, _ in events]
 
