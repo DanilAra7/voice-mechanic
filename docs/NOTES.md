@@ -109,6 +109,15 @@ SE: матчинг машин по тегу модели (+ год из заго
 - Переменные Vast (`CONTAINER_ID` и др.) видны в окружении PID 1, но НЕ в ssh-сессии —
   читать через `tr '\0' '\n' < /proc/1/environ`.
 
+## Зависимости: две ловушки (2026-09-18)
+
+- **`sherpa-onnx` бесполезен без `sherpa-onnx-core`.** Нативные библиотеки лежат в отдельном
+  пакете, `uv sync` его сам не тянет, и импорт падает на
+  `Library not loaded: @rpath/libonnxruntime.dylib`. Обе строки — в `pyproject.toml`.
+- **`moshi` держит `numpy<2.3`, а `fastembed` на Python 3.14 требует `numpy>=2.3`.** Решается
+  ограничением `requires-python = ">=3.12,<3.14"`; на 3.12 обе уживаются (numpy 2.2.6).
+  Сам `moshi` — в extra `gpu` (`uv sync --extra gpu`), чтобы ноутбук не тянул CUDA-колёса.
+
 ## Установка стека на инстансе (проверено 2026-09-18)
 
 Образ `nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04`. Сначала:

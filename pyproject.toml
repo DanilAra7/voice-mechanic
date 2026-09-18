@@ -2,21 +2,30 @@
 name = "mechanic"
 version = "0.1.0"
 description = "Self-hosted English voice agent: car mechanic assistant"
-requires-python = ">=3.12"
+# Upper bound is the synthesiser's: on 3.14 fastembed wants a numpy moshi cannot use yet.
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "bm25s>=0.3.11",
     "fastapi>=0.141.1",
     "fastembed>=0.8.0",
     "httpx>=0.28.1",
-    "numpy>=2.5.3",
+    # Upper bound is moshi's (the synthesiser): it has not moved to numpy 2.3 yet.
+    "numpy>=1.26,<2.3",
     "openai>=3.14.1",
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
     "selectolax>=0.4.11",
     "sherpa-onnx>=1.12.23",
+    # Carries the native libraries; a plain sync leaves sherpa-onnx unable to load without it.
+    "sherpa-onnx-core>=1.13.8",
     "soundfile>=0.13.1",
     "uvicorn[standard]>=0.53.0",
 ]
+
+[project.optional-dependencies]
+# Speech synthesis runs on the rented GPU and drags in torch, which the laptop does not need:
+#   uv sync --extra gpu
+gpu = ["moshi>=0.2.13"]
 
 [build-system]
 requires = ["uv_build>=0.12.8,<0.13.0"]
