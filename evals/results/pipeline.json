@@ -1,0 +1,31 @@
+{
+  "model": "gpt-oss-20b",
+  "vram_llm_mib": 11472,
+  "vram_both_mib": 15549,
+  "vram_peak_mib": 15875,
+  "headroom_mib": 501,
+  "turns": [
+    {
+      "question": "My temperature gauge is climbing and it is still going up.",
+      "sentence": "Check the coolant level first.",
+      "llm_ms": 465,
+      "tts_ms": 355,
+      "total_ms": 820
+    },
+    {
+      "question": "The car shakes at idle and the check engine light came on.",
+      "sentence": "Sounds like a rough idle.",
+      "llm_ms": 297,
+      "tts_ms": 354,
+      "total_ms": 651
+    },
+    {
+      "question": "I smell gasoline inside the cabin while driving.",
+      "sentence": "Check the fuel lines for leaks.",
+      "llm_ms": 302,
+      "tts_ms": 354,
+      "total_ms": 655
+    }
+  ],
+  "first_audio_ms_median": 655
+}

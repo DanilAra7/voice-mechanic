@@ -1,0 +1,83 @@
+{
+  "engine": "kyutai",
+  "load_seconds": 3.5,
+  "vram_after_load_mib": 4222,
+  "vram_peak_mib": 4522,
+  "cold_first_sentence_ms": 6599,
+  "sentence_ms_p50": 1560,
+  "first_audio_ms_p50": 350,
+  "rtf_median": 0.424,
+  "rtf_worst": 0.439,
+  "lines": [
+    {
+      "line": "Stop driving and pull over as soon as it is safe.",
+      "synth_s": 6.599,
+      "audio_s": 3.68,
+      "first_audio_s": 5.363,
+      "rtf": 1.793
+    },
+    {
+      "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+      "synth_s": 1.512,
+      "audio_s": 3.52,
+      "first_audio_s": 0.346,
+      "rtf": 0.43
+    },
+    {
+      "line": "That code is P zero one seven one, which means the mixture is too lean.",
+      "synth_s": 2.029,
+      "audio_s": 5.04,
+      "first_audio_s": 0.351,
+      "rtf": 0.403
+    },
+    {
+      "line": "Let me check what other mechanics say about this.",
+      "synth_s": 1.405,
+      "audio_s": 3.2,
+      "first_audio_s": 0.345,
+      "rtf": 0.439
+    },
+    {
+      "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+      "synth_s": 1.485,
+      "audio_s": 3.44,
+      "first_audio_s": 0.347,
+      "rtf": 0.432
+    },
+    {
+      "line": "It drops back to about four percent once you are cruising.",
+      "synth_s": 1.722,
+      "audio_s": 4.16,
+      "first_audio_s": 0.35,
+      "rtf": 0.414
+    },
+    {
+      "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+      "synth_s": 1.828,
+      "audio_s": 4.48,
+      "first_audio_s": 0.35,
+      "rtf": 0.408
+    },
+    {
+      "line": "Check the P C V hose and the intake boot for cracks.",
+      "synth_s": 1.56,
+      "audio_s": 3.68,
+      "first_audio_s": 0.349,
+      "rtf": 0.424
+    },
+    {
+      "line": "I would not drive it far until that is sorted.",
+      "synth_s": 1.643,
+      "audio_s": 3.92,
+      "first_audio_s": 0.35,
+      "rtf": 0.419
+    },
+    {
+      "line": "Do you want me to walk you through checking it yourself?",
+      "synth_s": 1.539,
+      "audio_s": 3.6,
+      "first_audio_s": 0.35,
+      "rtf": 0.427
+    }
+  ]
+}
