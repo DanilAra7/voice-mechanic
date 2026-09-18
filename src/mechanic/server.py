@@ -5,9 +5,9 @@ uv run uvicorn mechanic.server:app --reload
 
 import os
 import time
-from pathlib import Path
 from contextlib import asynccontextmanager
 from dataclasses import asdict
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
