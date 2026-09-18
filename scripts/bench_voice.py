@@ -22,7 +22,9 @@ import websockets
 from mechanic.voice.asr import SAMPLE_RATE, resample, to_mono
 
 CHUNK_S = 0.1
-TRAILING_SILENCE_S = 1.2       # long enough for the turn detector to call the utterance finished
+# A microphone does not stop when the question does, so neither does this: silence keeps flowing
+# while the answer is spoken, which is also what makes the barge-in guard worth testing.
+ANSWER_TIMEOUT_S = 30.0
 
 
 def load_clip(path: Path) -> np.ndarray:
@@ -34,52 +36,84 @@ def to_pcm(audio: np.ndarray) -> bytes:
     return (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes()
 
 
-async def run_clip(ws, audio: np.ndarray) -> dict:
+async def stream_microphone(ws, audio: np.ndarray, stop: asyncio.Event) -> None:
+    """Send the question, then keep the line open with silence, all at real-time speed."""
     step = int(SAMPLE_RATE * CHUNK_S)
-    started = time.monotonic()
-    for i in range(0, len(audio), step):
-        await ws.send(to_pcm(audio[i : i + step]))
-        elapsed = time.monotonic() - started
-        due = (i / SAMPLE_RATE) + CHUNK_S
-        if due > elapsed:
-            await asyncio.sleep(due - elapsed)
-
     silence = to_pcm(np.zeros(step, dtype=np.float32))
-    end_of_speech = time.monotonic()
-    result: dict = {"audio_bytes": 0}
-    sent_silence = 0.0
-
-    while True:
-        if sent_silence < TRAILING_SILENCE_S:
+    started = time.monotonic()
+    sent = 0.0
+    try:
+        for i in range(0, len(audio), step):
+            await ws.send(to_pcm(audio[i : i + step]))
+            sent += CHUNK_S
+            if (delay := sent - (time.monotonic() - started)) > 0:
+                await asyncio.sleep(delay)
+        while not stop.is_set():
             await ws.send(silence)
-            sent_silence += CHUNK_S
-            await asyncio.sleep(CHUNK_S)
-        try:
-            message = await asyncio.wait_for(ws.recv(), timeout=0.05)
-        except TimeoutError:
-            if sent_silence >= TRAILING_SILENCE_S and time.monotonic() - end_of_speech > 25:
+            sent += CHUNK_S
+            if (delay := sent - (time.monotonic() - started)) > 0:
+                await asyncio.sleep(delay)
+    except (asyncio.CancelledError, ConnectionError):
+        pass
+
+
+async def drain_until(ws, wanted: str, deadline: float) -> None:
+    """Skip whatever is still in flight — audio frames included — until the expected event."""
+    while time.monotonic() < deadline:
+        message = await asyncio.wait_for(ws.recv(), timeout=deadline - time.monotonic())
+        if isinstance(message, bytes):
+            continue                       # leftover audio from the previous answer
+        if json.loads(message).get("type") == wanted:
+            return
+    raise TimeoutError(f"never saw {wanted}")
+
+
+async def run_clip(ws, audio: np.ndarray) -> dict:
+    """One spoken question, timed from the last sample of speech."""
+    stop = asyncio.Event()
+    speech_s = len(audio) / SAMPLE_RATE
+    sender = asyncio.create_task(stream_microphone(ws, audio, stop))
+    end_of_speech = time.monotonic() + speech_s      # when the last sample will have been sent
+
+    result: dict = {"audio_bytes": 0}
+    try:
+        while True:
+            remaining = end_of_speech + ANSWER_TIMEOUT_S - time.monotonic()
+            if remaining <= 0:
                 result["error"] = "timed out waiting for the answer"
                 return result
-            continue
-        if isinstance(message, bytes):
-            if "first_audio_client_ms" not in result:
-                result["first_audio_client_ms"] = round((time.monotonic() - end_of_speech) * 1000)
-            result["audio_bytes"] += len(message)
-            continue
-        event = json.loads(message)
-        kind = event.pop("type")
-        if kind == "transcript":
-            result["transcript"] = event.get("text")
-        elif kind == "sentence":
-            result.setdefault("sentences", []).append(event.get("text"))
-        elif kind == "tool":
-            result.setdefault("tools", []).append(event.get("name"))
-        elif kind == "error":
-            result["error"] = event.get("message")
-            return result
-        elif kind == "turn_end":
-            result["server"] = event
-            return result
+            try:
+                message = await asyncio.wait_for(ws.recv(), timeout=remaining)
+            except TimeoutError:
+                result["error"] = "timed out waiting for the answer"
+                return result
+
+            if isinstance(message, bytes):
+                if "first_audio_client_ms" not in result:
+                    result["first_audio_client_ms"] = round((time.monotonic() - end_of_speech) * 1000)
+                result["audio_bytes"] += len(message)
+                continue
+
+            event = json.loads(message)
+            kind = event.pop("type")
+            if kind == "transcript":
+                result["transcript"] = event.get("text")
+            elif kind == "sentence":
+                result.setdefault("sentences", []).append(event.get("text"))
+            elif kind == "tool":
+                result.setdefault("tools", []).append(event.get("name"))
+            elif kind == "flush":
+                result["flushed"] = True
+            elif kind == "error":
+                result["error"] = event.get("message")
+                return result
+            elif kind in ("turn_end", "turn_skipped"):
+                result["server"] = event
+                return result
+    finally:
+        stop.set()
+        sender.cancel()
+        await asyncio.gather(sender, return_exceptions=True)
 
 
 async def main_async(args) -> None:
@@ -94,8 +128,7 @@ async def main_async(args) -> None:
 
         for path in clips:
             await ws.send(json.dumps({"type": "reset"}))
-            while json.loads(await ws.recv()).get("type") != "reset_done":
-                pass
+            await drain_until(ws, "reset_done", time.monotonic() + 15)
             row = await run_clip(ws, load_clip(path))
             row["clip"] = path.name
             rows.append(row)
