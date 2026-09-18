@@ -1,0 +1,21 @@
+{
+  "name": "gpt-oss-20b",
+  "model_path": "/workspace/models/gpt-oss-20b-MXFP4.gguf",
+  "server_args": [
+    "-c",
+    "16384",
+    "-ngl",
+    "99",
+    "--jinja"
+  ],
+  "vram_peak_mib": 11688,
+  "vram_baseline_mib": 16,
+  "vram_model_mib": 11672,
+  "load_seconds": 16.0,
+  "speed": {
+    "ttft_ms": 4961,
+    "tokens": 15,
+    "tokens_per_s": 110.4
+  },
+  "eval": {}
+}

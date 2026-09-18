@@ -1,0 +1,21 @@
+{
+  "name": "qwen3-30b-q3-c8k",
+  "model_path": "/workspace/models/Qwen3-30B-A3B-Instruct-2507-UD-Q3_K_XL.gguf",
+  "server_args": [
+    "-c",
+    "8192",
+    "-ngl",
+    "99",
+    "--jinja"
+  ],
+  "vram_peak_mib": 14110,
+  "vram_baseline_mib": 16,
+  "vram_model_mib": 14094,
+  "load_seconds": 11.5,
+  "speed": {
+    "ttft_ms": 287,
+    "tokens": 64,
+    "tokens_per_s": 42.3
+  },
+  "eval": {}
+}

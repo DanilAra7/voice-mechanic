@@ -1,0 +1,48 @@
+{
+  "name": "qwen3-30b-q2",
+  "model_path": "/workspace/models/Qwen3-30B-A3B-Instruct-2507-UD-Q2_K_XL.gguf",
+  "server_args": [
+    "-c",
+    "16384",
+    "-ngl",
+    "99",
+    "--jinja"
+  ],
+  "vram_peak_mib": 12960,
+  "vram_baseline_mib": 16,
+  "vram_model_mib": 12944,
+  "load_seconds": 6.1,
+  "speed": {
+    "ttft_ms": 146,
+    "tokens": 68,
+    "tokens_per_s": 120.6
+  },
+  "eval": {
+    "model": "qwen3-30b-q2",
+    "scenarios": 32,
+    "passed": 22,
+    "pass_rate": 68.8,
+    "tool_accuracy": 69.7,
+    "content_accuracy": 93.9,
+    "voice_format_clean": 97.0,
+    "errors": [],
+    "latency_ms": {
+      "first_sentence_p50": 167.0,
+      "first_sentence_p95": 1002.0,
+      "first_sentence_mean": 288,
+      "turn_total_p50": 849.0,
+      "turn_total_p95": 5712.0
+    },
+    "by_category": {
+      "conversation": 100.0,
+      "dtc": 100.0,
+      "forum": 50.0,
+      "how_to": 0.0,
+      "live_data": 72.7,
+      "multi_turn": 100.0,
+      "owner_reports": 0.0,
+      "safety": 100.0,
+      "vehicle": 100.0
+    }
+  }
+}

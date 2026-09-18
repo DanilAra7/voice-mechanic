@@ -1,8 +1,9 @@
 """System prompt for the voice mechanic.
 
 Kept short and stable on purpose: it is the cached prefix of every request, and every extra
-sentence costs time to prefill. Everything situational (which car, whether the adapter is
-connected) comes from tools, not from the prompt.
+sentence costs time to prefill. The one exception is the car itself, which `AgentLoop` appends
+and refreshes only when it changes: leaving it to a tool cost a whole round, and models would
+ask the driver which car this is when the session already knew.
 """
 
 SYSTEM_PROMPT = """You are Dex, a friendly car mechanic talking to a driver over voice.

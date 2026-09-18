@@ -1,0 +1,50 @@
+{
+  "name": "gpt-oss-20b-low",
+  "model_path": "/workspace/models/gpt-oss-20b-MXFP4.gguf",
+  "server_args": [
+    "-c",
+    "16384",
+    "-ngl",
+    "99",
+    "--jinja",
+    "--chat-template-kwargs",
+    "{\"reasoning_effort\":\"low\"}"
+  ],
+  "vram_peak_mib": 11700,
+  "vram_baseline_mib": 16,
+  "vram_model_mib": 11684,
+  "load_seconds": 4.1,
+  "speed": {
+    "ttft_ms": 339,
+    "tokens": 75,
+    "tokens_per_s": 116.6
+  },
+  "eval": {
+    "model": "gpt-oss-20b-low",
+    "scenarios": 32,
+    "passed": 21,
+    "pass_rate": 65.6,
+    "tool_accuracy": 84.8,
+    "content_accuracy": 75.8,
+    "voice_format_clean": 97.0,
+    "errors": [],
+    "latency_ms": {
+      "first_sentence_p50": 881.0,
+      "first_sentence_p95": 1650.0,
+      "first_sentence_mean": 961,
+      "turn_total_p50": 1392.0,
+      "turn_total_p95": 2575.0
+    },
+    "by_category": {
+      "conversation": 100.0,
+      "dtc": 80.0,
+      "forum": 50.0,
+      "how_to": 25.0,
+      "live_data": 90.9,
+      "multi_turn": 100.0,
+      "owner_reports": 50.0,
+      "safety": 0.0,
+      "vehicle": 0.0
+    }
+  }
+}

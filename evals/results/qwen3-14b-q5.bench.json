@@ -1,0 +1,50 @@
+{
+  "name": "qwen3-14b-q5",
+  "model_path": "/workspace/models/Qwen3-14B-UD-Q5_K_XL.gguf",
+  "server_args": [
+    "-c",
+    "16384",
+    "-ngl",
+    "99",
+    "--jinja",
+    "--chat-template-kwargs",
+    "{\"enable_thinking\":false}"
+  ],
+  "vram_peak_mib": 12488,
+  "vram_baseline_mib": 16,
+  "vram_model_mib": 12472,
+  "load_seconds": 6.1,
+  "speed": {
+    "ttft_ms": 115,
+    "tokens": 50,
+    "tokens_per_s": 34.9
+  },
+  "eval": {
+    "model": "qwen3-14b-q5",
+    "scenarios": 32,
+    "passed": 20,
+    "pass_rate": 62.5,
+    "tool_accuracy": 78.8,
+    "content_accuracy": 72.7,
+    "voice_format_clean": 100.0,
+    "errors": [],
+    "latency_ms": {
+      "first_sentence_p50": 1596.0,
+      "first_sentence_p95": 2999.0,
+      "first_sentence_mean": 1505,
+      "turn_total_p50": 2914.0,
+      "turn_total_p95": 5369.0
+    },
+    "by_category": {
+      "conversation": 100.0,
+      "dtc": 80.0,
+      "forum": 100.0,
+      "how_to": 50.0,
+      "live_data": 45.5,
+      "multi_turn": 100.0,
+      "owner_reports": 50.0,
+      "safety": 0.0,
+      "vehicle": 100.0
+    }
+  }
+}

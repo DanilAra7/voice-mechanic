@@ -32,6 +32,18 @@ SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 MAX_TOOL_ROUNDS = 4
 
 
+def situation(session: Session) -> str:
+    """The one fact the agent always needs, stated instead of looked up.
+
+    Measured on day 3: without this the model spends a tool round on get_vehicle, or worse,
+    asks the driver which car this is when the session already knows.
+    """
+    v = session.vehicle
+    if not v:
+        return "The car has not been identified yet."
+    return f"The driver's car is a {v.title}. Live sensor data for it is available."
+
+
 @dataclass
 class Turn:
     """Everything one user utterance produced, for the UI and for evaluation."""
@@ -62,7 +74,19 @@ class AgentLoop:
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key)
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.messages: list[dict[str, Any]] = [{"role": "system", "content": build_system_prompt(extra_system)}]
+        self._extra_system = extra_system
+        self._vehicle_id = session.vehicle_id
+        self.messages: list[dict[str, Any]] = [{"role": "system", "content": self._system_content()}]
+
+    def _system_content(self) -> str:
+        extra = f"{situation(self.session)}\n{self._extra_system}" if self._extra_system else situation(self.session)
+        return build_system_prompt(extra)
+
+    def _refresh_system(self) -> None:
+        """Rebuild the prefix only when the car actually changed, so it stays cacheable."""
+        if self.session.vehicle_id != self._vehicle_id:
+            self._vehicle_id = self.session.vehicle_id
+            self.messages[0] = {"role": "system", "content": self._system_content()}
 
     def reset(self) -> None:
         self.messages = self.messages[:1]
@@ -87,6 +111,7 @@ class AgentLoop:
         """Yield spoken sentences as they become available."""
         turn = turn or Turn()
         started = time.monotonic()
+        self._refresh_system()
         self.messages.append({"role": "user", "content": user_text})
 
         async def emit(event: str, payload: dict) -> None:

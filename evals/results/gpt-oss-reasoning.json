@@ -1,0 +1,42 @@
+[
+  {
+    "effort": "low",
+    "first_any_ms": 781,
+    "first_content_ms": 1195,
+    "reasoning_tokens": 7,
+    "content_tokens": 80,
+    "tok_s": 46.3,
+    "answer": "First, pull over safely to a shaded spot and turn off the engine to prevent further overheating. Then, check the coolant level in the reservoir and add coolant ",
+    "run": 2
+  },
+  {
+    "effort": "medium",
+    "first_any_ms": 118,
+    "first_content_ms": 3774,
+    "reasoning_tokens": 223,
+    "content_tokens": 18,
+    "tok_s": 103.9,
+    "answer": "Pull over safely and turn off the engine. Let the engine cool before opening the hood.",
+    "run": 2
+  },
+  {
+    "effort": "high",
+    "first_any_ms": 484,
+    "first_content_ms": 0,
+    "reasoning_tokens": 247,
+    "content_tokens": 0,
+    "tok_s": 0.0,
+    "answer": "",
+    "run": 2
+  },
+  {
+    "effort": "default",
+    "first_any_ms": 573,
+    "first_content_ms": 3213,
+    "reasoning_tokens": 178,
+    "content_tokens": 47,
+    "tok_s": 97.9,
+    "answer": "Pull over to a safe spot and stop the vehicle.  \nTurn off the engine and let the car cool down a bit before opening the hood.  \nCheck the coolant reservoir for ",
+    "run": 2
+  }
+]

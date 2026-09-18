@@ -132,3 +132,19 @@ async def test_system_prompt_is_first_and_stable(vehicle):
     assert messages[0]["role"] == "system" and "Dex" in messages[0]["content"]
     loop.reset()
     assert len(loop.messages) == 1
+
+
+def test_system_prompt_names_the_car():
+    """The car belongs in the prefix: looking it up cost a tool round on day 3."""
+    session = Session(device="t", vehicle_id="audi_a4_b8")
+    loop = AgentLoop(ToolRunner(TorqueStore(), DtcDatabase(), None), session, model="x")
+    assert "Audi A4" in loop.messages[0]["content"]
+
+
+def test_system_prompt_follows_a_vehicle_change():
+    session = Session(device="t", vehicle_id=None)
+    loop = AgentLoop(ToolRunner(TorqueStore(), DtcDatabase(), None), session, model="x")
+    assert "not been identified" in loop.messages[0]["content"]
+    session.vehicle_id = "honda_civic_10"
+    loop._refresh_system()
+    assert "Honda Civic" in loop.messages[0]["content"]
