@@ -17,6 +17,8 @@ import time
 
 import httpx
 
+from mechanic.config import load_env
+
 VAST_API = "https://console.vast.ai/api/v0"
 
 
@@ -48,11 +50,12 @@ def stop_instance(instance_id: str, api_key: str, dry_run: bool) -> bool:
 
 
 def main() -> int:
+    load_env()
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--backend", default="http://127.0.0.1:8000")
     p.add_argument("--idle-minutes", type=float, default=20)
     p.add_argument("--poll-seconds", type=float, default=60)
-    p.add_argument("--instance-id", default=os.environ.get("CONTAINER_ID"))
+    p.add_argument("--instance-id", default=os.environ.get("CONTAINER_ID") or os.environ.get("VAST_INSTANCE_ID"))
     p.add_argument("--api-key", default=os.environ.get("VAST_API_KEY"))
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()

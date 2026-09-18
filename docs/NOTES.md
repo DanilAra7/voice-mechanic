@@ -18,6 +18,7 @@ src/mechanic/
   agent/prompt.py        # системный промпт (короткий: это кэшируемый префикс)
   agent/loop.py          # стриминг по предложениям, фразы-заглушки, вызовы тулов, тайминги
   evals/run.py           # прогон evals/scenarios.yaml против любого OpenAI-совместимого сервера
+  config.py              # load_env(): .env → os.environ (без python-dotenv)
   server.py              # FastAPI: /torque, /api/catalog, /api/sim/{device}, /api/sensors/{device}
   torque/pids.py         # PID-ы, ключи Torque (k5, kc, ...)
   torque/receiver.py     # парсер Torque web upload → store, ответ "OK!"
@@ -75,6 +76,7 @@ SE: матчинг машин по тегу модели (+ год из заго
 - `pytest` не видит `tests` как пакет — общие хелперы кладём в `tests/conftest.py` и импортируем как `from conftest import ...`.
 - Ruff: длинные строки описаний тулов и промпта разрешены через per-file-ignores (E501).
 - **bm25s**: для запроса нужен `bm25s.tokenize(q, return_ids=False)` → список строк. Если передать `ids` от свежего токенизатора, они ссылаются на ДРУГОЙ словарь и выдача будет мусорной (попались 2026-09-17). Индексация — наоборот, через ids (`tokenize_corpus`). Тест `tests/test_search.py` это стережёт.
+- Секреты: `.env.example` в git как документация, `.env` — в gitignore (`git check-ignore -v .env` проверяет). `load_env()` использует `os.environ.setdefault`, так что на арендованной машине переменные окружения контейнера перебивают файл. `idle_shutdown.py` берёт id инстанса из `CONTAINER_ID` (его ставит сам Vast внутри инстанса), а с ноутбука — из `VAST_INSTANCE_ID`.
 - MacBook Air M4 без вентилятора: fastembed забирает ~490% CPU и ноутбук сильно греется + троттлит. Для локальных прогонов `--threads 4`; лучше считать эмбеддинги на арендованной GPU (`--dense-only`).
 
 ## Качество поиска (BM25-only, 2026-09-17)

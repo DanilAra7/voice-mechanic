@@ -11,10 +11,13 @@ from dataclasses import asdict
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from mechanic.config import load_env
 from mechanic.torque.receiver import build_router
 from mechanic.torque.simulator import DRIVE_MODES, FAULTS, TorqueSimulator, VehicleModel
 from mechanic.torque.store import TorqueStore
 from mechanic.vehicles import VEHICLES, get_vehicle
+
+load_env()
 
 DB_PATH = os.environ.get("MECHANIC_DB", "data/cache/torque.sqlite")
 # The simulator talks to our own receiver over real HTTP, exactly like a phone would.
