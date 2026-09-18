@@ -161,6 +161,9 @@ class AgentLoop:
                 filler = FILLERS.get(tool_calls[0]["function"]["name"], "Let me check that.")
                 turn.text += filler + " "
                 spoken = True
+                # The driver hears this, so it is the first sentence as far as latency goes.
+                if turn.first_sentence_ms is None:
+                    turn.first_sentence_ms = (time.monotonic() - started) * 1000
                 await emit("sentence", {"text": filler, "filler": True})
                 yield filler
 

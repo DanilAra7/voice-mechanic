@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from conftest import FakeIndex
 
-from mechanic.agent.loop import AgentLoop
+from mechanic.agent.loop import FILLERS, AgentLoop, Turn
 from mechanic.agent.tools import Session, ToolRunner
 from mechanic.knowledge.dtc import DtcDatabase
 from mechanic.torque.store import TorqueStore
@@ -171,3 +171,17 @@ async def test_ordinary_question_skips_the_guardrail():
     loop = build_loop([[content_chunk("The reservoir is on the left. ")]])
     spoken = [s async for s in loop.stream("How do I check the coolant level?")]
     assert spoken[0] == "The reservoir is on the left."
+
+
+async def test_filler_counts_as_the_first_thing_the_driver_hears():
+    """Latency must be measured against speech, not against the model's own sentence."""
+    loop = build_loop(
+        [
+            [tool_chunk(0, name="search_forum", args="{}", call_id="c1")],
+            [content_chunk("Other owners report the same thing. ")],
+        ]
+    )
+    turn = Turn()
+    spoken = [s async for s in loop.stream("Is this common on my car?", turn=turn)]
+    assert spoken[0] == FILLERS["search_forum"]
+    assert turn.first_sentence_ms is not None
