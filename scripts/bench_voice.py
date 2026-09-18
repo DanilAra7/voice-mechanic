@@ -5,7 +5,7 @@ The site lets a person measure latency by talking; this does the same with fixed
 the number is repeatable and can be compared between runs. Audio is streamed at the speed a
 microphone delivers it — sending it faster would measure the server rather than the wait.
 
-    python scripts/bench_voice.py --url ws://127.0.0.1:8000/ws/voice --audio data/cache/tts_samples/kyutai
+    python scripts/bench_voice.py --url ws://127.0.0.1:8000/ws/voice --audio evals/audio/driver
 """
 
 import argparse
@@ -155,7 +155,7 @@ async def main_async(args) -> None:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--url", default="ws://127.0.0.1:8000/ws/voice")
-    p.add_argument("--audio", default="data/cache/tts_samples/kyutai")
+    p.add_argument("--audio", default="evals/audio/driver")
     p.add_argument("--device", default="bench")
     p.add_argument("--vehicle", default="audi_a4_b8")
     p.add_argument("--limit", type=int, default=5)
