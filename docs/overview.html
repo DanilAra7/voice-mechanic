@@ -1,0 +1,494 @@
+<title>Dex — Voice Mechanic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root{
+  --ground:#EEF0F1; --surface:#FFFFFF; --surface-2:#F6F7F8;
+  --ink:#161A1F; --muted:#5A646E; --rule:#D5DADE;
+  --mil:#A66200; --mil-soft:#F3E2C4;
+  --ok:#1B6E4F; --crit:#A32017; --cool:#1F5F86;
+  --shadow:0 1px 2px rgba(20,28,36,.06), 0 8px 24px -16px rgba(20,28,36,.28);
+  --display:"Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body:"Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1216; --surface:#161C22; --surface-2:#1B222A;
+    --ink:#E4E8EB; --muted:#94A0AB; --rule:#28323C;
+    --mil:#F2A93C; --mil-soft:#3A2C12;
+    --ok:#46C093; --crit:#E4635A; --cool:#6FB4DE;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1216; --surface:#161C22; --surface-2:#1B222A;
+  --ink:#E4E8EB; --muted:#94A0AB; --rule:#28323C;
+  --mil:#F2A93C; --mil-soft:#3A2C12;
+  --ok:#46C093; --crit:#E4635A; --cool:#6FB4DE;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--body); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:820px; margin:0 auto; padding-inline:20px; padding-block:0 96px}
+
+/* ---- top bar ---- */
+.topbar{
+  position:sticky; top:env(safe-area-inset-top, 0px); z-index:20;
+  background:color-mix(in srgb, var(--ground) 88%, transparent);
+  backdrop-filter:blur(10px); border-bottom:1px solid var(--rule);
+}
+.topbar-in{
+  max-width:820px; margin:0 auto; padding-inline:20px; padding-block:9px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.mark{display:flex; align-items:center; gap:8px; font-family:var(--display); font-weight:700;
+  font-size:17px; letter-spacing:.02em; text-transform:uppercase}
+.lamp{width:17px; height:17px; flex:none; color:var(--mil)}
+.days{display:flex; gap:3px; margin-inline-start:auto; align-items:center}
+.day{
+  font-family:var(--mono); font-size:10.5px; font-weight:500; line-height:1;
+  width:22px; height:22px; display:grid; place-items:center; border-radius:3px;
+  border:1px solid var(--rule); color:var(--muted); background:var(--surface);
+}
+.day.done{background:var(--ink); color:var(--ground); border-color:var(--ink)}
+.day.now{background:var(--mil); color:#120C02; border-color:var(--mil); font-weight:700}
+:root[data-theme="dark"] .day.now, :root:not([data-theme="light"]) .day.now{color:#120C02}
+
+/* ---- masthead ---- */
+.masthead{padding-block:44px 30px; border-bottom:2px solid var(--ink)}
+.kicker{
+  font-family:var(--display); text-transform:uppercase; letter-spacing:.14em;
+  font-size:12.5px; font-weight:600; color:var(--mil);
+}
+h1{
+  font-family:var(--display); font-weight:700; font-size:clamp(40px, 9vw, 62px);
+  line-height:.98; letter-spacing:-.01em; margin:.18em 0 .1em; text-wrap:balance;
+}
+.dek{font-size:19px; color:var(--muted); max-width:56ch; margin:0}
+.facts{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(128px,1fr));
+  gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:26px;
+}
+.fact{background:var(--surface); padding:11px 13px}
+.fact dt{font-family:var(--display); text-transform:uppercase; letter-spacing:.09em;
+  font-size:11px; color:var(--muted); font-weight:600}
+.fact dd{margin:2px 0 0; font-family:var(--mono); font-size:14.5px; font-weight:500;
+  font-variant-numeric:tabular-nums}
+
+/* ---- sections ---- */
+section{padding-block:38px; border-bottom:1px solid var(--rule)}
+.eyebrow{
+  font-family:var(--display); text-transform:uppercase; letter-spacing:.13em;
+  font-size:11.5px; font-weight:600; color:var(--mil); margin-bottom:7px;
+}
+h2{font-family:var(--display); font-weight:700; font-size:clamp(26px,5vw,34px);
+  line-height:1.08; margin:0 0 .5em; letter-spacing:-.005em; text-wrap:balance}
+h3{font-family:var(--display); font-weight:600; font-size:20px; margin:1.7em 0 .4em; letter-spacing:.01em}
+p{margin:0 0 1em; max-width:68ch}
+ul,ol{max-width:68ch; padding-inline-start:20px; margin:0 0 1em}
+li{margin-bottom:.34em}
+a{color:var(--ink); text-underline-offset:2px; text-decoration-color:var(--mil)}
+strong{font-weight:600}
+code{font-family:var(--mono); font-size:.87em; background:var(--surface-2);
+  border:1px solid var(--rule); border-radius:3px; padding:.08em .32em}
+pre{
+  font-family:var(--mono); font-size:13px; line-height:1.55; background:var(--surface);
+  border:1px solid var(--rule); border-left:3px solid var(--mil);
+  padding:12px 14px; overflow-x:auto; margin:0 0 1em;
+}
+pre code{background:none; border:none; padding:0; font-size:inherit}
+
+/* ---- pipeline ---- */
+.pipe{display:flex; flex-direction:column; gap:0; margin:6px 0 20px}
+.stage{
+  display:grid; grid-template-columns:78px 1fr; gap:14px; align-items:start;
+  background:var(--surface); border:1px solid var(--rule); padding:11px 13px;
+}
+.stage + .stage{border-top:none}
+.stage-n{
+  font-family:var(--mono); font-size:11px; font-weight:700; color:var(--muted);
+  text-transform:uppercase; letter-spacing:.06em; padding-top:3px;
+}
+.stage-n b{display:block; color:var(--mil); font-size:15px; letter-spacing:0}
+.stage h4{font-family:var(--display); font-size:17.5px; font-weight:600; margin:0 0 2px}
+.stage p{margin:0; font-size:14.5px; color:var(--muted); max-width:none}
+.stage.gpu{border-left:3px solid var(--mil)}
+.stage.cpu{border-left:3px solid var(--cool)}
+
+/* ---- budget bar ---- */
+.bar{display:flex; height:40px; border:1px solid var(--rule); overflow:hidden; margin:4px 0 8px; background:var(--surface)}
+.seg{display:grid; place-items:center; font-family:var(--mono); font-size:11.5px; font-weight:500;
+  color:#120C02; border-right:1px solid rgba(0,0,0,.18); text-align:center; padding-inline:4px}
+.seg:last-child{border-right:none}
+.legend{font-size:13.5px; color:var(--muted); font-family:var(--mono); display:flex; gap:14px; flex-wrap:wrap}
+.legend span{display:flex; align-items:center; gap:5px}
+.sw{width:10px; height:10px; flex:none; border:1px solid rgba(0,0,0,.2)}
+
+/* ---- tables ---- */
+.tw{overflow-x:auto; margin:0 0 1em; border:1px solid var(--rule); background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:14.5px; min-width:480px}
+th,td{text-align:left; padding:8px 11px; border-bottom:1px solid var(--rule); vertical-align:top}
+th{font-family:var(--display); text-transform:uppercase; letter-spacing:.07em; font-size:11.5px;
+  font-weight:600; color:var(--muted); background:var(--surface-2); white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td code{font-size:.84em}
+.num{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+
+/* ---- callout ---- */
+.note{
+  display:grid; grid-template-columns:20px 1fr; gap:11px; align-items:start;
+  background:var(--mil-soft); border:1px solid color-mix(in srgb, var(--mil) 40%, transparent);
+  padding:12px 14px; margin:0 0 1em; font-size:15px;
+}
+.note svg{width:19px; height:19px; color:var(--mil); margin-top:2px}
+.note p{margin:0; max-width:none}
+.note p + p{margin-top:.5em}
+
+/* ---- status pills ---- */
+.pill{font-family:var(--mono); font-size:11px; font-weight:500; padding:1px 6px;
+  border:1px solid currentColor; border-radius:2px; white-space:nowrap}
+.pill.done{color:var(--ok)}
+.pill.now{color:var(--mil)}
+.pill.todo{color:var(--muted)}
+
+/* ---- glossary ---- */
+.gloss{border:1px solid var(--rule); background:var(--surface)}
+.gloss details{border-bottom:1px solid var(--rule)}
+.gloss details:last-child{border-bottom:none}
+.gloss summary{
+  cursor:pointer; padding:9px 13px; font-family:var(--display); font-weight:600; font-size:17px;
+  display:flex; gap:10px; align-items:baseline; list-style:none;
+}
+.gloss summary::-webkit-details-marker{display:none}
+.gloss summary::after{content:"+"; margin-inline-start:auto; font-family:var(--mono);
+  color:var(--mil); font-size:15px}
+.gloss details[open] summary::after{content:"–"}
+.gloss summary:focus-visible{outline:2px solid var(--mil); outline-offset:-2px}
+.gloss .term{font-family:var(--mono); font-size:13px; font-weight:500; color:var(--mil)}
+.gloss .bd{padding:0 13px 12px; font-size:15px; color:var(--muted)}
+.gloss .bd p{margin:0; max-width:none}
+
+.foot{padding-block:26px; color:var(--muted); font-size:14px; font-family:var(--mono)}
+@media (max-width:520px){
+  .stage{grid-template-columns:1fr; gap:4px}
+  .stage-n{display:flex; gap:7px; align-items:baseline; padding-top:0}
+  .stage-n b{display:inline}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <span class="mark">
+      <svg class="lamp" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.4 7.2h-1.1V5.8a1.6 1.6 0 0 0-1.6-1.6h-1.3V3.1a1 1 0 0 0-2 0v1.1H9.5L7.9 2.6a1 1 0 0 0-1.4 1.4l1.2 1.2H6.3A3.3 3.3 0 0 0 3 8.5v6.7a3.3 3.3 0 0 0 3.3 3.3h.9v1.3a1 1 0 0 0 2 0v-1.3h5.6v1.3a1 1 0 0 0 2 0v-1.3h.6A3.6 3.6 0 0 0 21 14.9v-4.1a3.6 3.6 0 0 0-3.6-3.6Z"/></svg>
+      Dex
+    </span>
+    <nav class="days" aria-label="План по дням">
+      <span class="day done" title="День 1 — каркас, симулятор, парсеры">1</span>
+      <span class="day done" title="День 2 — поиск, тулы, агент, evals">2</span>
+      <span class="day now" title="День 3 — бенчмарки на GPU (сегодня)">3</span>
+      <span class="day" title="День 4 — Pipecat pipeline">4</span>
+      <span class="day" title="День 5 — фронтенд">5</span>
+      <span class="day" title="День 6 — оптимизация задержки">6</span>
+      <span class="day" title="День 7 — деплой, README, демо">7</span>
+    </nav>
+  </div>
+</div>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="kicker">Тестовое задание · разбор проекта</div>
+  <h1>Голосовой автомеханик</h1>
+  <p class="dek">Агент, с которым водитель разговаривает вслух, пока стоит над открытым капотом. Он видит живые данные с OBD-адаптера, ищет по форумам и мануалам — и отвечает быстрее, чем человек успевает потерять нить.</p>
+  <dl class="facts">
+    <div class="fact"><dt>Дедлайн</dt><dd>2026-09-24</dd></div>
+    <div class="fact"><dt>Лимит стека</dt><dd>16 ГБ VRAM</dd></div>
+    <div class="fact"><dt>LLM API</dt><dd>не используем</dd></div>
+    <div class="fact"><dt>Язык агента</dt><dd>English</dd></div>
+    <div class="fact"><dt>Сегодня</dt><dd>день 3 из 7</dd></div>
+  </dl>
+</header>
+
+<section>
+  <div class="eyebrow">01 · Задача</div>
+  <h2>Что именно просили сделать</h2>
+  <p>Формулировка лида, разложенная на проверяемые требования:</p>
+  <ul>
+    <li><strong>Открытая модель, без LLM API.</strong> Никаких OpenAI/Anthropic/Google — всё крутится на нашем железе. Это и техническое требование, и способ проверить, умеем ли мы работать с локальным инференсом.</li>
+    <li><strong>Ограничение по GPU.</strong> Мы ужесточили исходные 18 ГБ до <strong>16 ГБ на весь стек</strong> и арендовали карту ровно на 16 ГБ — тогда лимит доказывается физически, а не обещанием.</li>
+    <li><strong>Минимальная задержка.</strong> Главная инженерная ось проекта. Всё остальное — производные от неё.</li>
+    <li><strong>Именно агент с тулами</strong>, а не чат-бот и не таск-трекер: он сам решает, куда сходить за фактом.</li>
+    <li><strong>Самая умная модель, которая влезет.</strong> Квантизация разрешена.</li>
+    <li><strong>Сдаём сайт</strong>, где собеседник сам может замерить задержку — не поверить на слово, а нажать и увидеть цифры.</li>
+  </ul>
+  <div class="note">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 1 21h22L12 2Zm0 5.6 7.5 12.9h-15L12 7.6Zm-1 4.1v4.1h2v-4.1h-2Zm0 5.3v2h2v-2h-2Z"/></svg>
+    <p>Лид с тобой лично не знаком. Значит, проект оценивают по тому, что видно без объяснений: работает ли демо с первого клика, понятны ли цифры, видно ли, что выбор стека обоснован, а не угадан. Отсюда — журнал решений и замеры вместо «мы выбрали X, он хороший».</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">02 · Выбор темы</div>
+  <h2>Почему автомеханик, а не ассистент «вообще»</h2>
+  <p>Голосовой интерфейс должен быть <em>оправдан</em>, иначе это чат с лишним шагом. В гараже у человека руки в масле и голова под капотом — говорить удобнее, чем печатать. Это первый аргумент.</p>
+  <p>Второй: у темы естественно много разных <strong>источников фактов</strong> — живые датчики, коды ошибок, инструкции по ремонту, опыт других владельцев, форумные разборы. Это даёт агенту настоящую работу: выбрать нужный инструмент, а не один и тот же поиск на каждый вопрос.</p>
+  <p>Третий: у тебя есть Audi A4, Android с Torque Pro и OBD-адаптер — то есть проект можно довести до реального железа, а не только до демо.</p>
+  <p>Отвергли: кухонный ассистент, D&amp;D-мастер, гид по звёздному небу, travel-консьерж — у всех либо голос необязателен, либо тулы однотипные.</p>
+</section>
+
+<section>
+  <div class="eyebrow">03 · Архитектура</div>
+  <h2>Что происходит между «сказал» и «услышал»</h2>
+  <p>Путь одной реплики. Слева — на чём считается: <span style="color:var(--mil)">▌</span> GPU, <span style="color:var(--cool)">▌</span> CPU.</p>
+  <div class="pipe">
+    <div class="stage cpu"><div class="stage-n">Браузер <b>1</b></div><div><h4>Микрофон и VAD</h4><p>Аудио идёт в браузере через Voice Activity Detection: страница сама понимает, где кончилась фраза. Тот же момент — нулевая точка замера задержки.</p></div></div>
+    <div class="stage cpu"><div class="stage-n">Сеть <b>2</b></div><div><h4>WebSocket через Cloudflare Tunnel</h4><p>Не WebRTC: туннель не пропускает UDP. Зато не нужен домен и сертификат — а микрофон браузер даёт только по HTTPS.</p></div></div>
+    <div class="stage cpu"><div class="stage-n">CPU <b>3</b></div><div><h4>ASR — Parakeet TDT 0.6B</h4><p>Распознавание речи сознательно вынесено на процессор: 16 ГБ видеопамяти нужнее модели и синтезу голоса.</p></div></div>
+    <div class="stage gpu"><div class="stage-n">GPU <b>4</b></div><div><h4>LLM + тулы</h4><p>Модель отвечает потоком. Как только собралось предложение — оно уходит дальше, не дожидаясь конца ответа. Если нужен факт — вызывает тул и говорит фразу-заглушку, чтобы пауза не была мёртвой.</p></div></div>
+    <div class="stage gpu"><div class="stage-n">GPU <b>5</b></div><div><h4>TTS</h4><p>Синтез начинается с первого готового предложения. Ключевая метрика — TTFA, время до первого звукового чанка.</p></div></div>
+    <div class="stage cpu"><div class="stage-n">Браузер <b>6</b></div><div><h4>Воспроизведение и разбор задержки</h4><p>Панель показывает, сколько ушло на каждый этап, и умеет прогонять фиксированные WAV-фразы в benchmark-режиме, чтобы получить p50/p95.</p></div></div>
+  </div>
+  <p>Оркестрирует это <strong>Pipecat</strong> — фреймворк ровно для таких голосовых конвейеров: он умеет перебивание (barge-in), когда человек начинает говорить поверх ответа агента.</p>
+</section>
+
+<section>
+  <div class="eyebrow">04 · Задержка</div>
+  <h2>Откуда берётся ощущение «живого» разговора</h2>
+  <p>Человек считает паузу естественной примерно до <strong>700–900 мс</strong>. Дальше разговор начинает ощущаться как рация. Весь стек — это попытка уложить шесть этапов выше в этот бюджет.</p>
+  <p>Четыре приёма, которые уже заложены в код:</p>
+  <ul>
+    <li><strong>Стриминг по предложениям.</strong> <code>agent/loop.py</code> режет поток модели регулярным выражением по <code>.!?</code> и отдаёт предложение в TTS сразу. Ответ начинает звучать, пока модель ещё пишет его конец.</li>
+    <li><strong>Фразы-заглушки.</strong> Поиск по индексу — самый медленный тул. Перед ним агент говорит «Let me check what other mechanics say» — и пауза перестаёт быть тишиной.</li>
+    <li><strong>Короткий системный промпт.</strong> Он — кэшируемый префикс каждого запроса; каждое лишнее предложение в нём оплачивается временем префилла на каждой реплике. Поэтому всё ситуативное (какая машина, подключён ли адаптер) приходит из тулов, а не из промпта.</li>
+    <li><strong>ASR на CPU.</strong> Освобождает видеопамять под более выразительный голос.</li>
+  </ul>
+  <div class="note">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 1 21h22L12 2Zm0 5.6 7.5 12.9h-15L12 7.6Zm-1 4.1v4.1h2v-4.1h-2Zm0 5.3v2h2v-2h-2Z"/></svg>
+    <p>Цифр задержки пока нет — ни одной. Всё, что выше, это <strong>цели</strong>, а не замеры. Реальные числа появятся сегодня (LLM и TTS по отдельности) и в день 6 (сквозная задержка в браузере). До тех пор любая цифра в README была бы выдумкой.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">05 · Бюджет памяти</div>
+  <h2>16 гигабайт, которые надо поделить</h2>
+  <p>В видеопамять одновременно должны поместиться: веса языковой модели, её KV-кэш (растёт с длиной контекста), модель синтеза речи и служебные буферы CUDA. Примерная раскладка — <strong>оценка, а не замер</strong>:</p>
+  <div class="bar" role="img" aria-label="Оценка распределения 16 ГБ: LLM около 11 ГБ, KV-кэш около 2 ГБ, TTS около 2 ГБ, буферы около 1 ГБ">
+    <div class="seg" style="flex:11; background:#C98B2E">LLM ~11 ГБ</div>
+    <div class="seg" style="flex:2; background:#7FA8C4">KV ~2</div>
+    <div class="seg" style="flex:2; background:#8CBBA3">TTS ~2</div>
+    <div class="seg" style="flex:1; background:#A9B2BA">~1</div>
+  </div>
+  <div class="legend">
+    <span><i class="sw" style="background:#C98B2E"></i>веса модели</span>
+    <span><i class="sw" style="background:#7FA8C4"></i>KV-кэш контекста</span>
+    <span><i class="sw" style="background:#8CBBA3"></i>синтез речи</span>
+    <span><i class="sw" style="background:#A9B2BA"></i>буферы CUDA</span>
+  </div>
+  <p style="margin-top:14px">Отсюда все компромиссы: модель на 30 миллиардов параметров в обычном 4-битном формате весит ~17–18 ГБ и не влезает — значит либо более грубая квантизация, либо часть «экспертов» модели держим в обычной оперативной памяти (<code>--n-cpu-moe</code> в llama.cpp), либо берём модель поменьше. Что именно — решает сегодняшний бенчмарк, а не интуиция.</p>
+</section>
+
+<section>
+  <div class="eyebrow">06 · Знания</div>
+  <h2>Откуда агент берёт факты</h2>
+  <p>Живого поиска в интернете нет принципиально: он медленный, ломается на демо и стоит денег. Вместо этого всё спарсено заранее и лежит локально.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Источник</th><th>Что это</th><th>Объём</th><th>Лицензия / доступ</th></tr></thead>
+    <tbody>
+      <tr><td><strong>mechanics.<wbr>stackexchange</strong></td><td>Разборы поломок от механиков — вопрос и ответы</td><td class="num">20 996 тредов</td><td>CC BY-SA, официальный дамп archive.org. Сам сайт ботам закрыт — берём дамп, это легальный путь</td></tr>
+      <tr><td><strong>carcarekiosk</strong></td><td>Пошаговые инструкции «как проверить/заменить»</td><td class="num">238 док.</td><td>robots.txt разрешает, 1 запрос/с, с кэшем</td></tr>
+      <tr><td><strong>startmycar</strong></td><td>Отчёты владельцев: «у меня было то же самое»</td><td class="num">5 430 отчётов</td><td>robots.txt разрешает, только англоязычные</td></tr>
+      <tr><td><strong>OBDex</strong></td><td>База кодов ошибок OBD-II: причины, симптомы, узлы</td><td class="num">9 533 кода</td><td>данные CC0, код MIT</td></tr>
+    </tbody>
+  </table></div>
+  <p>Пять машин MVP выбраны не на вкус, а по <strong>замеру объёма данных</strong> в этих источниках: Audi A4 B8 (твоя), Honda Accord 9, Ford F-150 13, Honda Civic 10, Toyota Corolla 11.</p>
+</section>
+
+<section>
+  <div class="eyebrow">07 · Поиск</div>
+  <h2>Гибридный поиск: два взгляда на один вопрос</h2>
+  <p>Тексты нарезаны на <strong>56 207 пассажей</strong>. Поверх них работают два независимых поисковика, и их результаты сливаются.</p>
+  <h3>BM25 — по словам</h3>
+  <p>Классический лексический поиск: находит документы, где буквально встречаются слова запроса. Отлично работает на кодах и терминах — <code>P0171</code> он найдёт точно. Запрос отрабатывает за <strong>~7 мс</strong>.</p>
+  <h3>Плотные векторы — по смыслу</h3>
+  <p>Модель <code>bge-small</code> превращает текст в вектор чисел; близкие по смыслу тексты оказываются рядом. Находит ответ, даже если человек назвал деталь другими словами. <strong>Этих векторов ещё нет</strong> — их считает сегодняшняя GPU-сессия, потому что MacBook Air без вентилятора на этой задаче уходит в троттлинг.</p>
+  <h3>Как сливаются выдачи — RRF</h3>
+  <p>Reciprocal Rank Fusion: каждый документ получает очки <code>1 / (60 + место_в_выдаче)</code> от каждого поисковика, очки складываются. Смысл в том, что складываются <em>места</em>, а не «уверенности» — их шкалы несопоставимы и складывать их было бы бессмысленно. Документ, попавший в топ обоих списков, всплывает наверх.</p>
+  <p>Затем — <strong>буст ×1.6</strong> тем пассажам, которые относятся к машине водителя. Поэтому на вопрос про уровень антифриза с выбранной Audi A4 наверх выходит инструкция именно про A4, а не общая.</p>
+</section>
+
+<section>
+  <div class="eyebrow">08 · Инструменты</div>
+  <h2>Восемь тулов агента</h2>
+  <p>Это то, что делает проект агентом: модель сама решает, какой инструмент вызвать, и может вызвать несколько подряд — до четырёх раундов на одну реплику.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Тул</th><th>Что делает</th><th>Источник</th></tr></thead>
+    <tbody>
+      <tr><td><code>get_vehicle</code></td><td>Узнать, о какой машине речь</td><td>сессия</td></tr>
+      <tr><td><code>set_vehicle</code></td><td>Запомнить машину со слов водителя</td><td>сессия</td></tr>
+      <tr><td><code>read_live_data</code></td><td>Текущие показания датчиков</td><td>SQLite от адаптера</td></tr>
+      <tr><td><code>get_sensor_trend</code></td><td>Отличить «растёт» от «стабильно» за N минут</td><td>SQLite</td></tr>
+      <tr><td><code>lookup_dtc</code></td><td>Расшифровать код ошибки, причины по вероятности</td><td>OBDex</td></tr>
+      <tr><td><code>search_how_to</code></td><td>Пошаговая инструкция</td><td>carcarekiosk</td></tr>
+      <tr><td><code>search_owner_reports</code></td><td>«Часто ли это на моей машине»</td><td>startmycar</td></tr>
+      <tr><td><code>search_forum</code></td><td>Рассуждение о диагностике</td><td>Stack Exchange</td></tr>
+    </tbody>
+  </table></div>
+  <p>Промпт задаёт разделение труда явно: форум — для логики диагностики, отчёты владельцев — для «это массовая болячка?», how-to — для рук. И жёсткое правило: увидел код ошибки — сначала <code>lookup_dtc</code>, только потом объясняй.</p>
+</section>
+
+<section>
+  <div class="eyebrow">09 · Агент</div>
+  <h2>Что происходит за одну реплику</h2>
+  <p>Цикл в <code>agent/loop.py</code>, по шагам:</p>
+  <ol>
+    <li>Реплика водителя уходит в модель вместе с историей и описанием восьми тулов.</li>
+    <li>Ответ читается <strong>потоком</strong>. Готовое предложение сразу уходит наружу — событие <code>sentence</code>.</li>
+    <li>Если модель попросила тул и ещё ничего не сказала — выдаётся фраза-заглушка, чтобы человек не слушал тишину.</li>
+    <li>Тулы выполняются, результаты возвращаются в диалог, модель продолжает. Максимум <strong>4 раунда</strong> — защита от зацикливания.</li>
+    <li>Каждый этап получает временную метку: время до первого токена, до первого предложения, общее. Эти метки и есть то, что покажет панель задержки на сайте.</li>
+  </ol>
+  <h3>Характер агента</h3>
+  <p>Его зовут <strong>Dex</strong>. Промпт заточен под голос: короткие фразы, никакого markdown и ссылок, числа словами («P zero one seven one», а не «P0171» — иначе синтез прочитает это нечитаемо). Один вопрос за раз.</p>
+  <p>И отдельный блок безопасности: тормоза, руль, подушки, запах топлива, дым или температура выше 110 °C — сначала «прекрати ехать», и только потом всё остальное. Гарантировать диагноз запрещено: агент говорит, что наиболее вероятно и чем это подтвердить.</p>
+</section>
+
+<section>
+  <div class="eyebrow">10 · Симулятор</div>
+  <h2>Машина, которую можно сломать на глазах у зрителя</h2>
+  <p>В демо не нужно идти в гараж: симулятор изображает автомобиль и отправляет данные <strong>по тому же протоколу</strong>, что и настоящий Torque Pro с телефона — HTTP GET с ключами вида <code>k5</code>, <code>kc</code>, <code>kff1005</code>, ответ <code>OK!</code>. Протокол сверен с исходниками интеграции Home Assistant.</p>
+  <p>Практическое следствие: чтобы подключить реальную Audi, код менять не надо — достаточно вписать адрес бэкенда в настройках Torque.</p>
+  <p>Шесть неисправностей, у каждой — узнаваемая подпись в данных, чтобы агенту было над чем рассуждать:</p>
+  <div class="tw"><table>
+    <thead><tr><th>Неисправность</th><th>Подпись в данных</th><th>Код</th></tr></thead>
+    <tbody>
+      <tr><td>Утечка антифриза</td><td>Температура ползёт вверх, хуже всего на холостых; на скорости обдув чуть помогает</td><td class="num">P0217</td></tr>
+      <tr><td>Термостат заклинил открытым</td><td>Двигатель не прогревается, на трассе ещё холоднее</td><td class="num">P0128</td></tr>
+      <tr><td>Пропуски зажигания, цилиндр 1</td><td>Пляшут обороты на холостых, скачет угол опережения</td><td class="num">P0300 · P0301</td></tr>
+      <tr><td>Подсос воздуха</td><td>Топливная коррекция +17 % на холостых и падает под нагрузкой — лишний воздух заметен, только когда своего мало</td><td class="num">P0171</td></tr>
+      <tr><td>Грязный ДМРВ</td><td>Датчик занижает расход воздуха на 28 %; коррекция положительная на всех режимах</td><td class="num">P0101 · P0171</td></tr>
+      <tr><td>Умирающий генератор</td><td>Напряжение медленно сползает с 13,4 В к 11,4 В</td><td class="num">P0562</td></tr>
+    </tbody>
+  </table></div>
+  <p>Разница между подсосом воздуха и грязным ДМРВ — «коррекция падает под нагрузкой» против «держится везде» — это ровно то различение, которое делает живой механик. Если агент его воспроизведёт, значит он действительно читает данные, а не пересказывает общие места.</p>
+  <div class="note">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 1 21h22L12 2Zm0 5.6 7.5 12.9h-15L12 7.6Zm-1 4.1v4.1h2v-4.1h-2Zm0 5.3v2h2v-2h-2Z"/></svg>
+    <p>Настоящая причина поломки агенту <strong>не сообщается</strong> — он видит только цифры с датчиков, как и в жизни. Причина показывается лишь в интерфейсе «Гаража», чтобы зритель мог сравнить диагноз с истиной.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">11 · Проверка</div>
+  <h2>Как мы поймём, что агент хороший</h2>
+  <p><strong>57 юнит-тестов</strong> держат механику: парсер протокола Torque, физику симулятора, токенизацию поиска, агентский цикл с подменённой моделью.</p>
+  <p>Поверх — <strong>34 сценария</strong> в <code>evals/scenarios.yaml</code>. Каждый ставит машину в конкретное состояние (машина + неисправность + режим + сколько она уже развивается), подаёт реплику водителя и проверяет:</p>
+  <ul>
+    <li><code>expect_tools</code> — какие тулы обязан вызвать;</li>
+    <li><code>avoid_tools</code> — какие вызывать не должен (например, не лезть в форум, когда ответ прямо в датчиках);</li>
+    <li><code>expect_any</code> — группы синонимов, каждая должна встретиться в ответе;</li>
+    <li><code>forbid</code> — чего быть не должно: выдуманные коды, markdown, ссылки.</li>
+  </ul>
+  <p>Задержка пишется для каждого сценария независимо от того, прошёл он или нет. Именно этот набор прогоняется одинаково для всех кандидатов-моделей — иначе сравнение было бы нечестным.</p>
+</section>
+
+<section>
+  <div class="eyebrow">12 · Сегодня</div>
+  <h2>Что делает GPU-сессия</h2>
+  <p>Арендована <strong>RTX A4000, 16 376 МиБ</strong> — ровно наш лимит. Задача дня: заменить догадки на таблицу с числами.</p>
+  <h3>Кандидаты в языковую модель</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Модель</th><th>Движок</th><th>Ставка</th></tr></thead>
+    <tbody>
+      <tr><td>gpt-oss-20b (MXFP4)</td><td>vLLM</td><td>умная и уже 4-битная «из коробки»</td></tr>
+      <tr><td>Qwen3-30B-A3B ~Q3</td><td>llama.cpp</td><td>30B знаний, но активны лишь 3B на токен</td></tr>
+      <tr><td>Qwen3-30B-A3B Q4 + эксперты на CPU</td><td>llama.cpp</td><td>качество выше, но часть весов в ОЗУ — медленнее</td></tr>
+      <tr><td>Qwen3-14B AWQ</td><td>vLLM</td><td>запасной вариант: гарантированно влезает</td></tr>
+    </tbody>
+  </table></div>
+  <p>Для каждой фиксируем: пиковую видеопамять, время до первого токена, скорость генерации, долю верно выбранных тулов, содержательную точность, p50/p95 первой фразы.</p>
+  <h3>Кандидаты в синтез речи</h3>
+  <p>Chatterbox / Chatterbox Turbo, Kyutai TTS 1.6B, Orpheus 3B, VibeVoice-Realtime-0.5B, Qwen3-TTS. Один и тот же набор из 10 реплик механика; меряем время до первого звука, скорость относительно реального времени, память — и слушаем вслепую. Планка по качеству задана явно: «как у ElevenLabs», поэтому быстрый, но синтетический Kokoro отвергли заранее.</p>
+  <h3>Правило выбора</h3>
+  <p>Берём <strong>самую умную модель</strong>, у которой весь стек ≤ 16 ГБ, медианное время до первой фразы ≈ 500 мс и не меньше 90 % верных вызовов тулов. Если не проходит никто — режем контекст вдвое и повторяем.</p>
+</section>
+
+<section>
+  <div class="eyebrow">13 · Эксплуатация</div>
+  <h2>Деньги и защита от забытого инстанса</h2>
+  <p>На счету Vast.ai <strong>$5</strong> кредита, карта не привязана — перерасход физически невозможен. Аренда — <strong>$0.129/час</strong>, то есть весь бюджет это около 38 часов GPU, и его надо растянуть на дни 3, 4 и 6.</p>
+  <p>Главный риск не в цене, а в забывчивости: работающий по ночи инстанс съест бюджет молча. Поэтому на машине взведён «deadman» — он жёстко останавливает инстанс через 4 часа, чем бы мы ни занимались. Останавливает сам себя ключом, который Vast выдаёт контейнеру: ключ от всего аккаунта на арендованную чужую машину не кладётся.</p>
+  <p>Отдельно есть <code>idle_shutdown.py</code> — он следит за активностью бэкенда и гасит машину после 20 минут тишины. Сегодня он не подходит: во время бенчмарков бэкенд не запущен, и сторож остановил бы машину посреди замера. Его время — дни 4–6, когда работает демо.</p>
+</section>
+
+<section>
+  <div class="eyebrow">14 · Развилки</div>
+  <h2>Решения, которые уже приняты</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Выбрали</th><th>Почему</th><th>Отвергли</th></tr></thead>
+    <tbody>
+      <tr><td>Карта ровно на 16 ГБ</td><td>Лимит доказывается железом, а не словами</td><td>карта побольше «с запасом»</td></tr>
+      <tr><td>WebSocket</td><td>Cloudflare Tunnel не пропускает UDP</td><td>WebRTC</td></tr>
+      <tr><td>ASR на процессоре</td><td>Видеопамять нужнее голосу</td><td>ASR на GPU</td></tr>
+      <tr><td>Локальный индекс</td><td>Быстро, бесплатно, не падает на демо</td><td>живой веб-поиск</td></tr>
+      <tr><td>Дамп Stack Exchange</td><td>Сайт закрыт для ботов, дамп — легальный путь, лицензия CC BY-SA</td><td>парсинг форумов Audi</td></tr>
+      <tr><td>Только симулятор в демо</td><td>Зритель сам «ломает» машину и видит реакцию</td><td>живые данные с авто</td></tr>
+      <tr><td>Не-GPU часть пишем на Mac</td><td>Экономия арендных часов</td><td>всё на арендованной машине</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Что ещё открыто</h3>
+  <ul>
+    <li>Какая именно LLM и какой TTS — решает сегодняшний бенчмарк.</li>
+    <li>Язык README (код и комментарии уже английские).</li>
+  </ul>
+</section>
+
+<section>
+  <div class="eyebrow">15 · Состояние</div>
+  <h2>Где мы находимся</h2>
+  <div class="tw"><table>
+    <thead><tr><th>День</th><th>Содержание</th><th>Статус</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>Каркас репозитория, симулятор Torque, выбор машин и источников, три парсера</td><td><span class="pill done">готово</span></td></tr>
+      <tr><td class="num">2</td><td>База кодов, гибридный поиск, 8 тулов, агентский цикл, 34 сценария, 57 тестов</td><td><span class="pill done">готово</span></td></tr>
+      <tr><td class="num">3</td><td>Плотные векторы, бенчмарк 4 LLM и 5 TTS, выбор связки</td><td><span class="pill now">сегодня</span></td></tr>
+      <tr><td class="num">4</td><td>Pipecat: VAD → ASR → LLM → TTS по WebSocket, стриминг, перебивание</td><td><span class="pill todo">—</span></td></tr>
+      <tr><td class="num">5</td><td>Фронтенд: разговор, карточки тулов, Гараж, панель задержки</td><td><span class="pill todo">—</span></td></tr>
+      <tr><td class="num">6</td><td>Оптимизация задержки, доводка промпта, прогон сценариев</td><td><span class="pill todo">—</span></td></tr>
+      <tr><td class="num">7</td><td>Деплой, README с настоящими цифрами, демо-видео</td><td><span class="pill todo">—</span></td></tr>
+    </tbody>
+  </table></div>
+  <p>Написано около 2 700 строк на Python. Самое рискованное — впереди: связать шесть этапов конвейера так, чтобы суммарная задержка осталась разговорной.</p>
+</section>
+
+<section>
+  <div class="eyebrow">16 · Словарь</div>
+  <h2>Термины, которые будут звучать дальше</h2>
+  <p>Чтобы разговор о проекте шёл на равных.</p>
+  <div class="gloss">
+    <details><summary>Код ошибки <span class="term">DTC</span></summary><div class="bd"><p>Diagnostic Trouble Code. Пятизначный код, который блок управления записывает при неисправности: <code>P0171</code> — «смесь слишком бедная, банк 1». Буква — подсистема (P — двигатель и трансмиссия), дальше — конкретная проблема.</p></div></details>
+    <details><summary>Топливная коррекция <span class="term">STFT / LTFT</span></summary><div class="bd"><p>Short/Long Term Fuel Trim. На сколько процентов блок управления вынужден добавлять или убавлять топливо, чтобы смесь оставалась правильной. Положительная коррекция — «добавляю топливо, воздуха больше, чем я думал». Главный диагностический признак подсоса воздуха и вранья датчика расхода.</p></div></details>
+    <details><summary>Параметр датчика <span class="term">PID</span></summary><div class="bd"><p>Parameter ID. Номер конкретного показания в стандарте OBD-II: обороты, температура антифриза, напряжение. Torque передаёт их ключами вида <code>k5</code>, <code>kc</code> — шестнадцатеричный номер PID без ведущих нулей.</p></div></details>
+    <details><summary>Датчик расхода воздуха <span class="term">MAF / ДМРВ</span></summary><div class="bd"><p>Mass Air Flow. Меряет, сколько воздуха зашло в двигатель — от этого считается, сколько лить топлива. Загрязняется и начинает занижать показания; смесь становится бедной, хотя механически всё цело.</p></div></details>
+    <details><summary>Время до первого токена <span class="term">TTFT</span></summary><div class="bd"><p>Time To First Token. Сколько модель думает, прежде чем выдать первое слово. Для разговора важнее, чем общая скорость: именно это человек ощущает как паузу.</p></div></details>
+    <details><summary>Время до первого звука <span class="term">TTFA</span></summary><div class="bd"><p>Time To First Audio. То же самое для синтеза речи. Модель может быть быстрой в среднем, но «раскачиваться» полсекунды — для голосового агента это приговор.</p></div></details>
+    <details><summary>Скорость синтеза <span class="term">RTF</span></summary><div class="bd"><p>Real-Time Factor. Во сколько раз синтез быстрее реального звучания. RTF 0.2 значит, что секунда речи считается за 0,2 секунды — есть запас, чтобы не отставать от разговора.</p></div></details>
+    <details><summary>Слияние выдач <span class="term">RRF</span></summary><div class="bd"><p>Reciprocal Rank Fusion. Способ объединить два списка результатов, складывая не оценки (их шкалы несопоставимы), а места: документ получает <code>1/(60+место)</code> от каждого поисковика.</p></div></details>
+    <details><summary>Кэш внимания <span class="term">KV-cache</span></summary><div class="bd"><p>Модель хранит промежуточные представления всего диалога, чтобы не пересчитывать его на каждом новом слове. Занимает видеопамять и растёт вместе с длиной контекста — поэтому «уменьшить контекст» это реальный способ вместить модель в карту.</p></div></details>
+    <details><summary>Разреженная модель <span class="term">MoE / A3B</span></summary><div class="bd"><p>Mixture of Experts. В модели 30 миллиардов параметров, но на каждое слово включаются только около 3 миллиардов («A3B»). Знаний как у большой модели, скорость — как у маленькой; платим за это памятью, потому что хранить нужно всех экспертов.</p></div></details>
+    <details><summary>Квантизация <span class="term">Q4 / AWQ / MXFP4</span></summary><div class="bd"><p>Хранение весов модели с меньшей точностью: вместо 16 бит на число — 4. Модель сжимается вчетверо, качество падает немного. Q4/Q3 — форматы llama.cpp, AWQ и MXFP4 — схемы, которые выбирают, что можно огрублять, а что нельзя.</p></div></details>
+    <details><summary>Определение речи <span class="term">VAD</span></summary><div class="bd"><p>Voice Activity Detection. Понимает, где в потоке звука человек говорит, а где тишина. Отсюда берётся момент «фраза закончилась» — и он же служит нулевой отметкой при замере задержки.</p></div></details>
+    <details><summary>Перебивание <span class="term">barge-in</span></summary><div class="bd"><p>Когда человек начинает говорить поверх ответа агента, агент должен замолчать и слушать. Без этого разговор ощущается как автоответчик.</p></div></details>
+  </div>
+</section>
+
+<p class="foot">Собрано из docs/PROJECT.md, DECISIONS.md, PROGRESS.md, NOTES.md и кода · 2026-09-18</p>
+
+</div>
