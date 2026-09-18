@@ -142,12 +142,12 @@ def measure_turn_delay(clips, silences: list[float]) -> dict:
             det = TurnDetector(min_silence_s=min_silence)
             step = int(SAMPLE_RATE * CHUNK_S)
             early = []
-            for i in range(0, len(audio), step):       # the driver is still speaking
+            for i in range(0, len(audio), step):  # the driver is still speaking
                 early.extend(det.push(audio[i : i + step]))
-            end_of_speech = time.monotonic()           # they stop here
-            utterance = early[-1] if early else None   # a pause mid-clip can end the turn early
+            end_of_speech = time.monotonic()  # they stop here
+            utterance = early[-1] if early else None  # a pause mid-clip can end the turn early
             silence = np.zeros(step, dtype=np.float32)
-            deadline = end_of_speech + 3.0             # a clip that never closes is a finding, not a hang
+            deadline = end_of_speech + 3.0  # a clip that never closes is a finding, not a hang
             # Silence has to arrive at the speed a microphone delivers it: min_silence_s is counted
             # in audio time, so feeding it faster than real time would measure the CPU, not the wait.
             fed = 0.0
@@ -166,16 +166,24 @@ def measure_turn_delay(clips, silences: list[float]) -> dict:
                 print(f"    {name}: фраза закрылась ещё во время речи — замер по ней неверен")
             detected_ms = (time.monotonic() - end_of_speech) * 1000
             text = rec.transcribe(utterance.audio).text
-            rows.append({"clip": name, "detect_ms": round(detected_ms),
-                         "total_ms": round((time.monotonic() - end_of_speech) * 1000), "text": text})
+            rows.append(
+                {
+                    "clip": name,
+                    "detect_ms": round(detected_ms),
+                    "total_ms": round((time.monotonic() - end_of_speech) * 1000),
+                    "text": text,
+                }
+            )
         out[f"min_silence_{min_silence}s"] = {
             "detect_ms_p50": round(statistics.median(r["detect_ms"] for r in rows)),
             "total_ms_p50": round(statistics.median(r["total_ms"] for r in rows)),
             "rows": rows,
         }
         d = out[f"min_silence_{min_silence}s"]
-        print(f"  тишина {min_silence:.2f}s -> конец речи распознан за {d['detect_ms_p50']} ms, "
-              f"текст готов через {d['total_ms_p50']} ms")
+        print(
+            f"  тишина {min_silence:.2f}s -> конец речи распознан за {d['detect_ms_p50']} ms, "
+            f"текст готов через {d['total_ms_p50']} ms"
+        )
     return out
 
 
@@ -233,9 +241,7 @@ def main() -> None:
     print()
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.out).write_text(
-        json.dumps({"threads": args.threads, "engines": summary, "turn_delay": turn}, indent=2)
-    )
+    Path(args.out).write_text(json.dumps({"threads": args.threads, "engines": summary, "turn_delay": turn}, indent=2))
     print(f"wrote {args.out}")
 
 

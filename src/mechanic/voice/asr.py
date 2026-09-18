@@ -37,9 +37,7 @@ class Recognizer:
             import sherpa_onnx
 
             if not self.model_dir.exists():
-                raise FileNotFoundError(
-                    f"ASR model missing at {self.model_dir}. See docs/NOTES.md for the download."
-                )
+                raise FileNotFoundError(f"ASR model missing at {self.model_dir}. See docs/NOTES.md for the download.")
             self._rec = sherpa_onnx.OfflineRecognizer.from_transducer(
                 encoder=str(self.model_dir / "encoder.int8.onnx"),
                 decoder=str(self.model_dir / "decoder.int8.onnx"),
@@ -77,9 +75,7 @@ def resample(audio: np.ndarray, source_rate: int, target_rate: int) -> np.ndarra
     if source_rate == target_rate:
         return audio.astype(np.float32, copy=False)
     n = int(round(len(audio) * target_rate / source_rate))
-    return np.interp(
-        np.linspace(0, len(audio) - 1, n), np.arange(len(audio)), audio
-    ).astype(np.float32)
+    return np.interp(np.linspace(0, len(audio) - 1, n), np.arange(len(audio)), audio).astype(np.float32)
 
 
 def to_mono(audio: np.ndarray) -> np.ndarray:

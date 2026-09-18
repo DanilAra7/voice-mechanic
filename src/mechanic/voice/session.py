@@ -74,7 +74,7 @@ class VoiceSession:
             await self._barge_in()
         for utterance in self.detector.push(pcm):
             if self._turn and not self._turn.done():
-                continue                                  # already answering; ignore the overlap
+                continue  # already answering; ignore the overlap
             self._turn = asyncio.create_task(self.handle(utterance.audio))
 
     async def _barge_in(self) -> None:

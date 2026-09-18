@@ -51,9 +51,7 @@ class TurnDetector:
             import sherpa_onnx
 
             if not self.model_path.exists():
-                raise FileNotFoundError(
-                    f"VAD model missing at {self.model_path}. See docs/NOTES.md for the download."
-                )
+                raise FileNotFoundError(f"VAD model missing at {self.model_path}. See docs/NOTES.md for the download.")
             config = sherpa_onnx.VadModelConfig()
             config.silero_vad.model = str(self.model_path)
             config.silero_vad.threshold = self.threshold

@@ -16,6 +16,8 @@ from mechanic.torque.receiver import build_router
 from mechanic.torque.simulator import DRIVE_MODES, FAULTS, TorqueSimulator, VehicleModel
 from mechanic.torque.store import TorqueStore
 from mechanic.vehicles import VEHICLES, get_vehicle
+from mechanic.voice.ws import SharedModels
+from mechanic.voice.ws import build_router as build_voice_router
 
 load_env()
 
@@ -58,6 +60,8 @@ class SimulatorManager:
 
 store = TorqueStore(DB_PATH)
 simulators = SimulatorManager(store, f"{SELF_URL}/torque")
+# Speech models are heavy: one copy per process, loaded lazily so the API still starts without them.
+voice_models = SharedModels()
 # Last time a human did something here. scripts/idle_shutdown.py polls this to stop a rented GPU.
 _last_activity = time.time()
 
@@ -75,6 +79,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Voice Mechanic", lifespan=lifespan)
 app.include_router(build_router(store))
+app.include_router(build_voice_router(store, voice_models))
 
 
 class StartSimRequest(BaseModel):

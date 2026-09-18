@@ -30,8 +30,9 @@ def test_missing_model_says_where_to_look():
 def test_speech_then_silence_produces_one_utterance():
     audio, sr = sf.read(CLIP, dtype="float32")
     speech = resample(to_mono(audio), sr, SAMPLE_RATE)
-    padded = np.concatenate([np.zeros(SAMPLE_RATE // 2, dtype=np.float32), speech,
-                             np.zeros(SAMPLE_RATE, dtype=np.float32)])
+    padded = np.concatenate(
+        [np.zeros(SAMPLE_RATE // 2, dtype=np.float32), speech, np.zeros(SAMPLE_RATE, dtype=np.float32)]
+    )
     utterances = feed(TurnDetector(), padded)
     assert len(utterances) == 1
     # Roughly the original speech, not the padding around it.
@@ -47,7 +48,8 @@ def test_the_utterance_is_still_transcribable():
         pytest.skip("ASR model not downloaded")
     audio, sr = sf.read(CLIP, dtype="float32")
     speech = resample(to_mono(audio), sr, SAMPLE_RATE)
-    padded = np.concatenate([np.zeros(SAMPLE_RATE // 2, dtype=np.float32), speech,
-                             np.zeros(SAMPLE_RATE, dtype=np.float32)])
+    padded = np.concatenate(
+        [np.zeros(SAMPLE_RATE // 2, dtype=np.float32), speech, np.zeros(SAMPLE_RATE, dtype=np.float32)]
+    )
     utterance = feed(TurnDetector(), padded)[0]
     assert "stop driving" in Recognizer().transcribe(utterance.audio).text.lower()

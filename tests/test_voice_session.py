@@ -8,38 +8,11 @@ import asyncio
 
 import numpy as np
 import pytest
+from helpers_voice import FakeRecognizer, FakeSynthesiser
 
-from mechanic.voice.asr import Transcript
 from mechanic.voice.session import VoiceSession
-from mechanic.voice.tts import Speech
 
 SPEECH = np.zeros(16000, dtype=np.float32)
-
-
-class FakeRecognizer:
-    def __init__(self, text="my idle feels rough"):
-        self.text = text
-
-    def transcribe(self, audio, sample_rate=16000):
-        return Transcript(text=self.text, audio_seconds=len(audio) / 16000, decode_ms=10.0)
-
-
-class FakeSynthesiser:
-    sample_rate = 24000
-
-    def __init__(self, frames=3):
-        self.frames = frames
-        self.said = []
-
-    def say(self, text, on_frame=None):
-        self.said.append(text)
-        chunks = []
-        for _ in range(self.frames):
-            chunk = np.zeros(480, dtype=np.float32)
-            chunks.append(chunk)
-            if on_frame:
-                on_frame(chunk)
-        return Speech(audio=np.concatenate(chunks), sample_rate=24000, first_frame_ms=5.0, total_ms=20.0)
 
 
 class FakeAgent:

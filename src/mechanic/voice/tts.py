@@ -20,7 +20,7 @@ SAMPLE_RATE = 24000
 class Speech:
     """One synthesised sentence and what it cost."""
 
-    audio: "object"                      # np.ndarray, typed loosely so the module imports without numpy
+    audio: "object"  # np.ndarray, typed loosely so the module imports without numpy
     sample_rate: int
     first_frame_ms: float | None
     total_ms: float
