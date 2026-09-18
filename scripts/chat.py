@@ -70,8 +70,10 @@ async def main_async(args) -> None:
         turn = await loop.respond(text, on_event=on_event)
         print(f"{turn.text.strip()}")
         first = turn.first_sentence_ms or 0
-        print(f"{DIM}      first sentence {first:.0f} ms · turn {(time.monotonic() - started) * 1000:.0f} ms "
-              f"· {turn.rounds} round(s) · tools: {', '.join(c['name'] for c in turn.tool_calls) or 'none'}{OFF}\n")
+        print(
+            f"{DIM}      first sentence {first:.0f} ms · turn {(time.monotonic() - started) * 1000:.0f} ms "
+            f"· {turn.rounds} round(s) · tools: {', '.join(c['name'] for c in turn.tool_calls) or 'none'}{OFF}\n"
+        )
 
 
 def main() -> None:

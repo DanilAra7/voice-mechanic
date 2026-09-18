@@ -23,7 +23,9 @@ PROBE_PROMPT = "A driver says their temperature gauge is climbing. In three sent
 def gpu_mib() -> int:
     out = subprocess.run(
         ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return int(out.stdout.strip().splitlines()[0])
 
@@ -133,10 +135,17 @@ def main() -> None:
 
             if not args.skip_eval:
                 eval_cmd = [
-                    "uv", "run", "python", "-m", "mechanic.evals.run",
-                    "--model", args.name,
-                    "--base-url", f"http://127.0.0.1:{args.port}/v1",
-                    "--out", str(out_dir / f"{args.name}.json"),
+                    "uv",
+                    "run",
+                    "python",
+                    "-m",
+                    "mechanic.evals.run",
+                    "--model",
+                    args.name,
+                    "--base-url",
+                    f"http://127.0.0.1:{args.port}/v1",
+                    "--out",
+                    str(out_dir / f"{args.name}.json"),
                 ]
                 if args.eval_limit:
                     eval_cmd += ["--limit", str(args.eval_limit)]

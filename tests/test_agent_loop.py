@@ -148,3 +148,26 @@ def test_system_prompt_follows_a_vehicle_change():
     session.vehicle_id = "honda_civic_10"
     loop._refresh_system()
     assert "Honda Civic" in loop.messages[0]["content"]
+
+
+async def test_safety_warning_is_spoken_before_the_model_runs():
+    """The guardrail must reach the driver without waiting for a model round."""
+    loop = build_loop([[content_chunk("Check the fuel lines for leaks. ")]])
+    spoken, events = [], []
+
+    async def on_event(event, payload):
+        events.append((event, payload))
+
+    async for sentence in loop.stream("I smell gasoline inside the cabin while driving.", on_event=on_event):
+        spoken.append(sentence)
+
+    assert spoken[0] == "Stop driving and pull over as soon as it is safe."
+    assert events[0][1].get("safety") is True
+    # The model is told what was already said, so it continues instead of repeating it.
+    assert any("already told the driver" in m.get("content", "") for m in loop.client.requests[0]["messages"])
+
+
+async def test_ordinary_question_skips_the_guardrail():
+    loop = build_loop([[content_chunk("The reservoir is on the left. ")]])
+    spoken = [s async for s in loop.stream("How do I check the coolant level?")]
+    assert spoken[0] == "The reservoir is on the left."

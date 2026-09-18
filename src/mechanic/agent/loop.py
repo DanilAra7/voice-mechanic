@@ -18,10 +18,11 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from mechanic.agent.prompt import build_system_prompt
+from mechanic.agent.safety import safety_warning
 from mechanic.agent.tools import TOOL_SCHEMAS, Session, ToolRunner
 
-# Tools that hit the index are slow enough (tens of ms plus embedding) to warrant a spoken filler.
-SLOW_TOOLS = {"search_forum", "search_owner_reports", "search_how_to"}
+# Any tool at all is worth a spoken line: what costs seconds is the model round around it,
+# not the lookup itself, and silence is what the driver notices.
 FILLERS = {
     "search_forum": "Let me check what other mechanics say.",
     "search_owner_reports": "Let me see what other owners report.",
@@ -50,6 +51,8 @@ class Turn:
 
     text: str = ""
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    # Set when the guardrail spoke before the model did; kept separate so latency numbers stay honest.
+    safety_line: str | None = None
     first_token_ms: float | None = None
     first_sentence_ms: float | None = None
     total_ms: float | None = None
@@ -118,12 +121,29 @@ class AgentLoop:
             if on_event:
                 await on_event(event, payload)
 
+        spoken = False
+        if (warning := safety_warning(user_text)) is not None:
+            turn.safety_line = warning
+            turn.text += warning + " "
+            turn.first_sentence_ms = (time.monotonic() - started) * 1000
+            spoken = True
+            await emit("sentence", {"text": warning, "safety": True})
+            yield warning
+            self.messages.append(
+                {
+                    "role": "system",
+                    "content": f'You already told the driver: "{warning}" '
+                    "Do not repeat it. Continue with what to check and why.",
+                }
+            )
+
         for round_index in range(MAX_TOOL_ROUNDS):
             turn.rounds = round_index + 1
             text, tool_calls, sentences = "", [], []
             async for kind, value in self._stream_completion(started, turn):
                 if kind == "sentence":
                     sentences.append(value)
+                    spoken = True
                     turn.text += value + " "
                     await emit("sentence", {"text": value})
                     yield value
@@ -137,9 +157,10 @@ class AgentLoop:
                 break
 
             self.messages.append({"role": "assistant", "content": text or None, "tool_calls": tool_calls})
-            if any(c["function"]["name"] in SLOW_TOOLS for c in tool_calls) and not sentences:
-                filler = FILLERS.get(tool_calls[0]["function"]["name"], "One moment.")
+            if not spoken:
+                filler = FILLERS.get(tool_calls[0]["function"]["name"], "Let me check that.")
                 turn.text += filler + " "
+                spoken = True
                 await emit("sentence", {"text": filler, "filler": True})
                 yield filler
 

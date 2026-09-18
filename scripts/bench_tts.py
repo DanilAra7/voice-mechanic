@@ -31,13 +31,18 @@ LINES = [
 
 
 def gpu_mib() -> int:
-    out = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-                         capture_output=True, text=True, check=True)
+    out = subprocess.run(
+        ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return int(out.stdout.strip().splitlines()[0])
 
 
 def load_chatterbox(device: str):
     from chatterbox.tts import ChatterboxTTS
+
     model = ChatterboxTTS.from_pretrained(device=device)
 
     def synth(text: str):
@@ -72,7 +77,7 @@ def load_kyutai(device: str):
     import numpy as np
     import torch
     from moshi.models.loaders import CheckpointInfo
-    from moshi.models.tts import DEFAULT_DSM_TTS_REPO, DEFAULT_DSM_TTS_VOICE_REPO, TTSModel
+    from moshi.models.tts import DEFAULT_DSM_TTS_REPO, TTSModel
 
     info = CheckpointInfo.from_hf_repo(DEFAULT_DSM_TTS_REPO)
     tts = TTSModel.from_checkpoint_info(info, n_q=32, temp=0.6, device=torch.device(device))
@@ -140,14 +145,22 @@ def main() -> None:
         audio = np.asarray(audio, dtype="float32")
         dur_s = len(audio) / sr
         sf.write(out_dir / f"{i:02d}.wav", audio, sr)
-        rows.append({"line": line, "synth_s": round(synth_s, 3), "audio_s": round(dur_s, 3),
-                     "first_audio_s": round(first_frame_s, 3) if first_frame_s else None,
-                     "rtf": round(synth_s / dur_s, 3) if dur_s else None})
+        rows.append(
+            {
+                "line": line,
+                "synth_s": round(synth_s, 3),
+                "audio_s": round(dur_s, 3),
+                "first_audio_s": round(first_frame_s, 3) if first_frame_s else None,
+                "rtf": round(synth_s / dur_s, 3) if dur_s else None,
+            }
+        )
         ttfa = f"{first_frame_s * 1000:5.0f} ms to first audio · " if first_frame_s else ""
-        print(f"  {i:02d} {ttfa}{synth_s * 1000:6.0f} ms total for {dur_s:5.2f}s audio "
-              f"(rtf {synth_s / dur_s:.2f})", flush=True)
+        print(
+            f"  {i:02d} {ttfa}{synth_s * 1000:6.0f} ms total for {dur_s:5.2f}s audio (rtf {synth_s / dur_s:.2f})",
+            flush=True,
+        )
 
-    warm = rows[1:] or rows          # the first call pays CUDA warm-up; warm it at boot, not on a driver
+    warm = rows[1:] or rows  # the first call pays CUDA warm-up; warm it at boot, not on a driver
     ttfas = [r["first_audio_s"] for r in warm if r["first_audio_s"]]
     first = rows[0]["synth_s"] * 1000
     rtfs = [r["rtf"] for r in warm if r["rtf"]]
@@ -165,9 +178,11 @@ def main() -> None:
     }
     Path(args.results, f"{args.engine}.json").write_text(json.dumps(summary, indent=2))
     ttfa = f"first audio p50 {summary['first_audio_ms_p50']} ms · " if summary["first_audio_ms_p50"] else ""
-    print(f"\n[{args.engine}] {ttfa}median sentence {summary['sentence_ms_p50']} ms · "
-          f"cold start {summary['cold_first_sentence_ms']} ms · rtf med {summary['rtf_median']} · "
-          f"VRAM peak {summary['vram_peak_mib']} MiB")
+    print(
+        f"\n[{args.engine}] {ttfa}median sentence {summary['sentence_ms_p50']} ms · "
+        f"cold start {summary['cold_first_sentence_ms']} ms · rtf med {summary['rtf_median']} · "
+        f"VRAM peak {summary['vram_peak_mib']} MiB"
+    )
     print(f"[{args.engine}] samples in {out_dir}")
 
 
