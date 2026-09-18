@@ -15,12 +15,45 @@
 
 ## 2. Доставка кода и данных
 
-Код — через git (репозиторий на GitHub) или `rsync -avz --exclude data/raw ./ root@<host>:/workspace/mechanic/`.
-
-Индекс и обработанные данные (`data/processed`, `data/index`) не в git, поэтому либо копируем `rsync`-ом (~200 МБ), либо пересобираем на инстансе:
+Репозиторий приватный, поэтому на инстансе нужен **deploy key** (токены не носим):
 ```bash
-uv run python -m mechanic.data.stackexchange && uv run python -m mechanic.knowledge.search build
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N '' -C 'vast-instance'
+cat ~/.ssh/id_ed25519.pub     # → GitHub → repo Settings → Deploy keys → Add (read-only)
+git clone git@github.com:DanilAra7/voice-mechanic.git /workspace/mechanic
 ```
+Публичную половину в GitHub добавляет пользователь сам.
+
+Окружение на инстансе:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=$HOME/.local/bin:$PATH
+cd /workspace/mechanic && uv sync && uv run pytest -q     # 57 тестов — проверка, что всё приехало
+```
+
+`.env` в git нет — на инстансе переменные задаём через окружение (`load_env()` делает `setdefault`,
+так что окружение всегда сильнее файла):
+```bash
+export VAST_API_KEY=...   # свой же ключ, чтобы watcher мог остановить инстанс
+```
+
+Индекс и обработанные данные (`data/processed`, `data/index`) не в git, поэтому либо копируем `rsync`-ом (~200 МБ):
+```bash
+rsync -avz -e 'ssh -p <port>' data/processed data/index root@<host>:/workspace/mechanic/data/
+```
+либо пересобираем на инстансе (SE-дамп качается заново, ~73 МБ):
+```bash
+uv run python -m mechanic.data.stackexchange && uv run python -m mechanic.knowledge.search build --no-dense
+```
+
+## 2.1. Плотные векторы (то, ради чего ждали машину)
+
+```bash
+uv run python -m mechanic.knowledge.search build --dense-only    # 56 207 пассажей
+uv run python -m mechanic.knowledge.search query "high fuel trim at idle" --vehicle audi_a4_b8
+```
+fastembed считает на CPU (onnxruntime), поэтому важны vCPU, а не GPU; на 8+ ядрах без ограничения
+`--threads` это минуты, а не часы. GPU-вариант (`fastembed-gpu` + `CUDAExecutionProvider`) пробовать
+только если CPU окажется узким местом (?). Готовый `data/index/dense.npy` (~86 МБ) забрать обратно
+на ноутбук `rsync`-ом — тогда локально поиск тоже станет гибридным.
 
 ## 3. Кандидаты LLM
 
