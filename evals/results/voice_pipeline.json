@@ -1,0 +1,146 @@
+[
+  {
+    "audio_bytes": 902400,
+    "transcript": "My temperature gauge is climbing and it is still going up.",
+    "sentences": [
+      "Let me check that.",
+      "Your coolant temperature is about ninety\u2011five degrees Celsius and it\u2019s staying steady.",
+      "It\u2019s still below the 110\u2011degree warning, so you\u2019re not in an immediate overheating danger.",
+      "Do you see any other symptoms, like a warning light or a strange noise?"
+    ],
+    "first_audio_client_ms": 1822,
+    "tools": [
+      "get_sensor_trend"
+    ],
+    "server": {
+      "asr_ms": 237.79609706252813,
+      "first_sentence_ms": 1125.9964457713068,
+      "first_audio_ms": 1888.23028979823,
+      "total_ms": 11673.678820952773,
+      "speech_seconds": 3.24,
+      "tools": [],
+      "barged_in": false,
+      "carried_on": false
+    },
+    "clip": "00.wav"
+  },
+  {
+    "audio_bytes": 560640,
+    "transcript": "The car shakes it idle, and the check engine light came on.",
+    "sentences": [
+      "Checking your live data.",
+      "It looks like the OBD\u2011II adapter isn\u2019t sending data right now.",
+      "Can you make sure it\u2019s plugged in and the app is showing a live feed?"
+    ],
+    "first_audio_client_ms": 1524,
+    "tools": [
+      "read_live_data"
+    ],
+    "server": {
+      "asr_ms": 239.88890182226896,
+      "first_sentence_ms": 699.096473865211,
+      "first_audio_ms": 1389.3139818683267,
+      "total_ms": 7621.847435832024,
+      "speech_seconds": 3.56,
+      "tools": [],
+      "barged_in": false,
+      "carried_on": false
+    },
+    "clip": "01.wav"
+  },
+  {
+    "audio_bytes": 3840,
+    "transcript": "It's I am getting a code P0171.",
+    "sentences": [
+      "Checking your live data."
+    ],
+    "first_audio_client_ms": 72,
+    "flushed": true,
+    "tools": [
+      "read_live_data",
+      "lookup_dtc"
+    ],
+    "server": {
+      "asr_ms": 232.5189090333879,
+      "first_sentence_ms": 695.5747539177537,
+      "first_audio_ms": 1377.6376377791166,
+      "total_ms": 3169.893367215991,
+      "speech_seconds": 3.52,
+      "tools": [],
+      "barged_in": true,
+      "carried_on": false
+    },
+    "clip": "02.wav"
+  },
+  {
+    "audio_bytes": 84480,
+    "transcript": "is this a common problem on my car?",
+    "sentences": [
+      "What symptom are you seeing?"
+    ],
+    "first_audio_client_ms": 1444,
+    "server": {
+      "asr_ms": 185.1571947336197,
+      "first_sentence_ms": 628.9095659740269,
+      "first_audio_ms": 1332.7542678453028,
+      "total_ms": 2008.1491586752236,
+      "speech_seconds": 2.63,
+      "tools": [],
+      "barged_in": false,
+      "carried_on": false
+    },
+    "clip": "03.wav"
+  },
+  {
+    "audio_bytes": 1562880,
+    "transcript": "How do I check the coolant level?",
+    "sentences": [
+      "Let me pull up the steps.",
+      "First, make sure the engine is cool.",
+      "Then locate the coolant reservoir \u2013 it\u2019s a clear plastic tank under the hood, usually near the front of the engine bay.",
+      "Open the cap, wipe the inside with a clean cloth, and look at the level line.",
+      "If the liquid is below the \u201cmin\u201d line, add a 50/50 mix of antifreeze and water until it reaches the \u201cmax\u201d line.",
+      "Close the cap tightly.",
+      "Do you need help finding the reservoir?"
+    ],
+    "first_audio_client_ms": 1422,
+    "tools": [
+      "search_how_to"
+    ],
+    "server": {
+      "asr_ms": 128.77443712204695,
+      "first_sentence_ms": 709.5105871558189,
+      "first_audio_ms": 1392.612428870052,
+      "total_ms": 18928.460793104023,
+      "speech_seconds": 1.57,
+      "tools": [],
+      "barged_in": false,
+      "carried_on": false
+    },
+    "clip": "04.wav"
+  },
+  {
+    "audio_bytes": 522240,
+    "transcript": "My battery light keeps flickering when I slow down.",
+    "sentences": [
+      "Checking your live data.",
+      "It looks like the OBD\u2011II adapter isn\u2019t sending data right now.",
+      "Can you make sure it\u2019s plugged in and the app is connected?"
+    ],
+    "first_audio_client_ms": 1607,
+    "tools": [
+      "read_live_data"
+    ],
+    "server": {
+      "asr_ms": 237.6964809373021,
+      "first_sentence_ms": 703.5629940219223,
+      "first_audio_ms": 1413.293931633234,
+      "total_ms": 7362.789830658585,
+      "speech_seconds": 3.68,
+      "tools": [],
+      "barged_in": false,
+      "carried_on": false
+    },
+    "clip": "05.wav"
+  }
+]
