@@ -62,7 +62,7 @@ async def drain_until(ws, wanted: str, deadline: float) -> None:
     while time.monotonic() < deadline:
         message = await asyncio.wait_for(ws.recv(), timeout=deadline - time.monotonic())
         if isinstance(message, bytes):
-            continue                       # leftover audio from the previous answer
+            continue  # leftover audio from the previous answer
         if json.loads(message).get("type") == wanted:
             return
     raise TimeoutError(f"never saw {wanted}")
@@ -73,7 +73,7 @@ async def run_clip(ws, audio: np.ndarray) -> dict:
     stop = asyncio.Event()
     speech_s = len(audio) / SAMPLE_RATE
     sender = asyncio.create_task(stream_microphone(ws, audio, stop))
-    end_of_speech = time.monotonic() + speech_s      # when the last sample will have been sent
+    end_of_speech = time.monotonic() + speech_s  # when the last sample will have been sent
 
     result: dict = {"audio_bytes": 0}
     try:
@@ -136,17 +136,21 @@ async def main_async(args) -> None:
                 print(f"{path.name}: ОШИБКА {err}")
                 continue
             s = row.get("server", {})
-            print(f"{path.name}: heard \"{row.get('transcript', '')[:56]}\"")
-            print(f"    asr {s.get('asr_ms', '?')} · first sentence {s.get('first_sentence_ms', '?')} · "
-                  f"first audio {s.get('first_audio_ms', '?')} ms (client saw {row.get('first_audio_client_ms', '?')})"
-                  f" · tools: {', '.join(row.get('tools', [])) or 'none'}")
+            print(f'{path.name}: heard "{row.get("transcript", "")[:56]}"')
+            print(
+                f"    asr {s.get('asr_ms', '?')} · first sentence {s.get('first_sentence_ms', '?')} · "
+                f"first audio {s.get('first_audio_ms', '?')} ms (client saw {row.get('first_audio_client_ms', '?')})"
+                f" · tools: {', '.join(row.get('tools', [])) or 'none'}"
+            )
 
     good = [r for r in rows if "server" in r and r["server"].get("first_audio_ms")]
     if good:
         audio_ms = sorted(r["server"]["first_audio_ms"] for r in good)
         q = lambda p: round(audio_ms[min(len(audio_ms) - 1, int(p * len(audio_ms)))])  # noqa: E731
-        print(f"\n{len(good)}/{len(rows)} turns · first audio p50 {q(0.5)} ms · p95 {q(0.95)} ms · "
-              f"mean {round(statistics.mean(audio_ms))} ms")
+        print(
+            f"\n{len(good)}/{len(rows)} turns · first audio p50 {q(0.5)} ms · p95 {q(0.95)} ms · "
+            f"mean {round(statistics.mean(audio_ms))} ms"
+        )
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(rows, indent=2))
     print(f"wrote {args.out}")

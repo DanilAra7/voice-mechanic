@@ -5,8 +5,6 @@ Needs the synthesiser, so it runs on the rented GPU:
     uv run python scripts/make_driver_audio.py
 """
 
-from pathlib import Path
-
 import soundfile as sf
 
 from mechanic.data.common import ROOT
