@@ -109,6 +109,39 @@ SE: матчинг машин по тегу модели (+ год из заго
 - Переменные Vast (`CONTAINER_ID` и др.) видны в окружении PID 1, но НЕ в ssh-сессии —
   читать через `tr '\0' '\n' < /proc/1/environ`.
 
+## Установка стека на инстансе (проверено 2026-09-18)
+
+Образ `nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04`. Сначала:
+```bash
+apt-get update -qq && apt-get install -y -qq curl libgomp1 ca-certificates python3.12-dev
+curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=$HOME/.local/bin:$PATH
+```
+`python3.12-dev` нужен не сразу очевидно: без него Triton не может собрать CUDA-хелпер
+(`/usr/include/python3.12/Python.h not found`) и Kyutai падает на первом же синтезе.
+
+llama.cpp — два архива релиза + `libgomp1`, распаковываются плоско в одну папку:
+```bash
+B=b11037
+for f in llama-$B-bin-ubuntu-cuda-12.8-x64.tar.gz cudart-llama-$B-bin-ubuntu-cuda-12.8-x64.tar.gz; do
+  curl -sL -O "https://github.com/ggml-org/llama.cpp/releases/download/$B/$f" && tar xzf "$f"; done
+cp cudart-*/*.so* llama-$B/ && export LD_LIBRARY_PATH=$PWD/llama-$B
+```
+
+**Chatterbox**: `uv pip install chatterbox-tts resemble-perth soundfile "setuptools<81"`.
+Пин на setuptools обязателен: в 84 убран `pkg_resources`, а `perth` его импортирует, и
+Chatterbox падает с невнятным `TypeError: 'NoneType' object is not callable` при загрузке.
+
+**Kyutai**: `uv pip install moshi soundfile "setuptools<81"` (тянет свой torch 2.9).
+API: `CheckpointInfo.from_hf_repo(DEFAULT_DSM_TTS_REPO)` → `TTSModel.from_checkpoint_info(...)`,
+голос через `get_voice_path("expresso/ex03-ex01_happy_001_channel1_334s.wav")`, генерация с
+колбэком `on_frame` — именно он даёт настоящее время до первого аудиокадра.
+
+**VibeVoice-Realtime-0.5B не заводится из PyPI**: пакет `vibevoice` содержит
+`modeling_vibevoice_inference`, но не `..._streaming_inference`, а модель заявляет
+`model_type: vibevoice_streaming` и не имеет `auto_map`. Нужен код с GitHub microsoft/VibeVoice.
+
+**Каждый TTS — в свой venv.** uv кэширует колёса, поэтому второй и третий torch ставятся быстро.
+
 ## Модели: проверенные имена и размеры (2026-09-18)
 
 | Репозиторий | Файл | Размер |
