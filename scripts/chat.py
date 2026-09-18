@@ -81,7 +81,7 @@ def main() -> None:
     p.add_argument("--mode", default="idle", choices=["idle", "city", "highway"])
     p.add_argument("--warmup", type=float, default=600, help="Seconds of simulated driving before the chat")
     p.add_argument("--base-url", default="http://127.0.0.1:8001/v1")
-    p.add_argument("--model", default="qwen3-30b-q2")
+    p.add_argument("--model", default="gpt-oss-20b")
     args = p.parse_args()
     args.vehicle = args.vehicle or None
     asyncio.run(main_async(args))
