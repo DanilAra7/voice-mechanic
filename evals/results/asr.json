@@ -2,79 +2,79 @@
   "threads": 4,
   "engines": {
     "parakeet-0.6b-streaming-240ms": {
-      "tail_ms_p50": 434,
-      "tail_ms_max": 454,
+      "tail_ms_p50": 435,
+      "tail_ms_max": 593,
       "rtf_median": 1.692,
-      "total_s": 70.8,
+      "total_s": 70.2,
       "rows": [
         {
           "clip": "00.wav",
           "audio_s": 3.68,
-          "rtf": 1.544,
+          "rtf": 1.499,
           "tail_ms": 399,
           "text": "Stop driving and pull over as soon as it is safe"
         },
         {
           "clip": "01.wav",
           "audio_s": 3.52,
-          "rtf": 1.595,
-          "tail_ms": 411,
+          "rtf": 1.559,
+          "tail_ms": 406,
           "text": "Your coolant temperature is 124 degrees Celsius"
         },
         {
           "clip": "02.wav",
           "audio_s": 5.04,
-          "rtf": 1.663,
-          "tail_ms": 430,
+          "rtf": 1.646,
+          "tail_ms": 417,
           "text": "That code is P0171, which means the mixture is too lean"
         },
         {
           "clip": "03.wav",
           "audio_s": 3.2,
-          "rtf": 1.647,
-          "tail_ms": 427,
+          "rtf": 1.635,
+          "tail_ms": 422,
           "text": "Let me check what other mechanics say about this"
         },
         {
           "clip": "04.wav",
           "audio_s": 3.44,
-          "rtf": 1.676,
-          "tail_ms": 435,
+          "rtf": 1.686,
+          "tail_ms": 593,
           "text": "Short-term fuel trim is sitting at 17% at idle"
         },
         {
           "clip": "05.wav",
           "audio_s": 4.16,
-          "rtf": 1.708,
-          "tail_ms": 432,
+          "rtf": 1.734,
+          "tail_ms": 435,
           "text": "It drops back to about 4% once you are cruising"
         },
         {
           "clip": "06.wav",
           "audio_s": 4.48,
-          "rtf": 1.753,
-          "tail_ms": 447,
+          "rtf": 1.751,
+          "tail_ms": 435,
           "text": "That pattern usually points to a vacuum leak after the mass airflow sensor"
         },
         {
           "clip": "07.wav",
           "audio_s": 3.68,
-          "rtf": 1.739,
-          "tail_ms": 445,
+          "rtf": 1.698,
+          "tail_ms": 436,
           "text": "Check the PCB hose in the intake boot for cracks"
         },
         {
           "clip": "08.wav",
           "audio_s": 3.92,
-          "rtf": 1.752,
-          "tail_ms": 452,
+          "rtf": 1.722,
+          "tail_ms": 440,
           "text": "I would not drive it far until that is sorted"
         },
         {
           "clip": "09.wav",
           "audio_s": 3.6,
-          "rtf": 1.762,
-          "tail_ms": 454,
+          "rtf": 1.776,
+          "tail_ms": 450,
           "text": "Do you want me to walk you through checking it yourself"
         }
       ]
@@ -88,14 +88,14 @@
         {
           "clip": "00.wav",
           "audio_s": 3.68,
-          "rtf": 0.009,
-          "tail_ms": 32,
+          "rtf": 0.008,
+          "tail_ms": 30,
           "text": "and stop driving and pull over as soon as it is safe."
         },
         {
           "clip": "01.wav",
           "audio_s": 3.52,
-          "rtf": 0.008,
+          "rtf": 0.009,
           "tail_ms": 30,
           "text": "Your coolant temperature is one hundred and twenty four degrees Celsius."
         },
@@ -110,7 +110,7 @@
           "clip": "03.wav",
           "audio_s": 3.2,
           "rtf": 0.009,
-          "tail_ms": 29,
+          "tail_ms": 28,
           "text": "Let me check what other mechanics say about this."
         },
         {
@@ -124,7 +124,7 @@
           "clip": "05.wav",
           "audio_s": 4.16,
           "rtf": 0.009,
-          "tail_ms": 38,
+          "tail_ms": 37,
           "text": "It drops back to about four percent once you are cruising."
         },
         {
@@ -138,36 +138,36 @@
           "clip": "07.wav",
           "audio_s": 3.68,
           "rtf": 0.009,
-          "tail_ms": 32,
+          "tail_ms": 33,
           "text": "Check the PCV hose and the intake boot for cracks."
         },
         {
           "clip": "08.wav",
           "audio_s": 3.92,
           "rtf": 0.009,
-          "tail_ms": 37,
+          "tail_ms": 35,
           "text": "I would not drive it far until that is sorted."
         },
         {
           "clip": "09.wav",
           "audio_s": 3.6,
-          "rtf": 0.01,
-          "tail_ms": 35,
+          "rtf": 0.009,
+          "tail_ms": 34,
           "text": "Do you want me to walk you through checking it yourself?"
         }
       ]
     },
     "parakeet-0.6b-offline": {
-      "tail_ms_p50": 104,
+      "tail_ms_p50": 102,
       "tail_ms_max": 132,
       "rtf_median": 0.027,
-      "total_s": 2.0,
+      "total_s": 1.9,
       "rows": [
         {
           "clip": "00.wav",
           "audio_s": 3.68,
-          "rtf": 0.027,
-          "tail_ms": 100,
+          "rtf": 0.026,
+          "tail_ms": 97,
           "text": "Stop driving and pull over as soon as it is safe."
         },
         {
@@ -188,27 +188,27 @@
           "clip": "03.wav",
           "audio_s": 3.2,
           "rtf": 0.027,
-          "tail_ms": 87,
+          "tail_ms": 86,
           "text": "Let me check what other mechanics say about this."
         },
         {
           "clip": "04.wav",
           "audio_s": 3.44,
-          "rtf": 0.028,
-          "tail_ms": 98,
+          "rtf": 0.029,
+          "tail_ms": 101,
           "text": "Short-term fuel trim is sitting at 17% at idle."
         },
         {
           "clip": "05.wav",
           "audio_s": 4.16,
           "rtf": 0.027,
-          "tail_ms": 114,
+          "tail_ms": 112,
           "text": "It drops back to about 4% once you are cruising."
         },
         {
           "clip": "06.wav",
           "audio_s": 4.48,
-          "rtf": 0.027,
+          "rtf": 0.026,
           "tail_ms": 119,
           "text": "That pattern usually points to a vacuum leak after the mass airflow sensor."
         },
@@ -216,7 +216,7 @@
           "clip": "07.wav",
           "audio_s": 3.68,
           "rtf": 0.028,
-          "tail_ms": 104,
+          "tail_ms": 102,
           "text": "Check the PCB hose and the intake boot for cracks."
         },
         {
@@ -229,9 +229,119 @@
         {
           "clip": "09.wav",
           "audio_s": 3.6,
-          "rtf": 0.029,
-          "tail_ms": 105,
+          "rtf": 0.028,
+          "tail_ms": 102,
           "text": "Do you want me to walk you through checking it yourself?"
+        }
+      ]
+    }
+  },
+  "turn_delay": {
+    "min_silence_0.2s": {
+      "detect_ms_p50": 0,
+      "total_ms_p50": 89,
+      "rows": [
+        {
+          "clip": "00.wav",
+          "detect_ms": 0,
+          "total_ms": 89,
+          "text": "Stop driving and pull over as soon as it is safe."
+        },
+        {
+          "clip": "01.wav",
+          "detect_ms": 2,
+          "total_ms": 90,
+          "text": "Your coolant temperature is 124 degrees Celsius."
+        },
+        {
+          "clip": "02.wav",
+          "detect_ms": 0,
+          "total_ms": 140,
+          "text": "That code is P0171, which means the mixture is too lean."
+        },
+        {
+          "clip": "03.wav",
+          "detect_ms": 1,
+          "total_ms": 86,
+          "text": "Let me check what other mechanics say about this."
+        },
+        {
+          "clip": "04.wav",
+          "detect_ms": 0,
+          "total_ms": 81,
+          "text": "Short-term fuel trim is sitting at 17% at idle."
+        }
+      ]
+    },
+    "min_silence_0.35s": {
+      "detect_ms_p50": 2,
+      "total_ms_p50": 90,
+      "rows": [
+        {
+          "clip": "00.wav",
+          "detect_ms": 2,
+          "total_ms": 90,
+          "text": "Stop driving and pull over as soon as it is safe."
+        },
+        {
+          "clip": "01.wav",
+          "detect_ms": 2,
+          "total_ms": 90,
+          "text": "Your coolant temperature is 124 degrees Celsius."
+        },
+        {
+          "clip": "02.wav",
+          "detect_ms": 2,
+          "total_ms": 120,
+          "text": "That code is P0171, which means the mixture is too lean."
+        },
+        {
+          "clip": "03.wav",
+          "detect_ms": 2,
+          "total_ms": 72,
+          "text": "Let me check what other mechanics say about this."
+        },
+        {
+          "clip": "04.wav",
+          "detect_ms": 0,
+          "total_ms": 77,
+          "text": "Short-term fuel trim is sitting at 17% at idle."
+        }
+      ]
+    },
+    "min_silence_0.5s": {
+      "detect_ms_p50": 2,
+      "total_ms_p50": 90,
+      "rows": [
+        {
+          "clip": "00.wav",
+          "detect_ms": 2,
+          "total_ms": 90,
+          "text": "Stop driving and pull over as soon as it is safe."
+        },
+        {
+          "clip": "01.wav",
+          "detect_ms": 3,
+          "total_ms": 94,
+          "text": "Your coolant temperature is 124 degrees Celsius."
+        },
+        {
+          "clip": "02.wav",
+          "detect_ms": 3,
+          "total_ms": 122,
+          "text": "That code is P0171, which means the mixture is too lean."
+        },
+        {
+          "clip": "03.wav",
+          "detect_ms": 2,
+          "total_ms": 72,
+          "text": "Let me check what other mechanics say about this."
+        },
+        {
+          "clip": "04.wav",
+          "detect_ms": 2,
+          "total_ms": 77,
+          "text": "Short-term fuel trim is sitting at 17% at idle."
         }
       ]
     }
