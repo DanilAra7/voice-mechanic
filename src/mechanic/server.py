@@ -5,10 +5,12 @@ uv run uvicorn mechanic.server:app --reload
 
 import os
 import time
+from pathlib import Path
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from mechanic.config import load_env
@@ -78,6 +80,12 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Voice Mechanic", lifespan=lifespan)
+
+# The deployed front end is static and hosted separately; serving it here keeps local testing
+# to one origin, which is also the only way the browser hands over a microphone without HTTPS.
+WEB_DIR = Path(__file__).resolve().parents[2] / "web"
+if WEB_DIR.is_dir():
+    app.mount("/app", StaticFiles(directory=WEB_DIR, html=True), name="web")
 app.include_router(build_router(store))
 app.include_router(build_voice_router(store, voice_models))
 
