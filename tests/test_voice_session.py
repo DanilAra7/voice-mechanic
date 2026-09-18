@@ -113,3 +113,10 @@ async def test_pushing_audio_does_not_block(chunks):
         asyncio.gather(*(session.push_audio(np.zeros(1600, dtype=np.float32)) for _ in range(chunks))),
         timeout=1.0,
     )
+
+
+def test_synthesiser_reports_a_rate_before_it_is_loaded():
+    """The handshake sends the audio rate to the browser before anyone has spoken."""
+    from mechanic.voice.tts import SAMPLE_RATE, Synthesiser
+
+    assert Synthesiser().sample_rate == SAMPLE_RATE

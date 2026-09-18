@@ -58,6 +58,11 @@ class Synthesiser:
             )
         return self._tts
 
+    @property
+    def sample_rate(self) -> int:
+        """The codec's rate. Known for certain only once loaded; 24 kHz is what Kyutai uses."""
+        return self._tts.mimi.sample_rate if self._tts is not None else SAMPLE_RATE
+
     def warm_up(self) -> None:
         """First synthesis pays CUDA warm-up — about six seconds. Spend it at startup."""
         self.say("Ready.")
