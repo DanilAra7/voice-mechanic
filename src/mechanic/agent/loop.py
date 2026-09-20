@@ -9,6 +9,7 @@ Latency-shaped on purpose:
 
 import asyncio
 import json
+import os
 import re
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -214,6 +215,14 @@ class AgentLoop:
         await emit("turn_end", {"total_ms": turn.total_ms, "tool_calls": len(turn.tool_calls)})
 
     async def _stream_completion(self, started: float, turn: Turn) -> AsyncIterator[tuple[str, Any]]:
+        # How hard the model is allowed to think, when the server is willing to be told per
+        # request. Set on the server for the demo; overridable here so the cost of thinking
+        # harder can be measured against the same scenarios.
+        extra = (
+            {"chat_template_kwargs": {"reasoning_effort": effort}}
+            if (effort := os.environ.get("MECHANIC_REASONING"))
+            else None
+        )
         stream = await self.client.chat.completions.create(
             model=self.model,
             messages=self.messages,
@@ -221,6 +230,7 @@ class AgentLoop:
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             stream=True,
+            extra_body=extra,
         )
         text = ""
         pending = ""
