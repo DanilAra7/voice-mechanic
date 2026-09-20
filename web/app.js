@@ -72,13 +72,14 @@ function stopPlayback() {
 
 // ---- connection ----------------------------------------------------------
 async function connect() {
+  await garage.ready;
   const url = els("wsUrl").value;
   state.ws = new WebSocket(url);
   state.ws.binaryType = "arraybuffer";
   setStatus("connecting…");
 
   state.ws.onopen = () => state.ws.send(JSON.stringify({
-    type: "hello", device: els("device").value, vehicle: els("vehicle").value || null,
+    type: "hello", device: deviceName(), vehicle: els("gVehicle").value || null,
   }));
 
   state.ws.onmessage = ev => {
@@ -111,6 +112,9 @@ async function connect() {
       case "turn_end":
         state.turns.push({ ...state.turn, ...m });
         renderLatency();
+        break;
+      case "vehicle":
+        log("sys", `now driving a ${vehicleTitle(m.vehicle)} — conversation started over`);
         break;
       case "error":
         log("sys", `error: ${m.message}`);
@@ -155,6 +159,215 @@ async function startMic() {
   state.mic = node;
 }
 
+// ---- garage --------------------------------------------------------------
+// The point of this panel: whoever is testing breaks the car themselves and then asks Dex about
+// it. Dex is never told which fault was picked — it only ever sees the sensor stream — so
+// whether it works the fault out is visible in the conversation rather than taken on trust.
+const garage = { faults: {}, vehicles: {}, running: false, timer: null, ready: null };
+const SPEEDS = [["1", "real time"], ["5", "5× faster"], ["20", "20× faster"]];
+// Readings worth a glance while a fault develops, in the order they are shown. The names the
+// car uploads with them ("Engine Coolant Temperature") are too long for a column this narrow,
+// so the panel labels its own; anything unexpected still falls back to the uploaded name.
+const SHOWN_PIDS = [
+  [0x05, "coolant"], [0x0c, "revs"], [0x0d, "speed"], [0x04, "load"],
+  [0x06, "fuel trim, short"], [0x07, "fuel trim, long"], [0x10, "air flow"], [0x42, "volts"],
+];
+// A reading turns red exactly where the agent's own tool result calls it abnormal
+// (see normal_range in src/mechanic/agent/tools.py) — the panel must not claim more than Dex sees.
+const ALERT = {
+  0x05: v => v > 110,           // coolant, °C
+  0x06: v => Math.abs(v) > 15,  // short term fuel trim, %
+  0x07: v => Math.abs(v) > 15,  // long term fuel trim, %
+  0x42: v => v < 13,            // system voltage with the engine running
+};
+
+const deviceName = () => els("device").value.trim() || "demo";
+const vehicleTitle = id => garage.vehicles[id] ?? id ?? "unknown car";
+
+// The front end can be served from anywhere; the socket address is the one thing the person
+// already has to get right, so the REST calls follow it rather than guessing at the origin.
+function apiBase() {
+  const u = new URL(els("wsUrl").value, location.href);
+  return `${u.protocol === "wss:" ? "https:" : "http:"}//${u.host}`;
+}
+
+async function api(path, options) {
+  const r = await fetch(apiBase() + path, options);
+  if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
+  return r.json();
+}
+
+const send = (path, method, body) => api(path, {
+  method, headers: { "content-type": "application/json" }, body: body && JSON.stringify(body),
+});
+
+function fill(id, pairs, selected) {
+  const select = els(id);
+  select.replaceChildren(...pairs.map(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    return option;
+  }));
+  if (selected !== undefined) select.value = selected;
+}
+
+async function loadCatalog() {
+  const cat = await api("/api/catalog");
+  garage.faults = Object.fromEntries(cat.faults.map(f => [f.id, f]));
+  garage.vehicles = Object.fromEntries(cat.vehicles.map(v => [v.id, v.title]));
+  fill("gVehicle", cat.vehicles.map(v => [v.id, `${v.make} ${v.model} (${v.generation})`]));
+  // City driving, not idle: several faults only show their signature once the car is moving.
+  fill("gMode", cat.modes.map(m => [m, m]), "city");
+  fill("gFault", [["", "healthy car"], ...cat.faults.map(f => [f.id, f.title])]);
+  fill("gScale", SPEEDS, "5");
+  showTruth();
+  await adoptRunningCar();
+}
+
+/** The car keeps running on the server when the page is reloaded; pick it back up rather than
+ *  showing a garage that claims to be empty. */
+async function adoptRunningCar() {
+  let status;
+  try {
+    status = await api(`/api/sim/${encodeURIComponent(deviceName())}`);
+  } catch {
+    return;  // 404: nothing running for this device, which is the ordinary case
+  }
+  els("gVehicle").value = status.vehicle;
+  els("gMode").value = status.mode;
+  els("gFault").value = status.fault ?? "";
+  showTruth();
+  setRunning(true, `${status.mode} · ${status.fault ?? "healthy"}`);
+  await refreshSensors();
+}
+
+/** What is really wrong, for the person testing only — revealed on request, never sent to Dex. */
+function showTruth() {
+  const fault = garage.faults[els("gFault").value];
+  els("gTruth").hidden = !fault;
+  els("gCause").hidden = true;
+  els("gReveal").hidden = false;
+  if (fault) {
+    els("gCause").replaceChildren();
+    const cause = document.createElement("b");
+    cause.textContent = fault.hidden_cause;
+    els("gCause").append(cause, document.createElement("br"),
+                         document.createTextNode(`The driver would say: ${fault.symptom_hint}`));
+  }
+}
+
+function setRunning(running, note) {
+  garage.running = running;
+  els("gState").textContent = note;
+  els("gState").classList.toggle("running", running);
+  els("gStop").disabled = !running;
+  els("gStart").textContent = running ? "Restart the car" : "Start the car";
+  if (running) {
+    garage.timer ??= setInterval(refreshSensors, 1500);
+  } else {
+    clearInterval(garage.timer);
+    garage.timer = null;
+    els("gReadings").replaceChildren();
+    els("gCodes").hidden = true;
+  }
+}
+
+async function refreshSensors() {
+  let data;
+  try {
+    data = await api(`/api/sensors/${encodeURIComponent(deviceName())}`);
+  } catch {
+    return;  // a blip in polling is not worth a line in the conversation
+  }
+  const by = Object.fromEntries(data.readings.map(r => [r.pid, r]));
+  // Names and units arrive with the uploads, so they are treated as text, never as markup.
+  els("gReadings").replaceChildren(...SHOWN_PIDS.filter(([pid]) => by[pid]).map(([pid, label]) => {
+    const r = by[pid];
+    const cell = document.createElement("div");
+    cell.className = ALERT[pid]?.(r.value) ? "reading alert" : "reading";
+    const name = document.createElement("span");
+    name.textContent = label || r.name;
+    const value = document.createElement("b");
+    value.textContent = `${Math.abs(r.value) >= 100 ? Math.round(r.value) : r.value.toFixed(1)} ${r.unit}`;
+    cell.append(name, value);
+    return cell;
+  }));
+  els("gCodes").hidden = !data.dtcs.length;
+  const label = document.createElement("span");
+  label.textContent = "codes";
+  els("gCodes").replaceChildren(label, ...data.dtcs.map(code => {
+    const chip = document.createElement("span");
+    chip.className = "code";
+    chip.textContent = code;
+    return chip;
+  }));
+}
+
+async function startCar() {
+  const vehicle = els("gVehicle").value;
+  const status = await send(`/api/sim/${encodeURIComponent(deviceName())}`, "POST", {
+    vehicle,
+    mode: els("gMode").value,
+    fault: els("gFault").value || null,
+    time_scale: Number(els("gScale").value),
+  });
+  setRunning(true, `${status.mode} · ${status.fault ?? "healthy"}`);
+  log("sys", `${vehicleTitle(vehicle)} running: ${status.mode}, ${status.fault ?? "nothing wrong with it"}`);
+  await refreshSensors();
+}
+
+/** Changing mode or fault on a running car, rather than restarting it: the engine stays warm and
+ *  the readings keep their history, which is exactly what breaking a car mid-drive looks like. */
+async function adjustCar(patch) {
+  const status = await send(`/api/sim/${encodeURIComponent(deviceName())}`, "PATCH", patch);
+  setRunning(true, `${status.mode} · ${status.fault ?? "healthy"}`);
+}
+
+function wireGarage() {
+  const guard = fn => async (...args) => {
+    try {
+      await fn(...args);
+    } catch (err) {
+      log("sys", `garage: ${err.message || err}`);
+    }
+  };
+  els("gStart").onclick = guard(startCar);
+  els("gStop").onclick = guard(async () => {
+    await send(`/api/sim/${encodeURIComponent(deviceName())}`, "DELETE");
+    setRunning(false, "no car running");
+    log("sys", "car switched off");
+  });
+  // The device name is the car's identity in the sensor stream, and the agent is told it once,
+  // at the handshake. Changing it here would quietly point the garage at a different car from
+  // the one Dex is reading.
+  els("device").onchange = guard(async () => {
+    if (state.ws?.readyState === WebSocket.OPEN) {
+      log("sys", "device changed — press Connect again so Dex reads this car");
+    }
+    setRunning(false, "no car running");
+    await adoptRunningCar();
+  });
+  els("gReveal").onclick = () => { els("gCause").hidden = false; els("gReveal").hidden = true; };
+  els("gFault").onchange = guard(async () => {
+    showTruth();
+    const fault = els("gFault").value;
+    if (garage.running) await adjustCar(fault ? { fault } : { clear_fault: true });
+  });
+  els("gMode").onchange = guard(async () => {
+    if (garage.running) await adjustCar({ mode: els("gMode").value });
+  });
+  // A different car is a different conversation: the simulator restarts and the agent, which
+  // states the current car in its system prompt, is told to start over.
+  els("gVehicle").onchange = guard(async () => {
+    if (state.ws?.readyState === WebSocket.OPEN) {
+      state.ws.send(JSON.stringify({ type: "vehicle", vehicle: els("gVehicle").value }));
+    }
+    if (garage.running) await startCar();
+  });
+  garage.ready = loadCatalog().catch(err => log("sys", `garage unavailable: ${err.message || err}`));
+}
+
 function wire() {
   els("connect").onclick = async () => {
     try {
@@ -172,7 +385,12 @@ function wire() {
   };
   const talk = els("talk");
   const press = () => { state.speaking = true; talk.classList.add("held"); setStatus("listening…", true); };
-  const release = () => { state.speaking = false; talk.classList.remove("held"); setStatus("thinking…", true); };
+  const release = () => {
+    if (!state.speaking) return;  // a click elsewhere on the page is not the end of a question
+    state.speaking = false;
+    talk.classList.remove("held");
+    setStatus("thinking…", true);
+  };
   talk.addEventListener("mousedown", press);
   talk.addEventListener("touchstart", e => { e.preventDefault(); press(); });
   addEventListener("mouseup", release);
@@ -184,6 +402,7 @@ function wire() {
     renderLatency();
   };
   els("wsUrl").value = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/voice`;
+  wireGarage();
 }
 
 wire();

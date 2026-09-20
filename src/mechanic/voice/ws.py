@@ -7,11 +7,13 @@ WebSocket rather than WebRTC because the demo is published through a Cloudflare 
 does not carry UDP.
 
     client -> server   binary: int16 little-endian PCM at 16 kHz
-                       json:   {"type": "hello", "device": ..., "vehicle": ...} | {"type": "reset"}
+                       json:   {"type": "hello", "device": ..., "vehicle": ...}
+                               | {"type": "reset"} | {"type": "vehicle", "vehicle": ...}
     server -> client   binary: int16 little-endian PCM at the rate given in "ready"
                        json:   ready | transcript | sentence | tool | audio_start | turn_end | flush | error
 """
 
+import json
 import logging
 import os
 
@@ -23,6 +25,7 @@ from mechanic.agent.tools import Session, ToolRunner
 from mechanic.knowledge.dtc import DtcDatabase
 from mechanic.knowledge.search import INDEX_DIR, SearchIndex
 from mechanic.torque.store import TorqueStore
+from mechanic.vehicles import VEHICLES
 from mechanic.voice.asr import SAMPLE_RATE as MIC_RATE
 from mechanic.voice.asr import Recognizer
 from mechanic.voice.session import VoiceSession
@@ -109,6 +112,26 @@ def build_router(store: TorqueStore, models: SharedModels) -> APIRouter:
                 }
             )
 
+            async def control(command: dict) -> None:
+                match command.get("type"):
+                    case "reset":
+                        agent.reset()
+                        session.detector.reset()
+                        await ws.send_json({"type": "reset_done"})
+                    case "vehicle":
+                        # The Garage panel can put the driver in a different car mid-session.
+                        # The agent states the current car in its system prefix and rebuilds it
+                        # when this changes; the history goes too, because every word of it was
+                        # about the other car and would be read as being about this one.
+                        chosen = command.get("vehicle") or None
+                        if chosen is not None and chosen not in VEHICLES:
+                            await ws.send_json({"type": "error", "message": f"Unknown vehicle '{chosen}'"})
+                            return
+                        agent.session.vehicle_id = chosen
+                        agent.reset()
+                        session.detector.reset()
+                        await ws.send_json({"type": "vehicle", "vehicle": chosen})
+
             while True:
                 message = await ws.receive()
                 if message["type"] == "websocket.disconnect":
@@ -116,12 +139,7 @@ def build_router(store: TorqueStore, models: SharedModels) -> APIRouter:
                 if (payload := message.get("bytes")) is not None:
                     await session.push_audio(pcm_to_float(payload))
                 elif (text := message.get("text")) is not None:
-                    import json
-
-                    if json.loads(text).get("type") == "reset":
-                        agent.reset()
-                        session.detector.reset()
-                        await ws.send_json({"type": "reset_done"})
+                    await control(json.loads(text))
         except WebSocketDisconnect:
             pass
         except Exception as e:  # a dead socket must not take the server with it

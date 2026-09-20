@@ -62,3 +62,24 @@ def test_microphone_bytes_are_accepted(client):
         ws.send_bytes(float_to_pcm(np.zeros(1600, dtype=np.float32)))
         ws.send_json({"type": "reset"})
         assert ws.receive_json()["type"] == "reset_done"
+
+
+def test_the_garage_can_change_the_car_mid_session(client):
+    """Swapping the car has to reach the agent: it states the current car in its system prompt."""
+    with client.websocket_connect("/ws/voice") as ws:
+        ws.send_json({"type": "hello", "device": "t", "vehicle": "audi_a4_b8"})
+        assert ws.receive_json()["type"] == "ready"
+        ws.send_json({"type": "vehicle", "vehicle": "honda_civic_10"})
+        assert ws.receive_json() == {"type": "vehicle", "vehicle": "honda_civic_10"}
+
+
+def test_an_unknown_car_is_refused_rather_than_silently_forgetting_the_current_one(client):
+    with client.websocket_connect("/ws/voice") as ws:
+        ws.send_json({"type": "hello", "device": "t", "vehicle": "audi_a4_b8"})
+        assert ws.receive_json()["type"] == "ready"
+        ws.send_json({"type": "vehicle", "vehicle": "delorean_dmc12"})
+        reply = ws.receive_json()
+        assert reply["type"] == "error" and "delorean_dmc12" in reply["message"]
+        # Still the car we started with, so the next answer is not about nothing.
+        ws.send_json({"type": "vehicle", "vehicle": "audi_a4_b8"})
+        assert ws.receive_json()["vehicle"] == "audi_a4_b8"
