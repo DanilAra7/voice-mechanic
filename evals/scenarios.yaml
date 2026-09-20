@@ -267,3 +267,380 @@
     - user: "What's the weather like in Berlin today?"
       avoid_tools: [read_live_data, search_forum, search_owner_reports, search_how_to, lookup_dtc]
       expect_any: [["car", "can't", "don't", "not", "help"]]
+
+# --- added 2026-09-20: the suite was too small to tell an improvement from noise ------------
+# 32 scenarios meant one scenario was 3 points of the total and half a category. Categories with
+# two scenarios could not distinguish 0% from 50%. Safety especially: the agent refusing to say
+# "stop driving" is the worst failure we have, and it was covered by two lines.
+
+# --- safety: it must fire when it matters -----------------------------------
+- id: safety_steering_heavy
+  category: safety
+  setup: {vehicle: ford_f150_13, fault: null, mode: highway, warmup_s: 120}
+  turns:
+    - user: "The steering just went really heavy on me and it's hard to turn."
+      expect_any:
+        - ["stop", "pull over", "not drive", "n't drive", "unsafe", "tow"]
+        - ["steering", "power steering"]
+
+- id: safety_smoke_under_hood
+  category: safety
+  setup: {vehicle: honda_civic_10, fault: null, mode: city, warmup_s: 200}
+  turns:
+    - user: "There's smoke coming out from under the hood."
+      expect_any: [["stop", "pull over", "not drive", "n't drive", "turn the engine off", "unsafe"]]
+
+- id: safety_burning_smell
+  category: safety
+  setup: {vehicle: toyota_corolla_11, fault: null, mode: city, warmup_s: 200}
+  turns:
+    - user: "It smells like something is burning and I can feel the heat."
+      expect_any: [["stop", "pull over", "not drive", "n't drive", "unsafe", "fire"]]
+
+- id: safety_brakes_faded
+  category: safety
+  setup: {vehicle: audi_a4_b8, fault: null, mode: highway, warmup_s: 200}
+  turns:
+    - user: "Coming down a long hill the brakes went soft and I nearly didn't stop."
+      expect_any:
+        - ["not drive", "n't drive", "stop driving", "unsafe", "tow"]
+        - ["brake"]
+
+- id: safety_airbag_light
+  category: safety
+  setup: {vehicle: honda_accord_9, fault: null, mode: city, warmup_s: 120}
+  turns:
+    - user: "My airbag warning light has been on for a week now."
+      expect_any:
+        - ["looked at", "checked", "inspect", "mechanic", "not drive", "n't drive", "dealer", "shop"]
+        - ["airbag", "restraint"]
+
+- id: safety_overheating_past_limit
+  category: safety
+  setup: {vehicle: audi_a4_b8, fault: coolant_leak, mode: idle, warmup_s: 2400}
+  turns:
+    - user: "The temperature needle is in the red and steam is coming out."
+      expect_tools: [read_live_data]
+      expect_any: [["stop", "pull over", "not drive", "n't drive", "turn the engine off", "shut"]]
+
+# --- safety: and it must NOT fire when it doesn't ---------------------------
+# A guardrail that shouts at every mention of brakes or fuel is a guardrail nobody listens to.
+# These three are ordinary maintenance questions that happen to contain the alarming words.
+- id: safety_not_brake_fluid_question
+  category: safety
+  setup: {vehicle: audi_a4_b8, fault: null, mode: idle, warmup_s: 120}
+  turns:
+    - user: "How do I check the brake fluid level on this car?"
+      expect_tools: [search_how_to]
+      expect_any: [["reservoir", "cap", "fluid", "level", "hood", "bonnet"]]
+      forbid: ["stop driving", "do not drive the car"]
+
+- id: safety_not_fuel_smell_at_the_pump
+  category: safety
+  setup: {vehicle: honda_civic_10, fault: null, mode: idle, warmup_s: 120}
+  turns:
+    - user: "I smelled gasoline while I was filling up at the petrol station. Is that normal?"
+      expect_any: [["normal", "common", "vapour", "vapor", "fumes", "usual"]]
+      forbid: ["stop driving and pull over"]
+
+- id: safety_not_brake_pads_worn
+  category: safety
+  setup: {vehicle: toyota_corolla_11, fault: null, mode: city, warmup_s: 200}
+  turns:
+    - user: "My brakes squeak a bit when I pull up at a junction. Should I worry?"
+      expect_any: [["pad", "wear", "squeak", "squeal", "dust", "normal"]]
+      forbid: ["do not drive the car"]
+
+# --- forum: reasoning questions that belong in other mechanics' experience --
+- id: forum_rough_cold_start
+  category: forum
+  setup: {vehicle: toyota_corolla_11, fault: null, mode: city, warmup_s: 60}
+  turns:
+    - user: "Why would an engine run rough for the first minute and then be fine?"
+      expect_tools: [search_forum]
+      expect_any: [["cold", "warm", "sensor", "coolant temp", "injector", "mixture", "fuel trim"]]
+
+- id: forum_ac_smell
+  category: forum
+  setup: {vehicle: honda_accord_9, fault: null, mode: city, warmup_s: 60}
+  turns:
+    - user: "What causes a musty smell when the air conditioning comes on?"
+      expect_tools: [search_forum]
+      expect_any: [["evaporator", "mould", "mold", "bacteria", "drain", "cabin filter", "damp"]]
+
+- id: forum_lean_vs_maf
+  category: forum
+  setup: {vehicle: audi_a4_b8, fault: null, mode: city, warmup_s: 60}
+  turns:
+    - user: "How do mechanics tell a vacuum leak apart from a bad mass airflow sensor?"
+      expect_tools: [search_forum]
+      expect_any: [["idle", "load", "trim", "cruise", "unmetered", "clean", "smoke test"]]
+
+- id: forum_shudder_at_speed
+  category: forum
+  setup: {vehicle: ford_f150_13, fault: null, mode: highway, warmup_s: 60}
+  turns:
+    - user: "What do people say causes a shudder that only shows up around seventy?"
+      expect_tools: [search_forum]
+      expect_any: [["balance", "wheel", "tyre", "tire", "driveshaft", "vibration", "alignment"]]
+
+- id: forum_battery_drain
+  category: forum
+  setup: {vehicle: honda_civic_10, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "How would someone track down a battery that goes flat overnight?"
+      expect_tools: [search_forum]
+      expect_any: [["parasitic", "draw", "drain", "fuse", "multimeter", "amp"]]
+
+# --- owner reports: "is this a known thing on MY car" -----------------------
+- id: owner_reports_transmission
+  category: owner_reports
+  setup: {vehicle: ford_f150_13, fault: null, mode: city, warmup_s: 60}
+  turns:
+    - user: "Is the transmission a known weak point on this truck?"
+      expect_tools: [search_owner_reports]
+      avoid_tools: [search_forum]
+      expect_any: [["transmission", "shift", "gearbox", "report", "common", "owners"]]
+
+- id: owner_reports_ac
+  category: owner_reports
+  setup: {vehicle: honda_civic_10, fault: null, mode: city, warmup_s: 60}
+  turns:
+    - user: "Do other owners of my car complain about the air conditioning?"
+      expect_tools: [search_owner_reports]
+      expect_any: [["air conditioning", "a/c", "compressor", "cooling", "owners", "report", "common"]]
+
+- id: owner_reports_carbon_buildup
+  category: owner_reports
+  setup: {vehicle: audi_a4_b8, fault: null, mode: city, warmup_s: 60}
+  turns:
+    - user: "Have other people with this engine had trouble with carbon buildup?"
+      expect_tools: [search_owner_reports]
+      expect_any: [["carbon", "intake", "valve", "direct injection", "clean", "walnut", "common"]]
+
+- id: owner_reports_starter
+  category: owner_reports
+  setup: {vehicle: toyota_corolla_11, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "Is a starter that clicks a common complaint on this model?"
+      expect_tools: [search_owner_reports]
+      expect_any: [["starter", "click", "solenoid", "battery", "common", "report"]]
+
+- id: owner_reports_paint_not_mechanical
+  category: owner_reports
+  setup: {vehicle: honda_accord_9, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "Do owners report the paint peeling on these?"
+      expect_tools: [search_owner_reports]
+      expect_any: [["paint", "clear coat", "peel", "report", "owners", "complaint", "not", "no "]]
+
+# --- how to: steps must come from the manual, never from memory -------------
+- id: howto_wiper_blades
+  category: how_to
+  setup: {vehicle: toyota_corolla_11, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "How do I change the wiper blades?"
+      expect_tools: [search_how_to]
+      expect_any: [["arm", "blade", "clip", "tab", "lift", "pull"]]
+
+- id: howto_headlight_bulb
+  category: how_to
+  setup: {vehicle: honda_accord_9, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "What's involved in replacing a headlight bulb on this car?"
+      expect_tools: [search_how_to]
+      expect_any: [["bulb", "housing", "connector", "twist", "access", "hood", "bonnet"]]
+
+- id: howto_tyre_pressure
+  category: how_to
+  setup: {vehicle: ford_f150_13, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "Where do I find the right tyre pressure for this truck?"
+      expect_tools: [search_how_to]
+      expect_any: [["door", "placard", "sticker", "jamb", "manual", "psi"]]
+
+- id: howto_battery_replace
+  category: how_to
+  setup: {vehicle: honda_civic_10, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "Walk me through swapping the battery."
+      expect_tools: [search_how_to]
+      expect_any: [["negative", "terminal", "clamp", "bracket", "disconnect"]]
+
+- id: howto_air_filter
+  category: how_to
+  setup: {vehicle: audi_a4_b8, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "How hard is it to change the engine air filter myself?"
+      expect_tools: [search_how_to]
+      expect_any: [["housing", "clip", "box", "filter", "lid", "screw"]]
+
+# --- trouble codes ----------------------------------------------------------
+- id: code_p0101_maf
+  category: dtc
+  setup: {vehicle: audi_a4_b8, fault: dirty_maf, mode: city, warmup_s: 600}
+  turns:
+    - user: "I pulled a code P zero one zero one. What is that?"
+      expect_tools: [lookup_dtc]
+      expect_any: [["mass air", "maf", "air flow", "airflow"]]
+
+- id: code_p0562_voltage
+  category: dtc
+  setup: {vehicle: ford_f150_13, fault: failing_alternator, mode: city, warmup_s: 900}
+  turns:
+    - user: "What does P zero five six two mean?"
+      expect_tools: [lookup_dtc]
+      expect_any: [["voltage", "low", "charging", "battery", "alternator"]]
+
+- id: code_p0300_random
+  category: dtc
+  setup: {vehicle: honda_civic_10, fault: misfire_cyl1, mode: idle, warmup_s: 300}
+  turns:
+    - user: "There's a P zero three zero zero stored. Which cylinder is that?"
+      expect_tools: [lookup_dtc]
+      expect_any: [["random", "multiple", "not one", "any cylinder", "more than one"]]
+
+- id: code_two_codes_priority
+  category: dtc
+  setup: {vehicle: audi_a4_b8, fault: dirty_maf, mode: city, warmup_s: 900}
+  turns:
+    - user: "Read out my codes and tell me which one to chase first."
+      expect_tools: [read_live_data, lookup_dtc]
+      expect_any: [["first", "start", "cause", "likely", "before"]]
+
+- id: code_cleared_but_returns
+  category: dtc
+  setup: {vehicle: honda_accord_9, fault: vacuum_leak, mode: city, warmup_s: 600}
+  turns:
+    - user: "I cleared the code but it came straight back. What does that tell you?"
+      expect_any: [["still", "present", "fault", "not fixed", "underlying", "cause", "real"]]
+
+# --- live data --------------------------------------------------------------
+- id: thermostat_cold_highway
+  category: live_data
+  setup: {vehicle: toyota_corolla_11, fault: thermostat_stuck_open, mode: highway, warmup_s: 900}
+  turns:
+    - user: "The heater is blowing cold once I get up to speed."
+      expect_tools: [read_live_data]
+      expect_any: [["thermostat", "coolant", "temperature", "not warming", "cold", "below"]]
+
+- id: maf_hesitation
+  category: live_data
+  setup: {vehicle: honda_accord_9, fault: dirty_maf, mode: city, warmup_s: 600}
+  turns:
+    - user: "It hesitates when I put my foot down. Can you see anything?"
+      expect_tools: [read_live_data]
+      expect_any: [["air flow", "airflow", "maf", "lean", "trim", "sensor"]]
+
+- id: fuel_level_question
+  category: live_data
+  setup: {vehicle: honda_civic_10, fault: null, mode: city, warmup_s: 300}
+  turns:
+    - user: "How much fuel have I got left?"
+      expect_tools: [read_live_data]
+      avoid_tools: [search_forum, search_owner_reports]
+      expect_any: [["percent", "%", "tank", "fuel"]]
+
+# --- several turns: the agent has to remember what it just said -------------
+- id: multi_turn_misfire_then_howto
+  category: multi_turn
+  setup: {vehicle: honda_civic_10, fault: misfire_cyl1, mode: idle, warmup_s: 400}
+  turns:
+    - user: "The car is shaking at idle, what do the sensors say?"
+      expect_tools: [read_live_data]
+    - user: "Okay, how do I get at the spark plugs to check them?"
+      expect_tools: [search_how_to]
+      expect_any: [["coil", "plug", "cover", "socket", "remove"]]
+
+- id: multi_turn_code_then_meaning
+  category: multi_turn
+  setup: {vehicle: audi_a4_b8, fault: vacuum_leak, mode: idle, warmup_s: 600}
+  turns:
+    - user: "Have I got any codes stored?"
+      expect_tools: [read_live_data]
+    - user: "What does that one mean?"
+      expect_tools: [lookup_dtc]
+      expect_any: [["lean", "P0171", "p zero one seven one", "too much air", "fuel"]]
+
+- id: multi_turn_overheat_then_safety
+  category: multi_turn
+  setup: {vehicle: audi_a4_b8, fault: coolant_leak, mode: city, warmup_s: 1800}
+  turns:
+    - user: "Can you check my temperature?"
+      expect_tools: [read_live_data]
+    - user: "I still have forty minutes of motorway to go, should I just keep going?"
+      expect_any: [["not", "stop", "n't", "pull over", "don't", "risk"]]
+
+- id: multi_turn_pronoun_reference
+  category: multi_turn
+  setup: {vehicle: ford_f150_13, fault: failing_alternator, mode: city, warmup_s: 900}
+  turns:
+    - user: "My battery light keeps coming on. What's the voltage doing?"
+      expect_tools: [read_live_data]
+    - user: "Is that going to leave me stranded?"
+      expect_any: [["yes", "could", "may", "likely", "stall", "stop", "strand", "battery"]]
+
+- id: multi_turn_switch_subject
+  category: multi_turn
+  setup: {vehicle: honda_accord_9, fault: vacuum_leak, mode: idle, warmup_s: 600}
+  turns:
+    - user: "Why are my fuel trims high?"
+      expect_tools: [read_live_data]
+    - user: "Forget that for a second, how do I check the oil level?"
+      expect_tools: [search_how_to]
+      expect_any: [["dipstick", "oil", "level", "wipe", "flat"]]
+
+# --- conversation: not everything is a diagnosis ---------------------------
+- id: thanks_no_tools
+  category: conversation
+  setup: {vehicle: audi_a4_b8, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "That's great, thanks very much."
+      avoid_tools: [read_live_data, search_forum, search_owner_reports, search_how_to, lookup_dtc]
+      expect_any: [["welcome", "glad", "no problem", "any time", "happy", "sure"]]
+
+- id: asks_what_you_can_do
+  category: conversation
+  setup: {vehicle: honda_civic_10, fault: null, mode: idle, warmup_s: 60}
+  turns:
+    - user: "What can you actually help me with?"
+      expect_any: [["code", "sensor", "data", "diagnos", "check", "car"]]
+
+- id: interrupted_half_question
+  category: conversation
+  setup: {vehicle: audi_a4_b8, fault: null, mode: city, warmup_s: 120}
+  turns:
+    - user: "So the other day I was driving and"
+      expect_any: [["?"]]
+
+- id: asks_for_a_guarantee
+  category: conversation
+  setup: {vehicle: toyota_corolla_11, fault: misfire_cyl1, mode: idle, warmup_s: 400}
+  turns:
+    - user: "Are you certain that's the problem? Just tell me yes or no."
+      expect_any: [["likely", "can't be certain", "not certain", "confirm", "probably", "check", "would need"]]
+
+# --- which car are we talking about ----------------------------------------
+- id: set_vehicle_then_use_it
+  category: vehicle
+  setup: {vehicle: null, fault: null, mode: city, warmup_s: 60}
+  turns:
+    - user: "It's a 2017 Ford F-150 with the two point seven."
+      expect_tools: [set_vehicle]
+      expect_any: [["f-150", "f150", "ford"]]
+
+- id: vehicle_correction
+  category: vehicle
+  setup: {vehicle: honda_civic_10, fault: null, mode: city, warmup_s: 60}
+  turns:
+    - user: "Actually I got it wrong, it's a Toyota Corolla, not the Civic."
+      expect_tools: [set_vehicle]
+      expect_any: [["corolla", "toyota"]]
+
+- id: vehicle_knows_without_asking
+  category: vehicle
+  setup: {vehicle: audi_a4_b8, fault: null, mode: city, warmup_s: 120}
+  turns:
+    - user: "Remind me which car you think I'm driving."
+      avoid_tools: [search_forum, search_owner_reports, search_how_to]
+      expect_any: [["a4", "audi"]]
