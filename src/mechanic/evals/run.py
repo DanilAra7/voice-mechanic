@@ -43,6 +43,9 @@ class TurnResult:
     forbidden_tools: list[str]
     missing_phrases: list[list[str]]
     forbidden_phrases: list[str]
+    # Of the phrases the answer was missing, the ones the tools had actually handed it.
+    missed_in_evidence: list[list[str]] = field(default_factory=list)
+    searched: bool = False
     format_issues: bool
     first_token_ms: float | None
     first_sentence_ms: float | None
@@ -59,6 +62,24 @@ class TurnResult:
     @property
     def passed(self) -> bool:
         return self.tools_ok and self.content_ok
+
+    @property
+    def blame(self) -> str | None:
+        """Whose fault the turn was, so a failure points somewhere instead of just being red.
+
+        A missing phrase means one of two very different things: the search never found it, or
+        it was sitting in the tool result and the model talked past it. Without this the score
+        says "wrong" and leaves us guessing which half to work on.
+        """
+        if not self.tools_ok:
+            return "tool choice"
+        if self.content_ok:
+            return None
+        if self.forbidden_phrases:
+            return "generation"
+        if self.missed_in_evidence:
+            return "generation"
+        return "retrieval" if self.searched else "no lookup"
 
 
 @dataclass
@@ -95,12 +116,19 @@ def prepare_store(setup: dict) -> tuple[TorqueStore, Session]:
     return store, session
 
 
-def score_turn(turn_spec: dict, answer: str, called: list[str], timings: dict) -> TurnResult:
+def score_turn(
+    turn_spec: dict, answer: str, called: list[str], timings: dict, tool_calls: list[dict] | None = None
+) -> TurnResult:
     lowered = answer.lower()
     missing_phrases = [
         group for group in turn_spec.get("expect_any", []) if not any(p.lower() in lowered for p in group)
     ]
+    evidence = json.dumps(
+        [c.get("result") for c in (tool_calls or [])], ensure_ascii=False, default=str
+    ).lower()
     return TurnResult(
+        missed_in_evidence=[g for g in missing_phrases if any(p.lower() in evidence for p in g)],
+        searched=any(name.startswith("search") for name in called),
         user=turn_spec["user"],
         answer=answer,
         tools_called=called,
@@ -136,6 +164,7 @@ async def run_scenario(scenario: dict, dtc: DtcDatabase, index: SearchIndex | No
                         "first_sentence_ms": turn.first_sentence_ms,
                         "total_ms": turn.total_ms,
                     },
+                    tool_calls=turn.tool_calls,
                 )
             )
     except Exception as e:  # a model that can't be reached should fail loudly, once
@@ -165,6 +194,10 @@ def summarize(results: list[ScenarioResult], model: str) -> dict[str, Any]:
         "tool_accuracy": pct([t.tools_ok for t in turns]),
         "content_accuracy": pct([t.content_ok for t in turns]),
         "voice_format_clean": pct([not t.format_issues for t in turns]),
+        "blame": {
+            reason: sum(1 for t in turns if t.blame == reason)
+            for reason in ("tool choice", "retrieval", "generation", "no lookup")
+        },
         "errors": [r.id for r in results if r.error],
         "latency_ms": {
             "first_sentence_p50": quantile(latencies, 0.5),

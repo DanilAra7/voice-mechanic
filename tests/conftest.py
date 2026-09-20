@@ -13,6 +13,7 @@ class FakeIndex:
                 title="Coolant leak at the water pump",
                 text="x" * 2000,
                 url="https://example.test/1",
+                doc_id="se-1",
                 source=sources[0] if sources else "stackexchange",
                 make="Audi",
                 year=2012,

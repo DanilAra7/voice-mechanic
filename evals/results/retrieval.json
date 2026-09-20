@@ -1,0 +1,38 @@
+{
+  "queries": 390,
+  "with_body": false,
+  "runs": {
+    "BM25 only": {
+      "queries": 390,
+      "recall@1": 14.9,
+      "recall@5": 30.0,
+      "recall@10": 39.5,
+      "mrr@10": 0.219,
+      "median_ms": 1.5
+    },
+    "dense only": {
+      "queries": 390,
+      "recall@1": 20.0,
+      "recall@5": 43.3,
+      "recall@10": 52.6,
+      "mrr@10": 0.298,
+      "median_ms": 5.6
+    },
+    "both, fused (what the agent uses)": {
+      "queries": 390,
+      "recall@1": 23.3,
+      "recall@5": 42.3,
+      "recall@10": 51.8,
+      "mrr@10": 0.309,
+      "median_ms": 6.2
+    },
+    "both, without the vehicle boost": {
+      "queries": 390,
+      "recall@1": 23.1,
+      "recall@5": 41.5,
+      "recall@10": 52.3,
+      "mrr@10": 0.308,
+      "median_ms": 6.2
+    }
+  }
+}

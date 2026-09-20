@@ -51,6 +51,7 @@ class SearchHit:
     title: str
     text: str
     url: str
+    doc_id: str
     source: str
     make: str | None
     year: int | None
@@ -195,7 +196,11 @@ class SearchIndex:
         vehicle_id: str | None = None,
         limit: int = 5,
         candidates: int = 60,
+        use: str = "both",
+        boost: bool = True,
     ) -> list[SearchHit]:
+        """`use` and `boost` exist so the halves can be measured apart (mechanic.evals.retrieval);
+        the agent always runs with everything on."""
         keep = np.array(
             [sources is None or p.source in sources for p in self.passages],
             dtype=bool,
@@ -203,8 +208,10 @@ class SearchIndex:
         if not keep.any():
             return []
 
-        rankings = [self._bm25_ranks(query, keep, candidates)]
-        if self.dense is not None:
+        rankings = []
+        if use in ("both", "bm25"):
+            rankings.append(self._bm25_ranks(query, keep, candidates))
+        if use in ("both", "dense") and self.dense is not None:
             rankings.append(self._dense_ranks(query, keep, candidates))
 
         make = VEHICLES[vehicle_id].make if vehicle_id else None
@@ -212,7 +219,7 @@ class SearchIndex:
         for ranks in rankings:
             for rank, idx in enumerate(ranks):
                 fused[idx] = fused.get(idx, 0.0) + 1.0 / (RRF_K + rank + 1)
-        for idx in fused:
+        for idx in fused if boost else ():
             p = self.passages[idx]
             if vehicle_id and vehicle_id in p.vehicle_ids:
                 fused[idx] *= VEHICLE_BOOST
@@ -233,6 +240,7 @@ class SearchIndex:
                     title=p.title,
                     text=p.text,
                     url=p.url,
+                    doc_id=p.doc_id,
                     source=p.source,
                     make=p.make,
                     year=p.year,
