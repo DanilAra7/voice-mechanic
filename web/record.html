@@ -27,7 +27,8 @@
   #state.on{color:var(--ok)}
   ol{padding-left:20px;color:var(--muted);font-size:14px}
   ol b{color:var(--ink)}
-  .done{font:12px var(--mono);color:var(--ok)}
+  .done{font:12px var(--mono);color:var(--ok);word-break:break-all}
+  .done.bad{color:#e2685f}
 </style>
 </head>
 <body>
@@ -37,7 +38,9 @@
     normal room. Each take downloads as its own file the moment you stop.</p>
 
   <div class="card">
-    <div class="row"><span class="counter" id="counter">1 of 15</span><span id="state">ready</span></div>
+    <div class="row"><span class="counter" id="counter">1 of 15</span>
+      <span class="counter" id="progress">0 of 15 recorded</span>
+      <span id="state">ready</span></div>
     <p class="line" id="line">…</p>
     <div class="row">
       <button id="rec">Hold to record</button>
@@ -51,7 +54,8 @@
     <ol>
       <li>Hold the button, read the line, let go. The file <b>downloads by itself</b>.</li>
       <li>Not happy with a take? Just hold and read it again — it overwrites.</li>
-      <li>When all fifteen are done, move them into <b>evals/audio/real/</b> next to the .txt files.</li>
+      <li>Each take is written straight into <b>evals/audio/real/</b> — nothing to move.</li>
+      <li>The server must be started with <b>MECHANIC_ALLOW_RECORDING=1</b>, or saving is refused.</li>
     </ol>
   </div>
 </main>
@@ -79,11 +83,14 @@ const LINES = [
 const RATE = 16000;
 const els = id => document.getElementById(id);
 let at = 0, ctx = null, node = null, chunks = [], recording = false, last = null;
+const done = new Set();
 
 function show() {
   els("counter").textContent = `${at + 1} of ${LINES.length}`;
+  els("progress").textContent = `${done.size} of ${LINES.length} recorded`;
   els("line").textContent = LINES[at];
   els("saved").textContent = "";
+  els("saved").classList.remove("bad");
   els("play").disabled = true;
 }
 
@@ -116,19 +123,30 @@ async function start() {
   ctx.createMediaStreamSource(stream).connect(node);
 }
 
-function save() {
+// Sent to the server rather than downloaded: a browser download of fifteen files in a row asks
+// awkward questions, can be refused without saying so, and leaves the takes somewhere nobody
+// can find. The server writes them exactly where the measurement expects them.
+async function save() {
   const total = chunks.reduce((n, c) => n + c.length, 0);
   const all = new Float32Array(total);
   let off = 0;
   for (const c of chunks) { all.set(c, off); off += c.length; }
   const name = `${String(at).padStart(2, "0")}.wav`;
   last = wav(all);
-  const url = URL.createObjectURL(last);
-  const a = document.createElement("a");
-  a.href = url; a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-  els("saved").textContent = `saved ${name} — ${(total / RATE).toFixed(1)} s`;
   els("play").disabled = false;
+  els("saved").textContent = `sending ${name}…`;
+  try {
+    const r = await fetch(`/api/recording/${name}`, { method: "PUT", body: last });
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.detail || r.status);
+    els("saved").textContent = `saved ${name} — ${(total / RATE).toFixed(1)} s · ${out.path}`;
+    els("saved").classList.remove("bad");
+    done.add(at);
+    els("progress").textContent = `${done.size} of ${LINES.length} recorded`;
+  } catch (err) {
+    els("saved").textContent = `could not save ${name}: ${err.message}`;
+    els("saved").classList.add("bad");
+  }
 }
 
 async function press() {

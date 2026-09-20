@@ -4,12 +4,13 @@ uv run uvicorn mechanic.server:app --reload
 """
 
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -24,6 +25,12 @@ from mechanic.voice.ws import build_router as build_voice_router
 load_env()
 
 DB_PATH = os.environ.get("MECHANIC_DB", "data/cache/torque.sqlite")
+# Where /app/record.html puts the clips it captures. Writing files from a web request is not
+# something a published demo should offer, so it stays off unless somebody asks for it.
+RECORDING_DIR = Path(__file__).resolve().parents[2] / "evals" / "audio" / "real"
+RECORDING_ENABLED = os.environ.get("MECHANIC_ALLOW_RECORDING") == "1"
+RECORDING_NAME = re.compile(r"^\d{2}\.wav$")
+MAX_RECORDING_BYTES = 8 * 1024 * 1024
 # The simulator talks to our own receiver over real HTTP, exactly like a phone would.
 SELF_URL = os.environ.get("MECHANIC_SELF_URL", "http://127.0.0.1:8000")
 
@@ -116,6 +123,26 @@ def sim_status(sim: TorqueSimulator) -> dict:
         "last_error": sim.last_error,
         "dtcs": m.active_dtcs(),
     }
+
+
+@app.put("/api/recording/{name}")
+async def save_recording(name: str, request: Request) -> dict:
+    """Take a clip straight from the browser instead of relying on a download.
+
+    The download path failed silently on 2026-09-20 — fifteen takes recorded, nothing on disk
+    anywhere — and a recording nobody can find is worse than no recording, because it is only
+    discovered after the reading is done.
+    """
+    if not RECORDING_ENABLED:
+        raise HTTPException(403, "recording is off; start the server with MECHANIC_ALLOW_RECORDING=1")
+    if not RECORDING_NAME.match(name):
+        raise HTTPException(400, "name must look like 07.wav")
+    body = await request.body()
+    if not body or len(body) > MAX_RECORDING_BYTES:
+        raise HTTPException(400, f"clip is {len(body)} bytes")
+    RECORDING_DIR.mkdir(parents=True, exist_ok=True)
+    (RECORDING_DIR / name).write_bytes(body)
+    return {"saved": name, "bytes": len(body), "path": str(RECORDING_DIR / name)}
 
 
 @app.get("/api/health")
