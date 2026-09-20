@@ -291,3 +291,16 @@ async def test_an_unheard_answer_cannot_be_interrupted():
     for _ in range(6):
         await session.push_audio(np.zeros(1600, dtype=np.float32))
     assert "flush" not in [e for e, _ in events]
+
+
+async def test_reset_stops_an_answer_that_is_already_playing():
+    """"New conversation" has to silence the agent: otherwise the previous answer keeps playing
+    over the next question, and is then measured as part of it."""
+    session, events, _ = build()
+    session._turn = asyncio.create_task(session.handle(SPEECH))
+    await asyncio.sleep(0.02)
+    await session.reset()
+
+    assert session._turn is None
+    assert not session._speaking
+    assert ("flush", {"reason": "reset"}) in events

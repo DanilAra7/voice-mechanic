@@ -20,7 +20,7 @@ import os
 import numpy as np
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from mechanic.agent.loop import AgentLoop
+from mechanic.agent.loop import FIXED_LINES, AgentLoop
 from mechanic.agent.tools import Session, ToolRunner
 from mechanic.knowledge.dtc import DtcDatabase
 from mechanic.knowledge.search import INDEX_DIR, SearchIndex
@@ -64,6 +64,10 @@ class SharedModels:
 
         await asyncio.to_thread(self.recognizer.warm_up)
         await asyncio.to_thread(self.synthesiser.warm_up)
+        if prime := getattr(self.synthesiser, "prime", None):
+            # A few seconds here buy the synthesiser's whole latency back on every turn that
+            # starts with one of these lines, which is most of them.
+            await asyncio.to_thread(prime, FIXED_LINES)
         if self.index is not None:
             await asyncio.to_thread(self.index.search, "warm up the query embedder", limit=1)
         self._warm = True
@@ -116,7 +120,7 @@ def build_router(store: TorqueStore, models: SharedModels) -> APIRouter:
                 match command.get("type"):
                     case "reset":
                         agent.reset()
-                        session.detector.reset()
+                        await session.reset()
                         await ws.send_json({"type": "reset_done"})
                     case "vehicle":
                         # The Garage panel can put the driver in a different car mid-session.
@@ -129,7 +133,7 @@ def build_router(store: TorqueStore, models: SharedModels) -> APIRouter:
                             return
                         agent.session.vehicle_id = chosen
                         agent.reset()
-                        session.detector.reset()
+                        await session.reset()
                         await ws.send_json({"type": "vehicle", "vehicle": chosen})
 
             while True:

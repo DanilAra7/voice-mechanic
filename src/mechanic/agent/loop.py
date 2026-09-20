@@ -18,7 +18,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from mechanic.agent.prompt import build_system_prompt
-from mechanic.agent.safety import safety_warning
+from mechanic.agent.safety import DO_NOT_DRIVE, PULL_OVER, safety_warning
 from mechanic.agent.tools import TOOL_SCHEMAS, Session, ToolRunner
 
 # Any tool at all is worth a spoken line: what costs seconds is the model round around it,
@@ -29,8 +29,19 @@ FILLERS = {
     "search_how_to": "Let me pull up the steps.",
     "read_live_data": "Checking your live data.",
 }
+# Everything the agent ever says word for word. Synthesised at startup so the first sound of a
+# turn costs nothing; see Synthesiser.prime.
+FIXED_LINES = (*FILLERS.values(), "Let me check that.", PULL_OVER, DO_NOT_DRIVE)
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 MAX_TOOL_ROUNDS = 4
+# Roughly how long the driver has to listen: the synthesiser speaks 13.5 characters a second
+# (measured over 12 answers on 2026-09-20), so text length is listening time. Without a cap the
+# model answered one question with 36 seconds of speech — a fast first word is worth nothing if
+# the answer then runs for most of a minute, and they cannot ask the next question until it
+# stops. Told to be brief the model agrees and then is not, so the limit is enforced rather than
+# requested. The cut lands between sentences, so what they hear is always a finished thought,
+# and the sentence that crosses the line is still spoken in full: about ten seconds in practice.
+MAX_SPOKEN_CHARS = 140
 
 
 def situation(session: Session) -> str:
@@ -57,6 +68,8 @@ class Turn:
     first_sentence_ms: float | None = None
     total_ms: float | None = None
     rounds: int = 0
+    # The answer was cut at a sentence boundary because it had run long enough to listen to.
+    truncated: bool = False
 
 
 class AgentLoop:
@@ -68,7 +81,7 @@ class AgentLoop:
         base_url: str = "http://127.0.0.1:8001/v1",
         api_key: str = "not-needed",
         temperature: float = 0.3,
-        max_tokens: int = 400,
+        max_tokens: int = 220,
         extra_system: str | None = None,
     ):
         self.tools = tools
@@ -122,6 +135,7 @@ class AgentLoop:
                 await on_event(event, payload)
 
         spoken = False
+        said_chars = 0
         if (warning := safety_warning(user_text)) is not None:
             turn.safety_line = warning
             turn.text += warning + " "
@@ -139,18 +153,29 @@ class AgentLoop:
 
         for round_index in range(MAX_TOOL_ROUNDS):
             turn.rounds = round_index + 1
-            text, tool_calls, sentences = "", [], []
+            text, tool_calls, sentences, enough = "", [], [], False
             async for kind, value in self._stream_completion(started, turn):
                 if kind == "sentence":
                     sentences.append(value)
                     spoken = True
+                    said_chars += len(value)
                     turn.text += value + " "
                     await emit("sentence", {"text": value})
                     yield value
+                    if said_chars >= MAX_SPOKEN_CHARS:
+                        # Whatever the model is still writing, the driver has heard enough for
+                        # one turn. They can always ask for more; they cannot ask for less.
+                        turn.truncated = True
+                        enough = True
+                        break
                 elif kind == "text":
                     text = value
                 elif kind == "tool_calls":
                     tool_calls = value
+
+            if enough:
+                self.messages.append({"role": "assistant", "content": text or " ".join(sentences)})
+                break
 
             if not tool_calls:
                 self.messages.append({"role": "assistant", "content": text})

@@ -24,7 +24,9 @@ from mechanic.voice.asr import SAMPLE_RATE, resample, to_mono
 CHUNK_S = 0.1
 # A microphone does not stop when the question does, so neither does this: silence keeps flowing
 # while the answer is spoken, which is also what makes the barge-in guard worth testing.
-ANSWER_TIMEOUT_S = 30.0
+# Generous on purpose: an answer that runs long is a result to report, not a run to abandon.
+# Giving up early leaves its audio in flight and corrupts the *next* clip's numbers instead.
+ANSWER_TIMEOUT_S = 60.0
 
 
 def load_clip(path: Path) -> np.ndarray:
@@ -108,6 +110,17 @@ async def run_clip(ws, audio: np.ndarray) -> dict:
                 result["error"] = event.get("message")
                 return result
             elif kind in ("turn_end", "turn_skipped"):
+                # A turn that was cut short is not the answer to this question. Some of our clips
+                # hold a pause long enough to split in two, and the agent then either carries the
+                # first half over or treats the second half as an interruption; either way the
+                # answer is the turn that comes after. Counting the dropped one as the reply is
+                # how this harness used to report a 0.1-second answer as a fast one.
+                if event.get("carried_on") or event.get("barged_in"):
+                    result["restarts"] = result.get("restarts", 0) + 1
+                    result.pop("first_audio_client_ms", None)
+                    result.pop("sentences", None)
+                    result["audio_bytes"] = 0
+                    continue
                 result["server"] = event
                 return result
     finally:
@@ -131,15 +144,20 @@ async def main_async(args) -> None:
             await drain_until(ws, "reset_done", time.monotonic() + 15)
             row = await run_clip(ws, load_clip(path))
             row["clip"] = path.name
+            # How long the driver has to listen before they can speak again. A fast first word
+            # is worth little if the answer then runs for most of a minute.
+            row["spoken_s"] = round(row["audio_bytes"] / (ready["audio_rate"] * 2), 1)
             rows.append(row)
             if err := row.get("error"):
                 print(f"{path.name}: ОШИБКА {err}")
                 continue
             s = row.get("server", {})
             print(f'{path.name}: heard "{row.get("transcript", "")[:56]}"')
+            ms = {k: round(v) if isinstance(v, int | float) else "?" for k, v in s.items()}
             print(
-                f"    asr {s.get('asr_ms', '?')} · first sentence {s.get('first_sentence_ms', '?')} · "
-                f"first audio {s.get('first_audio_ms', '?')} ms (client saw {row.get('first_audio_client_ms', '?')})"
+                f"    asr {ms.get('asr_ms', '?')} · first sentence {ms.get('first_sentence_ms', '?')} · "
+                f"first audio {ms.get('first_audio_ms', '?')} ms (client saw {row.get('first_audio_client_ms', '?')})"
+                f" · spoke {row['spoken_s']} s in {len(row.get('sentences', []))} sentences"
                 f" · tools: {', '.join(row.get('tools', [])) or 'none'}"
             )
 
@@ -147,9 +165,14 @@ async def main_async(args) -> None:
     if good:
         audio_ms = sorted(r["server"]["first_audio_ms"] for r in good)
         q = lambda p: round(audio_ms[min(len(audio_ms) - 1, int(p * len(audio_ms)))])  # noqa: E731
+        spoken = sorted(r["spoken_s"] for r in good)
         print(
             f"\n{len(good)}/{len(rows)} turns · first audio p50 {q(0.5)} ms · p95 {q(0.95)} ms · "
             f"mean {round(statistics.mean(audio_ms))} ms"
+        )
+        print(
+            f"answer length: median {statistics.median(spoken)} s · longest {spoken[-1]} s · "
+            f"mean {round(statistics.mean(spoken), 1)} s"
         )
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(rows, indent=2))

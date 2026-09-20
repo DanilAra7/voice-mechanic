@@ -6,6 +6,7 @@ still talking, while one offline pass over a finished utterance costs about 100 
 enough to disappear next to a model round.
 """
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,6 +16,24 @@ from mechanic.data.common import ROOT
 
 SAMPLE_RATE = 16000
 DEFAULT_MODEL_DIR = ROOT / "data" / "models" / "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"
+# More than this stops paying for itself on this model and starts competing with the synthesiser.
+MAX_ASR_THREADS = 8
+
+
+def cpu_budget() -> int:
+    """Cores we may actually use.
+
+    `os.cpu_count()` reports the machine's, and a rented container is usually a slice of a much
+    larger host: a box that answers "64" gave us 15. Handing a thread pool the host's number
+    means the threads fight each other over our slice.
+    """
+    try:
+        quota, period = Path("/sys/fs/cgroup/cpu.max").read_text().split()
+        if quota != "max":
+            return max(1, int(int(quota) // int(period)))
+    except (OSError, ValueError):
+        pass
+    return os.cpu_count() or 4
 
 
 @dataclass
@@ -27,9 +46,11 @@ class Transcript:
 class Recognizer:
     """Wraps sherpa-onnx. The model loads on first use, not at import."""
 
-    def __init__(self, model_dir: Path | None = None, threads: int = 4):
+    def __init__(self, model_dir: Path | None = None, threads: int | None = None):
         self.model_dir = Path(model_dir or DEFAULT_MODEL_DIR)
-        self.threads = threads
+        # Recognition is the one stage on the critical path that scales with cores, so it gets
+        # as many as the machine really has, up to the point where more stop helping.
+        self.threads = threads or int(os.environ.get("MECHANIC_ASR_THREADS") or min(MAX_ASR_THREADS, cpu_budget()))
         self._rec = None
 
     def _load(self):

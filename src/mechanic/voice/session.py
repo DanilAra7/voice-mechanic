@@ -129,6 +129,24 @@ class VoiceSession:
                 await asyncio.gather(self._turn, return_exceptions=True)
             self._turn = asyncio.create_task(self.handle(utterance.audio))
 
+    async def reset(self) -> None:
+        """Start over: stop talking first. An answer already on its way would otherwise keep
+        playing into the new conversation, and be measured as part of the next question."""
+        talking = self._speaking or (self._turn is not None and not self._turn.done())
+        self._cancel.set()
+        self._speaking = False
+        self._speech_run_s = 0.0
+        self._pending_prefix = ""
+        if self._confirm_timer:
+            self._confirm_timer.cancel()
+        if self._turn is not None and not self._turn.done():
+            self._turn.cancel()
+            await asyncio.gather(self._turn, return_exceptions=True)
+        self._turn = None
+        self.detector.reset()
+        if talking:
+            await self._emit("flush", {"reason": "reset"})
+
     async def _confirm_after(self, seconds: float) -> None:
         await asyncio.sleep(seconds)
         self._confirmed.set()

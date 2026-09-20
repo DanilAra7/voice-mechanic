@@ -9,7 +9,7 @@ together they peak at 15 875 MiB of the card's 16 376. Nothing else may be loade
 """
 
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 
 DEFAULT_VOICE = "expresso/ex03-ex01_happy_001_channel1_334s.wav"
@@ -25,6 +25,9 @@ class Speech:
     first_frame_ms: float | None
     total_ms: float
     frames: int = 0
+    # The frames exactly as they were produced, kept so a cached line can be replayed in the
+    # same pieces the player expects.
+    chunks: list = field(default_factory=list, repr=False)
 
     @property
     def duration_s(self) -> float:
@@ -42,6 +45,7 @@ class Synthesiser:
     cfg_coef: float = 2.0
     _tts: object | None = field(default=None, repr=False)
     _cond: object | None = field(default=None, repr=False)
+    _cache: dict = field(default_factory=dict, repr=False)
 
     def _load(self):
         if self._tts is None:
@@ -67,9 +71,31 @@ class Synthesiser:
         """First synthesis pays CUDA warm-up — about six seconds. Spend it at startup."""
         self.say("Ready.")
 
-    def say(self, text: str, on_frame: Callable[[object], None] | None = None) -> Speech:
+    def prime(self, texts: Iterable[str]) -> None:
+        """Synthesise ahead of time the lines the agent says word for word.
+
+        The filler before a lookup, the safety warning, the apology for an empty turn: a handful
+        of fixed strings, and usually the *first* thing the driver hears in a turn. Measured on
+        2026-09-20, sound started about 650 ms after the sentence was ready — the synthesiser
+        sharing the card with the language model, which is generating at the same time. From the
+        cache that wait is gone, and it is the same voice saying the same words, so nothing about
+        the answer changes.
+        """
+        self._load()
+        for text in texts:
+            if text not in self._cache:
+                self._cache[text] = self.say(text, use_cache=False).chunks
+
+    def say(self, text: str, on_frame: Callable[[object], None] | None = None, use_cache: bool = True) -> Speech:
         """Synthesise one sentence, handing each audio frame to `on_frame` as it appears."""
         import numpy as np
+
+        if use_cache and (cached := self._cache.get(text)) is not None:
+            for chunk in cached:
+                if on_frame is not None:
+                    on_frame(chunk)
+            audio = np.concatenate(cached, axis=-1) if cached else np.zeros(0, dtype="float32")
+            return Speech(audio, self.sample_rate, first_frame_ms=0.0, total_ms=0.0, frames=len(cached), chunks=cached)
 
         tts = self._load()
         entries = tts.prepare_script([text], padding_between=1)
@@ -98,6 +124,7 @@ class Synthesiser:
             first_frame_ms=first,
             total_ms=(time.monotonic() - started) * 1000,
             frames=len(pcms),
+            chunks=pcms,
         )
 
     def say_all(self, sentences: Iterator[str], on_frame: Callable[[object], None] | None = None) -> list[Speech]:
