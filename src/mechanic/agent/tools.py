@@ -256,7 +256,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "search_how_to",
-            "description": "Find step-by-step maintenance instructions for this car (checking or changing fluids, filters, bulbs, battery, fuses).",
+            "description": "Find the step-by-step instructions for doing a job on this car: checking or changing fluids, filters, bulbs, wipers, battery, fuses, where something is and how to reach it. Use this for any 'how do I...', 'how hard is it to...', 'walk me through...' or 'where do I find...' question. Never answer those from memory — the steps differ between cars.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -273,7 +273,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "search_owner_reports",
-            "description": "Find problems other owners of this model reported, and how they were solved. Good for 'is this common on my car?'.",
+            "description": "Find what owners of THIS model reported: whether a fault is a known weak point on this car, how common it is, how they fixed it. Use this whenever the question is about this model specifically — 'is this common on my car', 'do other owners get this', 'known problem on this engine'. For how a fault works in general, use search_forum.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -287,7 +287,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "search_forum",
-            "description": "Search a mechanics Q&A forum for diagnosis discussions. Best for reasoning about unusual symptoms or interpreting sensor readings.",
+            "description": "Ask what experienced mechanics say about a symptom in general: why it happens, how to tell two causes apart, how someone would track it down. Use this for any 'why would...', 'what causes...', 'how do mechanics...' or 'how would someone find...' question. This is about the fault, not about this particular model — for that use search_owner_reports.",
             "parameters": {
                 "type": "object",
                 "properties": {
