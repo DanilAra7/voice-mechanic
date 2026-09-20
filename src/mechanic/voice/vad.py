@@ -75,5 +75,19 @@ class TurnDetector:
             yield Utterance(audio=np.asarray(segment.samples, dtype=np.float32), start_sample=segment.start)
             vad.pop()
 
+    def flush(self) -> Iterator[Utterance]:
+        """Close whatever is being said right now instead of waiting for the silence to prove it.
+
+        Push-to-talk hands us something the detector can only ever infer: the moment the driver
+        says they are done. Taking their word for it removes the whole silence wait, which is the
+        single most expensive stage of a turn.
+        """
+        vad = self._load()
+        vad.flush()
+        while not vad.empty():
+            segment = vad.front
+            yield Utterance(audio=np.asarray(segment.samples, dtype=np.float32), start_sample=segment.start)
+            vad.pop()
+
     def reset(self) -> None:
         self._load().reset()

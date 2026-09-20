@@ -9,6 +9,8 @@ does not carry UDP.
     client -> server   binary: int16 little-endian PCM at 16 kHz
                        json:   {"type": "hello", "device": ..., "vehicle": ...}
                                | {"type": "reset"} | {"type": "vehicle", "vehicle": ...}
+                               | {"type": "start_of_speech"} | {"type": "end_of_speech"}
+                               | {"type": "ping", "t": ...}
     server -> client   binary: int16 little-endian PCM at the rate given in "ready"
                        json:   ready | transcript | sentence | tool | audio_start | turn_end | flush | error
 """
@@ -118,6 +120,16 @@ def build_router(store: TorqueStore, models: SharedModels) -> APIRouter:
 
             async def control(command: dict) -> None:
                 match command.get("type"):
+                    case "start_of_speech":
+                        # Button down: hold everything until they let go, however long they pause.
+                        session.start_of_speech()
+                    case "end_of_speech":
+                        # Push-to-talk button released: the turn is over because they said so.
+                        await session.end_of_speech()
+                    case "ping":
+                        # Echoed straight back so the browser can price the network on its own
+                        # clock; the latency panel shows it beside the time the server spent.
+                        await ws.send_json({"type": "pong", "t": command.get("t")})
                     case "reset":
                         agent.reset()
                         await session.reset()

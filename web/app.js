@@ -5,6 +5,9 @@ const els = id => document.getElementById(id);
 const state = {
   ws: null, mic: null, micCtx: null, outCtx: null,
   playAt: 0, audioRate: 24000, turn: null, turns: [], speaking: false,
+  // performance.now() when the driver let go of the button. The one number the server cannot
+  // know: everything it reports starts from its own clock, after the network.
+  askedAt: null, rtts: [], handsFree: false,
 };
 
 function log(kind, text, meta = "") {
@@ -31,7 +34,10 @@ function renderLatency() {
   if (!done.length) return;
   const pick = key => done.map(t => t[key]).filter(Number.isFinite).sort((a, b) => a - b);
   const q = (xs, p) => xs.length ? Math.round(xs[Math.min(xs.length - 1, Math.floor(p * xs.length))]) : "—";
-  const audio = pick("first_audio_ms");
+  // What the person waited, not what the server spent. Falls back to the server's own figure
+  // in hands-free, where the browser never learns when the driver stopped talking.
+  const waited = pick("client_ms");
+  const audio = waited.length ? waited : pick("first_audio_ms");
   els("p50").textContent = q(audio, 0.5);
   els("p95").textContent = q(audio, 0.95);
   const last = done[done.length - 1];
@@ -41,11 +47,30 @@ function renderLatency() {
       <span class="stage-bar"><i style="width:${Math.min(100, 100 * value / total)}%"></i></span>
       <span class="stage-ms">${Math.round(value)}</span>
     </div>`;
-  const total = Math.max(last.first_audio_ms, 1);
+  const total = Math.max(last.client_ms ?? last.first_audio_ms, 1);
+  const lag = last.client_ms ? last.client_ms - last.first_audio_ms : null;
   els("breakdown").innerHTML =
     bar("recognised", last.asr_ms ?? 0, total) +
     bar("first sentence", last.first_sentence_ms ?? 0, total) +
-    bar("first audio", last.first_audio_ms ?? 0, total);
+    bar("first audio", last.first_audio_ms ?? 0, total) +
+    (lag !== null ? `
+    <div class="stage net">
+      <span class="stage-name">network</span>
+      <span class="stage-bar"><i style="width:${Math.min(100, 100 * lag / total)}%"></i></span>
+      <span class="stage-ms">+${Math.round(lag)}</span>
+    </div>` : "");
+}
+
+/** Round trip to the server on the browser's own clock, so the network has a number of its own
+ *  rather than being whatever is left over. */
+function ping() {
+  if (state.ws?.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type: "ping", t: performance.now() }));
+}
+
+function notePong(sent) {
+  state.rtts.push(performance.now() - sent);
+  const sorted = [...state.rtts].sort((a, b) => a - b);
+  els("rtt").textContent = `${Math.round(sorted[Math.floor(sorted.length / 2)])} ms to the server`;
 }
 
 // ---- playback ------------------------------------------------------------
@@ -83,13 +108,24 @@ async function connect() {
   }));
 
   state.ws.onmessage = ev => {
-    if (ev.data instanceof ArrayBuffer) return playPcm(ev.data);
+    if (ev.data instanceof ArrayBuffer) {
+      if (state.askedAt !== null && state.turn && state.turn.client_ms === undefined) {
+        state.turn.client_ms = performance.now() - state.askedAt;
+        state.askedAt = null;
+      }
+      return playPcm(ev.data);
+    }
     const m = JSON.parse(ev.data);
     switch (m.type) {
       case "ready":
         state.audioRate = m.audio_rate;
         setStatus("connected — hold the button and speak", true);
         els("talk").disabled = false;
+        ping();
+        state.pinger ??= setInterval(ping, 4000);
+        break;
+      case "pong":
+        notePong(m.t);
         break;
       case "transcript":
         state.turn = { asr_ms: m.ms };
@@ -111,6 +147,8 @@ async function connect() {
         break;
       case "turn_end":
         state.turns.push({ ...state.turn, ...m });
+        // A turn that produced no sound must not leave the stopwatch running into the next one.
+        state.askedAt = null;
         renderLatency();
         break;
       case "vehicle":
@@ -122,7 +160,12 @@ async function connect() {
     }
   };
 
-  state.ws.onclose = () => { setStatus("disconnected"); els("talk").disabled = true; };
+  state.ws.onclose = () => {
+    setStatus("disconnected");
+    els("talk").disabled = true;
+    clearInterval(state.pinger);
+    state.pinger = null;
+  };
   state.ws.onerror = () => setStatus("connection failed");
 }
 
@@ -150,7 +193,9 @@ async function startMic() {
   await state.micCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([worklet], { type: "text/javascript" })));
   const node = new AudioWorkletNode(state.micCtx, "tap");
   node.port.onmessage = e => {
-    if (!state.speaking || state.ws?.readyState !== WebSocket.OPEN) return;
+    // Hands-free keeps the line open and lets the server's detector decide where a turn ends;
+    // push-to-talk sends only while the button is down and then says so explicitly.
+    if ((!state.speaking && !state.handsFree) || state.ws?.readyState !== WebSocket.OPEN) return;
     const f = e.data, pcm = new Int16Array(f.length);
     for (let i = 0; i < f.length; i++) pcm[i] = Math.max(-1, Math.min(1, f[i])) * 32767;
     state.ws.send(pcm.buffer);
@@ -384,17 +429,34 @@ function wire() {
     }
   };
   const talk = els("talk");
-  const press = () => { state.speaking = true; talk.classList.add("held"); setStatus("listening…", true); };
+  const press = () => {
+    state.speaking = true;
+    talk.classList.add("held");
+    setStatus("listening…", true);
+    // While the button is down the agent must not decide the question is over, however long the
+    // driver pauses to think. Ordinary speech holds pauses of most of a second.
+    if (!state.handsFree) state.ws?.send(JSON.stringify({ type: "start_of_speech" }));
+  };
   const release = () => {
     if (!state.speaking) return;  // a click elsewhere on the page is not the end of a question
     state.speaking = false;
     talk.classList.remove("held");
     setStatus("thinking…", true);
+    if (state.handsFree) return;
+    // Letting go is the driver stating the turn is over. Telling the server saves it waiting out
+    // the silence to work that out for itself, and starts the clock this browser measures.
+    state.askedAt = performance.now();
+    state.ws?.send(JSON.stringify({ type: "end_of_speech" }));
   };
   talk.addEventListener("mousedown", press);
   talk.addEventListener("touchstart", e => { e.preventDefault(); press(); });
   addEventListener("mouseup", release);
   addEventListener("touchend", release);
+  els("handsFree").onchange = e => {
+    state.handsFree = e.target.checked;
+    els("talk").disabled = state.handsFree || state.ws?.readyState !== WebSocket.OPEN;
+    setStatus(state.handsFree ? "hands-free — just talk" : "hold the button and speak", true);
+  };
   els("reset").onclick = () => {
     state.ws?.send(JSON.stringify({ type: "reset" }));
     els("log").innerHTML = "";

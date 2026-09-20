@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Record driver questions</title>
+<style>
+  :root{--ground:#10141a;--panel:#171d25;--line:#26303b;--ink:#e4e8eb;--muted:#93a0ac;
+        --mil:#f2a93c;--ok:#46c093;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);
+       font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+  main{max-width:720px;margin:0 auto;padding:24px 18px 60px}
+  h1{font-size:18px;text-transform:uppercase;letter-spacing:.03em;margin:0 0 6px}
+  h1 b{color:var(--mil)}
+  p.lede{color:var(--muted);font-size:14px;margin:0 0 22px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px;margin-bottom:16px}
+  .counter{font:12px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .line{font-size:22px;line-height:1.45;margin:12px 0 20px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  button{font:inherit;padding:10px 18px;border-radius:6px;border:1px solid var(--line);
+         background:#1f2833;color:var(--ink);cursor:pointer}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  #rec{flex:1;min-width:200px;font-weight:600;border-color:var(--mil);color:var(--mil)}
+  #rec.on{background:var(--mil);color:#120c02}
+  #state{font:12px var(--mono);color:var(--muted);margin-left:auto}
+  #state.on{color:var(--ok)}
+  ol{padding-left:20px;color:var(--muted);font-size:14px}
+  ol b{color:var(--ink)}
+  .done{font:12px var(--mono);color:var(--ok)}
+</style>
+</head>
+<body>
+<main>
+  <h1><b>Dex</b> — record driver questions</h1>
+  <p class="lede">Read each line aloud the way you would actually say it to a mechanic. Normal pace,
+    normal room. Each take downloads as its own file the moment you stop.</p>
+
+  <div class="card">
+    <div class="row"><span class="counter" id="counter">1 of 15</span><span id="state">ready</span></div>
+    <p class="line" id="line">…</p>
+    <div class="row">
+      <button id="rec">Hold to record</button>
+      <button id="play" disabled>Play back</button>
+      <button id="next">Next</button>
+    </div>
+    <p class="done" id="saved"></p>
+  </div>
+
+  <div class="card">
+    <ol>
+      <li>Hold the button, read the line, let go. The file <b>downloads by itself</b>.</li>
+      <li>Not happy with a take? Just hold and read it again — it overwrites.</li>
+      <li>When all fifteen are done, move them into <b>evals/audio/real/</b> next to the .txt files.</li>
+    </ol>
+  </div>
+</main>
+
+<script>
+// Records 16 kHz mono WAV in the browser, because the machine this runs on has no ffmpeg or sox
+// and we need real voices: every accuracy number so far comes from synthesised speech.
+const LINES = [
+  "My temperature gauge is climbing and it is still going up.",
+  "The car shakes at idle and the check engine light came on.",
+  "I am getting a code P zero one seven one, what does that mean?",
+  "Is this a common problem on my car?",
+  "How do I check the coolant level?",
+  "My battery light keeps flickering when I slow down.",
+  "There is a hissing noise from the engine bay and the idle is a bit high.",
+  "What are my short term and long term fuel trims doing right now?",
+  "The heater blows cold air once I get up to speed on the motorway.",
+  "It hesitates when I put my foot down, especially from a stop.",
+  "I smell gasoline inside the cabin while driving.",
+  "My brake pedal goes almost to the floor, can I drive to work tomorrow?",
+  "Read my codes and tell me which one to chase first.",
+  "So the other day I was driving home, and the engine started making this rattling sound when I accelerated.",
+  "Can you check the live data, and tell me whether the coolant temperature is normal for this car?",
+];
+const RATE = 16000;
+const els = id => document.getElementById(id);
+let at = 0, ctx = null, node = null, chunks = [], recording = false, last = null;
+
+function show() {
+  els("counter").textContent = `${at + 1} of ${LINES.length}`;
+  els("line").textContent = LINES[at];
+  els("saved").textContent = "";
+  els("play").disabled = true;
+}
+
+function wav(samples) {
+  const buf = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buf);
+  const ascii = (off, text) => [...text].forEach((c, i) => view.setUint8(off + i, c.charCodeAt(0)));
+  ascii(0, "RIFF"); view.setUint32(4, 36 + samples.length * 2, true); ascii(8, "WAVEfmt ");
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, RATE, true); view.setUint32(28, RATE * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  ascii(36, "data"); view.setUint32(40, samples.length * 2, true);
+  samples.forEach((s, i) => view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, s)) * 32767, true));
+  return new Blob([view], { type: "audio/wav" });
+}
+
+async function start() {
+  ctx = new AudioContext({ sampleRate: RATE });
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+  });
+  const worklet = `
+    class Tap extends AudioWorkletProcessor {
+      process(inputs) { const ch = inputs[0][0]; if (ch) this.port.postMessage(new Float32Array(ch)); return true; }
+    }
+    registerProcessor("tap", Tap);`;
+  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([worklet], { type: "text/javascript" })));
+  node = new AudioWorkletNode(ctx, "tap");
+  node.port.onmessage = e => { if (recording) chunks.push(e.data); };
+  ctx.createMediaStreamSource(stream).connect(node);
+}
+
+function save() {
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const all = new Float32Array(total);
+  let off = 0;
+  for (const c of chunks) { all.set(c, off); off += c.length; }
+  const name = `${String(at).padStart(2, "0")}.wav`;
+  last = wav(all);
+  const url = URL.createObjectURL(last);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  els("saved").textContent = `saved ${name} — ${(total / RATE).toFixed(1)} s`;
+  els("play").disabled = false;
+}
+
+async function press() {
+  if (recording) return;
+  try {
+    if (!ctx) await start();
+  } catch (err) {
+    els("state").textContent = err.name === "NotAllowedError" ? "microphone refused" : "needs https or localhost";
+    return;
+  }
+  chunks = []; recording = true;
+  els("rec").classList.add("on");
+  els("state").textContent = "recording…";
+  els("state").classList.add("on");
+}
+
+function release() {
+  if (!recording) return;
+  recording = false;
+  els("rec").classList.remove("on");
+  els("state").textContent = "ready";
+  els("state").classList.remove("on");
+  if (chunks.length) save();
+}
+
+els("rec").addEventListener("mousedown", press);
+els("rec").addEventListener("touchstart", e => { e.preventDefault(); press(); });
+addEventListener("mouseup", release);
+addEventListener("touchend", release);
+els("play").onclick = () => last && new Audio(URL.createObjectURL(last)).play();
+els("next").onclick = () => { at = (at + 1) % LINES.length; show(); };
+show();
+</script>
+</body>
+</html>

@@ -16,6 +16,25 @@ from mechanic.voice.session import VoiceSession
 SPEECH = np.zeros(16000, dtype=np.float32)
 
 
+class FlushableDetector:
+    """A detector that hands over one utterance the moment it is asked to flush."""
+
+    def __init__(self, audio):
+        self.audio = audio
+        self.is_speaking = False
+
+    def push(self, chunk):
+        return iter(())
+
+    def flush(self):
+        from mechanic.voice.vad import Utterance
+
+        yield Utterance(audio=self.audio, start_sample=0)
+
+    def reset(self):
+        pass
+
+
 class FakeAgent:
     def __init__(self, sentences):
         self.sentences = sentences
@@ -304,3 +323,29 @@ async def test_reset_stops_an_answer_that_is_already_playing():
     assert session._turn is None
     assert not session._speaking
     assert ("flush", {"reason": "reset"}) in events
+
+
+async def test_the_driver_can_declare_the_turn_over():
+    """Push-to-talk knows something the detector can only infer, and skips the silence wait."""
+    session, events, audio = build()
+    session.detector = FlushableDetector(SPEECH)
+    await session.end_of_speech()
+    await asyncio.gather(session._turn, return_exceptions=True)
+
+    names = [e for e, _ in events]
+    assert "transcript" in names and "audio_start" in names
+    assert audio, "the answer has to be played without waiting for a confirmation"
+
+
+async def test_a_held_button_keeps_the_answer_back():
+    """A pause while the button is down is a pause, not the end of the question."""
+    session, _, _ = build()
+    session.start_of_speech()
+    session._confirm_timer = asyncio.create_task(session._confirm_after(0.01))
+    await asyncio.sleep(0.05)
+    assert not session._confirmed.is_set()
+
+    session.detector = FlushableDetector(SPEECH)
+    await session.end_of_speech()
+    assert session._confirmed.is_set()
+    await asyncio.gather(session._turn, return_exceptions=True)

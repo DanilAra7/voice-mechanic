@@ -1,0 +1,54 @@
+{
+  "wer": 3.51,
+  "cer": 1.82,
+  "clips": [
+    {
+      "clip": "00.wav",
+      "reference": "my temperature gauge is climbing and it is still going up",
+      "heard": "my temperature gauge is climbing and it is still going up",
+      "word_errors": 0,
+      "words": 11,
+      "decode_ms": 108
+    },
+    {
+      "clip": "01.wav",
+      "reference": "the car shakes at idle and the check engine light came on",
+      "heard": "the car shakes at idle and the check engine light came on",
+      "word_errors": 0,
+      "words": 12,
+      "decode_ms": 104
+    },
+    {
+      "clip": "02.wav",
+      "reference": "i am getting a code p0171 what does that mean",
+      "heard": "it s i am getting a code p0171 what does that mean",
+      "word_errors": 2,
+      "words": 10,
+      "decode_ms": 135
+    },
+    {
+      "clip": "03.wav",
+      "reference": "is this a common problem on my car",
+      "heard": "is this a common problem on my car",
+      "word_errors": 0,
+      "words": 8,
+      "decode_ms": 81
+    },
+    {
+      "clip": "04.wav",
+      "reference": "how do i check the coolant level",
+      "heard": "how do i check the coolant level",
+      "word_errors": 0,
+      "words": 7,
+      "decode_ms": 66
+    },
+    {
+      "clip": "05.wav",
+      "reference": "my battery light keeps flickering when i slow down",
+      "heard": "my battery light keeps flickering when i slow down",
+      "word_errors": 0,
+      "words": 9,
+      "decode_ms": 112
+    }
+  ]
+}

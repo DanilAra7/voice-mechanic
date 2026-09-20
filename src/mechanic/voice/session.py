@@ -87,6 +87,9 @@ class VoiceSession:
         self._confirmed = asyncio.Event()
         self._confirm_timer: asyncio.Task | None = None
         self._continued = False
+        # True while a push-to-talk button is held. Nothing may be confirmed then: the driver is
+        # still talking by definition, and a pause inside their question is only a pause.
+        self._held = False
         # What a provisional turn had heard before the driver carried on; prepended to what follows.
         self._pending_prefix = ""
 
@@ -116,23 +119,38 @@ class VoiceSession:
         # is nothing to talk over — speech then means they are still finishing their question.
         if self._confirmed.is_set() and self._speaking and not in_grace and self._speech_run_s >= BARGE_IN_SPEECH_S:
             await self._barge_in()
-        for utterance in self.detector.push(pcm):
+        await self._take(self.detector.push(pcm))
+
+    async def end_of_speech(self) -> None:
+        """The driver said they are finished — a push-to-talk button going up.
+
+        Worth a separate entrance: the detector can only decide a turn is over by waiting out
+        the silence after it, and that wait is the most expensive stage we have. When the person
+        tells us directly there is nothing to wait for, and nothing to confirm either.
+        """
+        self._held = False
+        self._confirmed.set()
+        await self._take(self.detector.flush(), confirmed=True)
+
+    async def _take(self, utterances, confirmed: bool = False) -> None:
+        for utterance in utterances:
             if utterance.duration_s < MIN_UTTERANCE_S:
                 continue  # a cough or a click, not a question
             if self._turn is not None and not self._turn.done():
-                if self._confirmed.is_set():
+                if self._confirmed.is_set() and not confirmed:
                     continue  # cutting into an answer they can hear; barge-in deals with that
                 # A whole second utterance while the first is still unconfirmed means they had
                 # not finished. Far safer than reacting to "speech is audible", which the tail of
                 # their own question sets off just as reliably.
                 await self._carry_on()
                 await asyncio.gather(self._turn, return_exceptions=True)
-            self._turn = asyncio.create_task(self.handle(utterance.audio))
+            self._turn = asyncio.create_task(self.handle(utterance.audio, confirmed=confirmed))
 
     async def reset(self) -> None:
         """Start over: stop talking first. An answer already on its way would otherwise keep
         playing into the new conversation, and be measured as part of the next question."""
         talking = self._speaking or (self._turn is not None and not self._turn.done())
+        self._held = False
         self._cancel.set()
         self._speaking = False
         self._speech_run_s = 0.0
@@ -149,7 +167,12 @@ class VoiceSession:
 
     async def _confirm_after(self, seconds: float) -> None:
         await asyncio.sleep(seconds)
-        self._confirmed.set()
+        if not self._held:
+            self._confirmed.set()
+
+    def start_of_speech(self) -> None:
+        """A push-to-talk button went down. Hold every answer until it comes back up."""
+        self._held = True
 
     async def _carry_on(self) -> None:
         """Not an interruption: the driver had not finished. Drop the answer before it is heard."""
@@ -168,14 +191,22 @@ class VoiceSession:
         self._speech_run_s = 0.0
         await self._emit("flush", {"reason": "barge_in"})
 
-    async def handle(self, speech: np.ndarray) -> TurnTimings:
-        """Everything between the driver falling silent and the answer being spoken."""
+    async def handle(self, speech: np.ndarray, confirmed: bool = False) -> TurnTimings:
+        """Everything between the driver falling silent and the answer being spoken.
+
+        `confirmed` means they told us the turn was over rather than us deciding from silence,
+        so there is nothing provisional about it and nothing to hold the audio back for.
+        """
         zero = time.monotonic()
         self._cancel.clear()
-        self._confirmed.clear()
         self._continued = False
         self._speech_run_s = 0.0  # they have only just stopped; do not read the tail as new speech
-        self._confirm_timer = asyncio.create_task(self._confirm_after(CONFIRM_EXTRA_S))
+        if confirmed:
+            self._confirmed.set()
+            self._confirm_timer = None
+        else:
+            self._confirmed.clear()
+            self._confirm_timer = asyncio.create_task(self._confirm_after(CONFIRM_EXTRA_S))
         timings = TurnTimings(speech_seconds=round(len(speech) / 16000, 2))
 
         transcript = await asyncio.to_thread(self.recognizer.transcribe, speech)
