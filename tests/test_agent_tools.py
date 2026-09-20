@@ -141,3 +141,41 @@ def test_a_failed_turn_says_whose_fault_it_was():
 
     good = score_turn(spec, "That is a vacuum leak.", ["search_forum"], timings, tools)
     assert good.blame is None and good.passed
+
+
+def test_live_data_says_whether_a_reading_is_normal(runner_and_session):
+    """The agent told a driver the engine was overheating at 94.9 °C, having been handed
+    "normal 85-105 °C" in the same breath. The comparison is arithmetic; it belongs here."""
+    runner, session = runner_and_session
+    now = int(time.time() * 1000)
+    runner.store.add_upload(session.device, now, {0x05: 94.9, 0x06: 18.0})
+
+    out = runner.call("read_live_data", {}, session)
+    by_sensor = {r["sensor"]: r for r in out["readings"]}
+    assert by_sensor["Engine Coolant Temperature"]["status"] == "normal"
+    assert by_sensor["Fuel Trim Bank 1 Short Term"]["status"] == "TOO LEAN"
+    assert "Fuel Trim" in out["verdict"] and "Coolant" not in out["verdict"]
+
+
+def test_live_data_answers_the_direction_the_driver_claimed(runner_and_session):
+    """"It keeps climbing" was being agreed with rather than checked. This car is leaking
+    coolant, so the direction is real and the tool says so."""
+    runner, session = runner_and_session
+    out = runner.call("read_live_data", {}, session)
+    coolant = next(r for r in out["readings"] if r["sensor"] == "Engine Coolant Temperature")
+    assert "rising" in coolant["trend"]
+
+
+def test_a_steady_reading_is_not_reported_as_a_trend():
+    """The failure that matters is the opposite one: agreeing that a flat line is climbing."""
+    store = TorqueStore()
+    now = int(time.time() * 1000)
+    for i in range(6):
+        store.add_upload("flat", now - (5 - i) * 20_000, {0x05: 95.0})
+    runner = ToolRunner(store, DtcDatabase(), FakeIndex())
+
+    out = runner.call("read_live_data", {}, Session(device="flat", vehicle_id="audi_a4_b8"))
+    coolant = next(r for r in out["readings"] if r["sensor"] == "Engine Coolant Temperature")
+    assert "steady" in coolant["trend"]
+    assert coolant["status"] == "normal"
+    assert "normal for this car" in out["verdict"]

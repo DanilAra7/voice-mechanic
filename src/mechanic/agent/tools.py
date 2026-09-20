@@ -16,6 +16,8 @@ from mechanic.torque.store import TorqueStore
 from mechanic.vehicles import VEHICLES, Vehicle
 
 MAX_HIT_CHARS = 600
+# Long enough to show a direction, short enough to be about now rather than about the drive.
+TREND_WINDOW_S = 180
 SENSOR_ALIASES = {
     "coolant": 0x05,
     "coolant temp": 0x05,
@@ -52,6 +54,84 @@ SENSOR_ALIASES = {
 }
 
 
+@dataclass(frozen=True)
+class Band:
+    """What counts as normal for one sensor, and what the numbers outside it mean."""
+
+    low: float
+    high: float
+    below: str = "a little low"
+    above: str = "a little high"
+    # Past these it is not "a bit off" any more, and the wording stops being gentle.
+    far_below: float | None = None
+    far_above: float | None = None
+    well_below: str = "TOO LOW"
+    well_above: str = "TOO HIGH"
+
+
+def band(pid: int, vehicle: Vehicle | None) -> Band | None:
+    """The thresholds, as numbers rather than as a sentence to be interpreted.
+
+    Only the sensors whose reading means something on its own. Engine load and RPM depend on
+    what the car is doing at that instant, so there is no honest verdict to give for them.
+    """
+    match pid:
+        case 0x05:
+            target = vehicle.coolant_target_c if vehicle else 90
+            return Band(
+                target - 10,
+                target + 10,
+                below="below operating temperature",
+                above="a little hotter than normal",
+                far_above=110,
+                well_above="OVERHEATING",
+            )
+        case 0x5C:
+            return Band(80, 110, below="below operating temperature", above="a little hot")
+        case 0x06 | 0x07:
+            return Band(
+                -10,
+                10,
+                below="slightly rich",
+                above="slightly lean",
+                far_below=-15,
+                far_above=15,
+                well_below="TOO RICH",
+                well_above="TOO LEAN",
+            )
+        case 0x42:
+            return Band(
+                13.5,
+                14.7,
+                below="low",
+                above="high",
+                far_below=13.0,
+                well_below="NOT CHARGING",
+            )
+    return None
+
+
+def verdict(pid: int, value: float, vehicle: Vehicle | None) -> str | None:
+    """Whether this reading is normal — decided here, not left to the model to work out.
+
+    Measured 2026-09-20: handed "94.9 °C" and "normal 85-105 °C", the agent told the driver the
+    engine was overheating. The comparison is arithmetic and belongs in code, the same way the
+    safety rule does; a sentence the model is expected to apply is a sentence it can skip.
+    """
+    b = band(pid, vehicle)
+    if b is None:
+        return None
+    if b.far_above is not None and value > b.far_above:
+        return b.well_above
+    if b.far_below is not None and value < b.far_below:
+        return b.well_below
+    if value > b.high:
+        return b.above
+    if value < b.low:
+        return b.below
+    return "normal"
+
+
 def normal_range(pid: int, vehicle: Vehicle | None) -> str:
     """One-line expectation for a healthy engine, so the model can judge a reading."""
     match pid:
@@ -73,6 +153,15 @@ def normal_range(pid: int, vehicle: Vehicle | None) -> str:
             return "ambient +5-15 °C, higher when idling after a drive"
         case _:
             return ""
+
+
+def describe_trend(trend) -> str:
+    """Which way a reading is going, in words, so nobody has to subtract two numbers."""
+    minutes = round(trend.window_s / 60)
+    if abs(trend.slope_per_min) < 0.05:
+        return f"steady over the last {minutes} minutes"
+    direction = "rising" if trend.slope_per_min > 0 else "falling"
+    return f"{direction} {abs(trend.slope_per_min):.1f} {trend.unit} per minute over the last {minutes} minutes"
 
 
 @dataclass
@@ -283,19 +372,32 @@ class ToolRunner:
             }
         wanted = {self._resolve_sensor(s) for s in sensors} - {None} if sensors else None
         vehicle = session.vehicle
-        out = []
+        out, abnormal = [], []
         for r in readings:
             if wanted and r.pid not in wanted:
                 continue
             item = {"sensor": r.name, "value": round(r.value, 2), "unit": r.unit}
             if expected := normal_range(r.pid, vehicle):
                 item["expected"] = expected
+            if (status := verdict(r.pid, r.value, vehicle)) is not None:
+                item["status"] = status
+                if status != "normal":
+                    abnormal.append(f"{r.name} {r.value:.1f} {r.unit} is {status}")
+                # Drivers describe a direction — "it keeps climbing" — and the agent used to
+                # agree with them out of politeness. Answer it from the log instead.
+                if trend := self.store.trend(session.device, r.pid, window_s=TREND_WINDOW_S):
+                    item["trend"] = describe_trend(trend)
             out.append(item)
         codes = self.store.get_dtcs(session.device)
         return {
             "connected": True,
             "readings": out,
             "trouble_codes": codes,
+            "verdict": (
+                "Out of range: " + "; ".join(abnormal)
+                if abnormal
+                else "Every reading that can be judged is normal for this car."
+            ),
             "message": "No trouble codes stored." if not codes else f"Active trouble codes: {', '.join(codes)}",
         }
 
