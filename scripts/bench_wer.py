@@ -13,9 +13,11 @@ Every clip needs a `.txt` beside it holding what was actually said:
     uv run python scripts/bench_wer.py --audio evals/audio/driver
     uv run python scripts/bench_wer.py --audio evals/audio/real     # real voices, real room
 
-Both sides are normalised the same way before comparing: lower case, no punctuation, and digits
-spoken as words are joined up, so "p zero one seven one" and "P0171" count as the same thing —
-the agent's tools accept either.
+Both sides are normalised the same way before comparing: lower case, no punctuation, contractions
+written out, and digits spoken as words joined up, so "p zero one seven one" and "P0171" count as
+the same thing — the agent's tools accept either, and "it's" against "it is" is a disagreement
+about spelling rather than about what was said. Both figures are printed, because expanding
+contractions flatters the score and you should be able to see by how much.
 """
 
 import argparse
@@ -28,14 +30,25 @@ import soundfile as sf
 
 from mechanic.voice.asr import SAMPLE_RATE, Recognizer, resample, to_mono
 
+CONTRACTIONS = {
+    "it's": "it is", "i'm": "i am", "don't": "do not", "doesn't": "does not",
+    "didn't": "did not", "can't": "cannot", "won't": "will not", "isn't": "is not",
+    "i've": "i have", "you're": "you are", "there's": "there is", "that's": "that is",
+    "i'd": "i would", "i'll": "i will", "we're": "we are", "wasn't": "was not",
+    "haven't": "have not", "hasn't": "has not", "wouldn't": "would not", "let's": "let us",
+}
 DIGITS = {
     "zero": "0", "oh": "0", "one": "1", "two": "2", "three": "3", "four": "4",
     "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
 }
 
 
-def normalise(text: str) -> list[str]:
-    words = re.sub(r"[^\w\s]", " ", text.lower()).split()
+def normalise(text: str, expand: bool = True) -> list[str]:
+    text = text.lower().replace("\u2019", "'")
+    if expand:
+        for short, long in CONTRACTIONS.items():
+            text = re.sub(rf"\b{re.escape(short)}\b", long, text)
+    words = re.sub(r"[^\w\s]", " ", text).split()
     out: list[str] = []
     for word in words:
         digit = DIGITS.get(word)
@@ -75,6 +88,7 @@ def main() -> None:
 
     rows, total_edits, total_words = [], 0, 0
     char_edits, char_count = 0, 0
+    strict_edits, strict_words = 0, 0
     for path in clips:
         truth_path = path.with_suffix(".txt")
         if not truth_path.exists():
@@ -89,6 +103,9 @@ def main() -> None:
         total_words += len(reference)
         char_edits += edits(list(" ".join(reference)), list(" ".join(heard)))
         char_count += len(" ".join(reference))
+        strict_ref = normalise(truth_path.read_text(encoding="utf-8"), expand=False)
+        strict_edits += edits(strict_ref, normalise(transcript.text, expand=False))
+        strict_words += len(strict_ref)
         rows.append(
             {
                 "clip": path.name,
@@ -109,13 +126,19 @@ def main() -> None:
         raise SystemExit("nothing to score: every clip is missing its .txt")
     wer = 100 * total_edits / total_words
     cer = 100 * char_edits / char_count
+    strict = 100 * strict_edits / strict_words
     clean = sum(1 for r in rows if not r["word_errors"])
     print(f"\nWER {wer:.1f}%  ·  CER {cer:.1f}%  ·  {clean}/{len(rows)} clips word-perfect")
+    print(f"WER {strict:.1f}% counting a contraction as a mistake")
     print(f"decode median {statistics.median(r['decode_ms'] for r in rows):.0f} ms")
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"wer": round(wer, 2), "cer": round(cer, 2), "clips": rows}, indent=2))
+    out.write_text(
+        json.dumps(
+            {"wer": round(wer, 2), "wer_strict": round(strict, 2), "cer": round(cer, 2), "clips": rows}, indent=2
+        )
+    )
     print(f"wrote {out}")
 
 

@@ -119,3 +119,25 @@ def test_search_tools_pass_source_and_vehicle(runner_and_session):
         out = runner.call(tool, {"query": "coolant leak"}, session)
         assert runner.index.calls[-1] == ("coolant leak", (source,), "audi_a4_b8")
         assert len(out["results"][0]["text"]) <= 600
+
+
+def test_a_failed_turn_says_whose_fault_it_was():
+    """The eval runner is not imported anywhere else, so a broken dataclass in it only shows up
+    on the rented GPU, half an hour and one instance start later."""
+    from mechanic.evals.run import score_turn
+
+    spec = {"user": "why are my trims high", "expect_any": [["vacuum leak"]]}
+    tools = [{"name": "search_forum", "result": {"hits": [{"text": "this is a vacuum leak"}]}}]
+    timings = {"first_token_ms": 1.0, "first_sentence_ms": 2.0, "total_ms": 3.0}
+
+    ignored = score_turn(spec, "I have no idea.", ["search_forum"], timings, tools)
+    assert ignored.blame == "generation", "the search found it and the answer skipped it"
+
+    missed = score_turn(spec, "I have no idea.", ["search_forum"], timings, [{"name": "x", "result": {}}])
+    assert missed.blame == "retrieval"
+
+    lazy = score_turn(spec, "I have no idea.", [], timings, [])
+    assert lazy.blame == "no lookup"
+
+    good = score_turn(spec, "That is a vacuum leak.", ["search_forum"], timings, tools)
+    assert good.blame is None and good.passed

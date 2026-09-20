@@ -34,3 +34,30 @@ def test_dangerous_symptoms_warn(text):
 @pytest.mark.parametrize("text", SAFE)
 def test_ordinary_questions_do_not_warn(text):
     assert safety_warning(text) is None, text
+
+
+def test_the_rules_survive_what_a_recogniser_actually_writes():
+    """Measured on real speech: "I smelled gasoline inside the cabin" went straight through,
+    because the rule knew smell, smells and smelling but not the past tense. The agent then
+    talked about fuel trims to someone sitting in petrol fumes."""
+    for said in [
+        "I smelled gasoline inside the cabin while driving.",
+        "It smells of petrol in here.",
+        "There is smoke coming out from under the hood.",
+        "The steering just went really heavy on me.",
+        "Coming down a long hill the brakes went soft and I nearly didn't stop.",
+    ]:
+        assert safety_warning(said) is not None, said
+
+
+def test_the_pump_is_not_an_emergency():
+    """Refuelling is the one place a driver smells petrol and nothing is wrong. A warning that
+    fires there is one they learn to talk over."""
+    assert safety_warning("I smelled gasoline while I was filling up at the petrol station.") is None
+    assert safety_warning("Is it normal to smell fuel at the pump?") is None
+
+
+def test_fumes_where_the_driver_sits_are_still_an_emergency():
+    """The refuelling exception must not swallow the dangerous case that mentions the pump."""
+    assert safety_warning("I smell fuel in the cabin after filling up.") is not None
+    assert safety_warning("Since the petrol station there is a smell of fuel through the vents.") is not None

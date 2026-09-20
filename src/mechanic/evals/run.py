@@ -43,13 +43,13 @@ class TurnResult:
     forbidden_tools: list[str]
     missing_phrases: list[list[str]]
     forbidden_phrases: list[str]
-    # Of the phrases the answer was missing, the ones the tools had actually handed it.
-    missed_in_evidence: list[list[str]] = field(default_factory=list)
-    searched: bool = False
     format_issues: bool
     first_token_ms: float | None
     first_sentence_ms: float | None
     total_ms: float | None
+    # Of the phrases the answer was missing, the ones the tools had actually handed it.
+    missed_in_evidence: list[list[str]] = field(default_factory=list)
+    searched: bool = False
 
     @property
     def tools_ok(self) -> bool:

@@ -7,6 +7,12 @@ rather than a behaviour we hope the model reproduces.
 
 These patterns describe SYMPTOMS, not topics: "how do I check the brake fluid" is a how-to
 question and must not trigger, while "the pedal goes to the floor" must.
+
+They also have to survive a recogniser. Measured on real speech 2026-09-20: a driver said "I
+smelled gasoline inside the cabin while driving", the transcript came back in the past tense,
+and the rule — which knew "smell", "smells" and "smelling" — let it through. The agent then
+discussed fuel trims with someone sitting in petrol fumes. Every verb here now carries its
+endings, because the words that reach this function are whatever the microphone made of them.
 """
 
 import re
@@ -14,24 +20,41 @@ import re
 PULL_OVER = "Stop driving and pull over as soon as it is safe."
 DO_NOT_DRIVE = "Do not drive the car until this is checked."
 
+SMELL = r"smell(?:s|ed|ing)?"
+FUEL = r"gas|gasoline|petrol|fuel"
+
+# Refuelling is the one place a driver smells petrol and nothing is wrong. Without this the rule
+# shouts at "I smelled petrol while filling up", and a warning that cries wolf gets talked over.
+_AT_THE_PUMP = re.compile(r"\b(fill(ing|ed)? up|at the pump|petrol station|gas station|refuel)", re.I)
+# Except that fumes where the driver is sitting are dangerous wherever they started.
+_IN_THE_CAR = re.compile(r"\b(cabin|inside the car|in the car|interior|vents?)\b", re.I)
+
 _RULES: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b(smell|smells|smelling)\b.{0,20}\b(gas|gasoline|petrol|fuel)\b", re.I), PULL_OVER),
-    (re.compile(r"\b(gas|gasoline|petrol|fuel)\b.{0,12}\bsmell", re.I), PULL_OVER),
-    (re.compile(r"\bsmells?\s+like\s+(gas|gasoline|petrol|fuel|burning)\b", re.I), PULL_OVER),
-    (re.compile(r"\bsmoke\b.{0,30}\b(hood|engine|bonnet|dash|vents?|car)\b", re.I), PULL_OVER),
-    (re.compile(r"\b(on fire|flames|burning smell)\b", re.I), PULL_OVER),
+    (re.compile(rf"\b{SMELL}\b.{{0,20}}\b({FUEL})\b", re.I), PULL_OVER),
+    (re.compile(rf"\b({FUEL})\b.{{0,12}}\b{SMELL}", re.I), PULL_OVER),
+    (re.compile(rf"\b{SMELL}\s+(of\s+|like\s+)?({FUEL}|burning)\b", re.I), PULL_OVER),
+    (re.compile(r"\bsmok(e|ing|y)\b.{0,30}\b(hood|engine|bonnet|dash|vents?|car)\b", re.I), PULL_OVER),
+    (re.compile(r"\b(on fire|flames|burning smell|smell of burning)\b", re.I), PULL_OVER),
     (re.compile(r"\bpedal\b.{0,30}\b(floor|all the way down)\b", re.I), DO_NOT_DRIVE),
-    (re.compile(r"\b(no|lost|losing|failed?)\s+brakes?\b", re.I), DO_NOT_DRIVE),
-    (re.compile(r"\bbrakes?\b.{0,20}\b(don'?t|do not|won'?t|not)\s+work", re.I), DO_NOT_DRIVE),
-    (re.compile(r"\bbrake\s+failure\b", re.I), DO_NOT_DRIVE),
-    (re.compile(r"\bsteering\b.{0,25}\b(locked|seized|stuck|failed)\b", re.I), DO_NOT_DRIVE),
-    (re.compile(r"\blost\s+(my\s+)?steering\b", re.I), DO_NOT_DRIVE),
+    (re.compile(r"\b(no|lost|losing|loses|failed?|failing)\s+brakes?\b", re.I), DO_NOT_DRIVE),
+    (re.compile(r"\bbrakes?\b.{0,20}\b(don'?t|do not|won'?t|did ?n'?t|not)\s+work", re.I), DO_NOT_DRIVE),
+    (re.compile(r"\bbrakes?\b.{0,20}\b(went|go|going|gone|feel|felt)\s+(soft|spongy)\b", re.I), DO_NOT_DRIVE),
+    (re.compile(r"\bbrake\s+fail(ure|ed|ing)?\b", re.I), DO_NOT_DRIVE),
+    (re.compile(r"\bsteering\b.{0,25}\b(lock(ed|s)?|seiz(ed|es)?|stuck|fail(ed|s|ing)?)\b", re.I), DO_NOT_DRIVE),
+    (
+        re.compile(r"\bsteering\b.{0,25}\b(went|going|gone|got|is)\s+(really\s+)?(heavy|stiff|hard)\b", re.I),
+        DO_NOT_DRIVE,
+    ),
+    (re.compile(r"\b(lost|losing|loses)\s+(my\s+)?steering\b", re.I), DO_NOT_DRIVE),
 ]
 
 
 def safety_warning(user_text: str) -> str | None:
     """The sentence the driver must hear first, or None when nothing dangerous was described."""
+    at_the_pump = bool(_AT_THE_PUMP.search(user_text)) and not _IN_THE_CAR.search(user_text)
     for pattern, line in _RULES:
         if pattern.search(user_text):
+            if line is PULL_OVER and at_the_pump:
+                continue
             return line
     return None
