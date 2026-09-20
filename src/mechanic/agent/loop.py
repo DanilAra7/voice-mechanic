@@ -54,7 +54,10 @@ def situation(session: Session) -> str:
     v = session.vehicle
     if not v:
         return "The car has not been identified yet."
-    return f"The driver's car is a {v.title}. Live sensor data for it is available."
+    return (
+        f"The driver's car is a {v.title}. Live sensor data for it is available. "
+        "You already know this, so never ask them which car, year or engine they have."
+    )
 
 
 @dataclass

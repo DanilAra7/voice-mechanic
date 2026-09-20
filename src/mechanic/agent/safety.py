@@ -32,7 +32,10 @@ _IN_THE_CAR = re.compile(r"\b(cabin|inside the car|in the car|interior|vents?)\b
 _RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(rf"\b{SMELL}\b.{{0,20}}\b({FUEL})\b", re.I), PULL_OVER),
     (re.compile(rf"\b({FUEL})\b.{{0,12}}\b{SMELL}", re.I), PULL_OVER),
-    (re.compile(rf"\b{SMELL}\s+(of\s+|like\s+)?({FUEL}|burning)\b", re.I), PULL_OVER),
+    # "smells like something is burning" — the word that matters is several words away from the
+    # one that introduces it, which is how people actually say this.
+    (re.compile(rf"\b{SMELL}\s+(of|like)?\s*(\w+\s+){{0,3}}({FUEL}|burning)\b", re.I), PULL_OVER),
+    (re.compile(r"\bsomething\s+is\s+burning\b", re.I), PULL_OVER),
     (re.compile(r"\bsmok(e|ing|y)\b.{0,30}\b(hood|engine|bonnet|dash|vents?|car)\b", re.I), PULL_OVER),
     (re.compile(r"\b(on fire|flames|burning smell|smell of burning)\b", re.I), PULL_OVER),
     (re.compile(r"\bpedal\b.{0,30}\b(floor|all the way down)\b", re.I), DO_NOT_DRIVE),

@@ -61,3 +61,16 @@ def test_fumes_where_the_driver_sits_are_still_an_emergency():
     """The refuelling exception must not swallow the dangerous case that mentions the pump."""
     assert safety_warning("I smell fuel in the cabin after filling up.") is not None
     assert safety_warning("Since the petrol station there is a smell of fuel through the vents.") is not None
+
+
+def test_burning_is_caught_however_it_is_phrased():
+    """Measured: "It smells like something is burning and I can feel the heat" produced a calm
+    report that the coolant was fine. The word that matters sits three words after the one that
+    introduces it, which is how people say it."""
+    for said in [
+        "It smells like something is burning and I can feel the heat.",
+        "There is a burning smell in the car.",
+        "Something is burning under the bonnet.",
+        "It smells of burning.",
+    ]:
+        assert safety_warning(said) is not None, said
