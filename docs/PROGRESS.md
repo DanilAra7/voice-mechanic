@@ -34,19 +34,28 @@ p95 1479 мс**, медиана длины ответа 12.4 с. Сценари�
 
 ### Как поднять окружение
 
+**У нас есть остановленный инстанс 51763823, на котором уже всё стоит. Поднимать НАДО его,
+а не арендовать новый:** новая машина = 21.6 ГБ скачивания = **$0.85**, а эта стоит $0.019/ч,
+пока спит. Ставить заново — только если её потеряли.
+
 ```bash
-# 1. арендовать: образ nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04, диск 35 ГБ, --cancel-unavail
-#    фильтровать офферы по cpu_cores_effective (НЕ по cpu_cores — это ядра хоста)
-ssh -p <порт> root@<хост> 'bash -s' < scripts/gpu_up.sh          # ~10 мин, качает 13 ГБ
-git archive --format=tar HEAD | gzip -c | ssh -p <порт> root@<хост> 'mkdir -p /workspace/mechanic && cd /workspace/mechanic && tar xzf -'
-tar czf - data/processed data/index | ssh -p <порт> root@<хост> 'cd /workspace/mechanic && tar xzf -'
-ssh -p <порт> root@<хост> 'cd /workspace/mechanic && PATH=$HOME/.local/bin:$PATH uv sync --extra gpu'
-ssh -p <порт> root@<хост> /workspace/gpu_start.sh
-# проверить:
-ssh -p <порт> root@<хост> 'cd /workspace/mechanic && PATH=$HOME/.local/bin:$PATH uv run python scripts/bench_voice.py --audio evals/audio/driver'
+vastai start instance 51763823
+vastai ssh-url 51763823                      # адрес и порт меняются после каждого старта
+tar czf - src/mechanic scripts web | ssh -p <порт> root@<хост> 'cd /workspace/mechanic && tar xzf -'
+ssh -p <порт> root@<хост> '/workspace/gpu_start.sh'          # llama-server + API, ~3 мин
+# только API перезапустить (llama-server оставить жить):
+ssh -p <порт> root@<хост> 'for pid in $(pgrep -f "uvicorn mechanic"); do kill $pid; done
+                           setsid nohup /workspace/api_start.sh > /workspace/api.log 2>&1 < /dev/null & disown'
+# посмотреть сайт со своей машины:
+ssh -N -L 8010:127.0.0.1:8000 -p <порт> root@<хост>          # → http://127.0.0.1:8010/app/
+# замерить:
+ssh -p <порт> root@<хост> 'cd /workspace/mechanic && PATH=$HOME/.local/bin:$PATH \
+    uv run python scripts/bench_voice.py --limit 6 --device bench'
 ```
 
-Все параметры, на подбор которых ушла сессия, зашиты в `scripts/gpu_up.sh` — заново не искать.
+Инстанс с нуля (если этот потерян) — `scripts/gpu_up.sh`; все параметры, на подбор которых ушла
+сессия, зашиты в него, заново не искать. **Оффер выбирать с `inet_down_cost<=0.005`** —
+это важнее цены за час (см. «Деньги»).
 
 ### Деньги и машины
 
