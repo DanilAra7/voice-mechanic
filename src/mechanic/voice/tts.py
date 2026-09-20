@@ -8,11 +8,17 @@ The model lives on the GPU beside the language model, which leaves very little r
 together they peak at 15 875 MiB of the card's 16 376. Nothing else may be loaded alongside.
 """
 
+import os
 import time
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 
-DEFAULT_VOICE = "expresso/ex03-ex01_happy_001_channel1_334s.wav"
+# Kyutai clones whatever voice it is handed a sample of, so the sample IS the personality. The
+# Expresso set ships the same speaker (ex03) acted in a dozen moods; the candidates are compared
+# by scripts/bench_voice_style.py.
+DEFAULT_VOICE = os.environ.get("MECHANIC_VOICE") or "expresso/ex03-ex01_happy_001_channel1_334s.wav"
+# Sampling temperature for the audio tokens: lower means flatter, more predictable delivery.
+DEFAULT_TEMP = float(os.environ.get("MECHANIC_VOICE_TEMP") or 0.6)
 SAMPLE_RATE = 24000
 
 
@@ -41,7 +47,7 @@ class Synthesiser:
     voice: str = DEFAULT_VOICE
     device: str = "cuda"
     n_q: int = 32
-    temp: float = 0.6
+    temp: float = DEFAULT_TEMP
     cfg_coef: float = 2.0
     _tts: object | None = field(default=None, repr=False)
     _cond: object | None = field(default=None, repr=False)

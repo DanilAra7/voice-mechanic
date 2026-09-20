@@ -1,0 +1,835 @@
+{
+  "baseline": "happy",
+  "rows": [
+    {
+      "voice": "happy",
+      "sample": "expresso/ex03-ex01_happy_001_channel1_334s.wav",
+      "temp": 0.6,
+      "audio_s_total": 40.48,
+      "audio_s_median": 3.72,
+      "s_per_char_median": 0.0648,
+      "first_frame_ms_p50": 616,
+      "rtf_median": 0.525,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 2.96,
+          "synth_s": 1.668,
+          "first_frame_ms": 616,
+          "s_per_char": 0.0604
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 4.32,
+          "synth_s": 2.184,
+          "first_frame_ms": 615,
+          "s_per_char": 0.0635
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 5.2,
+          "synth_s": 2.496,
+          "first_frame_ms": 614,
+          "s_per_char": 0.0732
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 3.44,
+          "synth_s": 1.868,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0702
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 6.48,
+          "synth_s": 2.944,
+          "first_frame_ms": 616,
+          "s_per_char": 0.1062
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 3.92,
+          "synth_s": 2.005,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0676
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 4.96,
+          "synth_s": 2.443,
+          "first_frame_ms": 616,
+          "s_per_char": 0.0661
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 3.04,
+          "synth_s": 1.727,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0585
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 2.64,
+          "synth_s": 1.585,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0574
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 3.52,
+          "synth_s": 1.898,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0629
+        }
+      ],
+      "vs_baseline_pct": 0.0
+    },
+    {
+      "voice": "calm",
+      "sample": "expresso/ex03-ex01_calm_001_channel1_1143s.wav",
+      "temp": 0.6,
+      "audio_s_total": 43.68,
+      "audio_s_median": 4.32,
+      "s_per_char_median": 0.0726,
+      "first_frame_ms_p50": 618,
+      "rtf_median": 0.507,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 3.36,
+          "synth_s": 1.84,
+          "first_frame_ms": 647,
+          "s_per_char": 0.0686
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 4.24,
+          "synth_s": 2.162,
+          "first_frame_ms": 620,
+          "s_per_char": 0.0624
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 5.44,
+          "synth_s": 2.585,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0766
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 3.36,
+          "synth_s": 1.859,
+          "first_frame_ms": 630,
+          "s_per_char": 0.0686
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 4.96,
+          "synth_s": 2.467,
+          "first_frame_ms": 623,
+          "s_per_char": 0.0813
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 5.2,
+          "synth_s": 2.502,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0897
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 5.04,
+          "synth_s": 2.445,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0672
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 4.4,
+          "synth_s": 2.215,
+          "first_frame_ms": 616,
+          "s_per_char": 0.0846
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 4.0,
+          "synth_s": 2.074,
+          "first_frame_ms": 618,
+          "s_per_char": 0.087
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 3.68,
+          "synth_s": 1.961,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0657
+        }
+      ],
+      "vs_baseline_pct": 7.9
+    },
+    {
+      "voice": "narration",
+      "sample": "expresso/ex03-ex02_narration_001_channel1_674s.wav",
+      "temp": 0.6,
+      "audio_s_total": 42.16,
+      "audio_s_median": 4.04,
+      "s_per_char_median": 0.0676,
+      "first_frame_ms_p50": 622,
+      "rtf_median": 0.523,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 4.08,
+          "synth_s": 2.162,
+          "first_frame_ms": 673,
+          "s_per_char": 0.0833
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 4.0,
+          "synth_s": 2.07,
+          "first_frame_ms": 624,
+          "s_per_char": 0.0588
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 4.8,
+          "synth_s": 2.363,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0676
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 3.12,
+          "synth_s": 1.768,
+          "first_frame_ms": 623,
+          "s_per_char": 0.0637
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 4.08,
+          "synth_s": 2.107,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0669
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 3.92,
+          "synth_s": 2.053,
+          "first_frame_ms": 622,
+          "s_per_char": 0.0676
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 6.64,
+          "synth_s": 3.023,
+          "first_frame_ms": 621,
+          "s_per_char": 0.0885
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 3.92,
+          "synth_s": 2.055,
+          "first_frame_ms": 622,
+          "s_per_char": 0.0754
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 4.16,
+          "synth_s": 2.172,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0904
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 3.44,
+          "synth_s": 1.852,
+          "first_frame_ms": 625,
+          "s_per_char": 0.0614
+        }
+      ],
+      "vs_baseline_pct": 4.2
+    },
+    {
+      "voice": "enunciated",
+      "sample": "expresso/ex03-ex01_enunciated_001_channel1_388s.wav",
+      "temp": 0.6,
+      "audio_s_total": 49.92,
+      "audio_s_median": 4.6,
+      "s_per_char_median": 0.0771,
+      "first_frame_ms_p50": 618,
+      "rtf_median": 0.499,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 3.52,
+          "synth_s": 1.919,
+          "first_frame_ms": 664,
+          "s_per_char": 0.0718
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 5.52,
+          "synth_s": 2.619,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0812
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 8.8,
+          "synth_s": 3.794,
+          "first_frame_ms": 618,
+          "s_per_char": 0.1239
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 3.28,
+          "synth_s": 1.821,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0669
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 6.24,
+          "synth_s": 2.847,
+          "first_frame_ms": 618,
+          "s_per_char": 0.1023
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 4.48,
+          "synth_s": 2.253,
+          "first_frame_ms": 621,
+          "s_per_char": 0.0772
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 5.68,
+          "synth_s": 2.646,
+          "first_frame_ms": 620,
+          "s_per_char": 0.0757
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 4.72,
+          "synth_s": 2.336,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0908
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 3.36,
+          "synth_s": 1.815,
+          "first_frame_ms": 614,
+          "s_per_char": 0.073
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 4.32,
+          "synth_s": 2.194,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0771
+        }
+      ],
+      "vs_baseline_pct": 23.3
+    },
+    {
+      "voice": "default_other",
+      "sample": "expresso/ex01-ex02_default_001_channel1_168s.wav",
+      "temp": 0.6,
+      "audio_s_total": 47.36,
+      "audio_s_median": 4.28,
+      "s_per_char_median": 0.0767,
+      "first_frame_ms_p50": 619,
+      "rtf_median": 0.506,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 3.28,
+          "synth_s": 1.824,
+          "first_frame_ms": 651,
+          "s_per_char": 0.0669
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 4.56,
+          "synth_s": 2.248,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0671
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 6.08,
+          "synth_s": 2.822,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0856
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 2.8,
+          "synth_s": 1.651,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0571
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 5.28,
+          "synth_s": 2.537,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0866
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 7.2,
+          "synth_s": 3.225,
+          "first_frame_ms": 618,
+          "s_per_char": 0.1241
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 7.44,
+          "synth_s": 3.318,
+          "first_frame_ms": 623,
+          "s_per_char": 0.0992
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 4.0,
+          "synth_s": 2.079,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0769
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 3.52,
+          "synth_s": 1.902,
+          "first_frame_ms": 613,
+          "s_per_char": 0.0765
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 3.2,
+          "synth_s": 1.796,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0571
+        }
+      ],
+      "vs_baseline_pct": 17.0
+    },
+    {
+      "voice": "happy",
+      "sample": "expresso/ex03-ex01_happy_001_channel1_334s.wav",
+      "temp": 0.4,
+      "audio_s_total": 47.28,
+      "audio_s_median": 4.2,
+      "s_per_char_median": 0.0743,
+      "first_frame_ms_p50": 618,
+      "rtf_median": 0.508,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 3.44,
+          "synth_s": 1.875,
+          "first_frame_ms": 614,
+          "s_per_char": 0.0702
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 4.24,
+          "synth_s": 2.162,
+          "first_frame_ms": 614,
+          "s_per_char": 0.0624
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 6.4,
+          "synth_s": 2.934,
+          "first_frame_ms": 614,
+          "s_per_char": 0.0901
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 5.84,
+          "synth_s": 2.707,
+          "first_frame_ms": 618,
+          "s_per_char": 0.1192
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 6.4,
+          "synth_s": 2.938,
+          "first_frame_ms": 617,
+          "s_per_char": 0.1049
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 4.16,
+          "synth_s": 2.109,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0717
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 6.56,
+          "synth_s": 2.992,
+          "first_frame_ms": 615,
+          "s_per_char": 0.0875
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 4.0,
+          "synth_s": 2.087,
+          "first_frame_ms": 625,
+          "s_per_char": 0.0769
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 3.2,
+          "synth_s": 1.795,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0696
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 3.04,
+          "synth_s": 1.738,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0543
+        }
+      ],
+      "vs_baseline_pct": 16.8
+    },
+    {
+      "voice": "calm",
+      "sample": "expresso/ex03-ex01_calm_001_channel1_1143s.wav",
+      "temp": 0.4,
+      "audio_s_total": 46.64,
+      "audio_s_median": 4.08,
+      "s_per_char_median": 0.0708,
+      "first_frame_ms_p50": 618,
+      "rtf_median": 0.513,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 3.36,
+          "synth_s": 1.872,
+          "first_frame_ms": 639,
+          "s_per_char": 0.0686
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 3.84,
+          "synth_s": 2.023,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0565
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 8.88,
+          "synth_s": 3.826,
+          "first_frame_ms": 620,
+          "s_per_char": 0.1251
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 2.96,
+          "synth_s": 1.709,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0604
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 5.36,
+          "synth_s": 2.565,
+          "first_frame_ms": 617,
+          "s_per_char": 0.0879
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 4.0,
+          "synth_s": 2.081,
+          "first_frame_ms": 619,
+          "s_per_char": 0.069
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 5.44,
+          "synth_s": 2.601,
+          "first_frame_ms": 622,
+          "s_per_char": 0.0725
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 5.04,
+          "synth_s": 2.455,
+          "first_frame_ms": 615,
+          "s_per_char": 0.0969
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 4.16,
+          "synth_s": 2.108,
+          "first_frame_ms": 616,
+          "s_per_char": 0.0904
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 3.6,
+          "synth_s": 1.943,
+          "first_frame_ms": 620,
+          "s_per_char": 0.0643
+        }
+      ],
+      "vs_baseline_pct": 15.2
+    },
+    {
+      "voice": "narration",
+      "sample": "expresso/ex03-ex02_narration_001_channel1_674s.wav",
+      "temp": 0.4,
+      "audio_s_total": 42.4,
+      "audio_s_median": 3.88,
+      "s_per_char_median": 0.0708,
+      "first_frame_ms_p50": 619,
+      "rtf_median": 0.523,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 3.28,
+          "synth_s": 1.822,
+          "first_frame_ms": 615,
+          "s_per_char": 0.0669
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 3.68,
+          "synth_s": 1.972,
+          "first_frame_ms": 620,
+          "s_per_char": 0.0541
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 4.88,
+          "synth_s": 2.398,
+          "first_frame_ms": 618,
+          "s_per_char": 0.0687
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 4.64,
+          "synth_s": 2.308,
+          "first_frame_ms": 613,
+          "s_per_char": 0.0947
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 6.16,
+          "synth_s": 2.859,
+          "first_frame_ms": 619,
+          "s_per_char": 0.101
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 3.92,
+          "synth_s": 2.059,
+          "first_frame_ms": 620,
+          "s_per_char": 0.0676
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 5.52,
+          "synth_s": 2.596,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0736
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 3.84,
+          "synth_s": 1.999,
+          "first_frame_ms": 623,
+          "s_per_char": 0.0738
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 3.36,
+          "synth_s": 1.826,
+          "first_frame_ms": 621,
+          "s_per_char": 0.073
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 3.12,
+          "synth_s": 1.77,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0557
+        }
+      ],
+      "vs_baseline_pct": 4.7
+    },
+    {
+      "voice": "enunciated",
+      "sample": "expresso/ex03-ex01_enunciated_001_channel1_388s.wav",
+      "temp": 0.4,
+      "audio_s_total": 56.64,
+      "audio_s_median": 5.08,
+      "s_per_char_median": 0.0943,
+      "first_frame_ms_p50": 620,
+      "rtf_median": 0.483,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 3.84,
+          "synth_s": 2.022,
+          "first_frame_ms": 613,
+          "s_per_char": 0.0784
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 5.28,
+          "synth_s": 2.508,
+          "first_frame_ms": 616,
+          "s_per_char": 0.0776
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 8.88,
+          "synth_s": 3.84,
+          "first_frame_ms": 625,
+          "s_per_char": 0.1251
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 4.64,
+          "synth_s": 2.316,
+          "first_frame_ms": 621,
+          "s_per_char": 0.0947
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 6.96,
+          "synth_s": 3.155,
+          "first_frame_ms": 620,
+          "s_per_char": 0.1141
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 6.4,
+          "synth_s": 2.951,
+          "first_frame_ms": 625,
+          "s_per_char": 0.1103
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 9.12,
+          "synth_s": 3.924,
+          "first_frame_ms": 623,
+          "s_per_char": 0.1216
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 4.88,
+          "synth_s": 2.392,
+          "first_frame_ms": 612,
+          "s_per_char": 0.0938
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 3.36,
+          "synth_s": 1.853,
+          "first_frame_ms": 617,
+          "s_per_char": 0.073
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 3.28,
+          "synth_s": 1.827,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0586
+        }
+      ],
+      "vs_baseline_pct": 39.9
+    },
+    {
+      "voice": "default_other",
+      "sample": "expresso/ex01-ex02_default_001_channel1_168s.wav",
+      "temp": 0.4,
+      "audio_s_total": 53.36,
+      "audio_s_median": 4.68,
+      "s_per_char_median": 0.0927,
+      "first_frame_ms_p50": 619,
+      "rtf_median": 0.497,
+      "takes": [
+        {
+          "line": "Stop driving and pull over as soon as it is safe.",
+          "audio_s": 4.48,
+          "synth_s": 2.243,
+          "first_frame_ms": 627,
+          "s_per_char": 0.0914
+        },
+        {
+          "line": "Your coolant temperature is one hundred twenty four degrees Celsius.",
+          "audio_s": 6.4,
+          "synth_s": 2.946,
+          "first_frame_ms": 620,
+          "s_per_char": 0.0941
+        },
+        {
+          "line": "That code is P zero one seven one, which means the mixture is too lean.",
+          "audio_s": 8.0,
+          "synth_s": 3.515,
+          "first_frame_ms": 617,
+          "s_per_char": 0.1127
+        },
+        {
+          "line": "Let me check what other mechanics say about this.",
+          "audio_s": 3.68,
+          "synth_s": 1.972,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0751
+        },
+        {
+          "line": "Short term fuel trim is sitting at seventeen percent at idle.",
+          "audio_s": 7.12,
+          "synth_s": 3.209,
+          "first_frame_ms": 626,
+          "s_per_char": 0.1167
+        },
+        {
+          "line": "It drops back to about four percent once you are cruising.",
+          "audio_s": 4.32,
+          "synth_s": 2.168,
+          "first_frame_ms": 620,
+          "s_per_char": 0.0745
+        },
+        {
+          "line": "That pattern usually points to a vacuum leak after the mass airflow sensor.",
+          "audio_s": 7.12,
+          "synth_s": 3.206,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0949
+        },
+        {
+          "line": "Check the P C V hose and the intake boot for cracks.",
+          "audio_s": 4.56,
+          "synth_s": 2.286,
+          "first_frame_ms": 619,
+          "s_per_char": 0.0877
+        },
+        {
+          "line": "I would not drive it far until that is sorted.",
+          "audio_s": 4.8,
+          "synth_s": 2.371,
+          "first_frame_ms": 619,
+          "s_per_char": 0.1043
+        },
+        {
+          "line": "Do you want me to walk you through checking it yourself?",
+          "audio_s": 2.88,
+          "synth_s": 1.681,
+          "first_frame_ms": 616,
+          "s_per_char": 0.0514
+        }
+      ],
+      "vs_baseline_pct": 31.8
+    }
+  ]
+}
