@@ -1,960 +1,831 @@
-# Заметки
+# Engineering notes
 
-## Окружение
+Measurements, dead ends and traps. Everything here was paid for once; the point of writing it
+down is not to pay twice. Figures are measured unless marked `(?)`.
 
-- Mac: MacBook Air M4, 16 ГБ, macOS 26.6.2. Пассивное охлаждение → долгие локальные нагрузки будут троттлить.
-- Есть: `uv` (~/.local/bin/uv), `node v24.19.0`, `git`, системный `python3 3.9.6` (не использовать — проект на 3.12 через uv).
-- Нет: `brew`, `docker`, `ollama`. 7z распаковываем через `uvx --from py7zr py7zr x <file> <dir>`.
-- zsh: `echo ===` ломается (equals-expansion) — в командах использовать `echo "---"`.
+## Environment
 
-## Структура репо
+- Laptop: MacBook Air M4, 16 GB, macOS 26.6. Passively cooled, so long local workloads throttle.
+- Available: `uv`, `node v24`, `git`, system `python3 3.9.6` (unused — the project is on 3.12
+  through uv). Not available: `brew`, `docker`, `ollama`. 7z archives unpack with
+  `uvx --from py7zr py7zr x <file> <dir>`.
+- zsh: bare `echo ===` breaks on equals-expansion; use quotes.
 
-```
-src/mechanic/
-  vehicles.py            # 5 машин MVP (+ ключи источников данных)
-  knowledge/dtc.py       # OBDex: 9533 кода; normalize_code() понимает "P zero one seven one"
-  knowledge/search.py    # гибридный поиск: bm25s + bge-small (fastembed, CPU), RRF, буст по машине
-  agent/tools.py         # 8 тулов + Session + ToolRunner
-  agent/prompt.py        # системный промпт (короткий: это кэшируемый префикс)
-  agent/loop.py          # стриминг по предложениям, фразы-заглушки, вызовы тулов, тайминги
-  evals/run.py           # прогон evals/scenarios.yaml против любого OpenAI-совместимого сервера
-  config.py              # load_env(): .env → os.environ (без python-dotenv)
-  server.py              # FastAPI: /torque, /api/catalog, /api/sim/{device}, /api/sensors/{device}
-  torque/pids.py         # PID-ы, ключи Torque (k5, kc, ...)
-  torque/receiver.py     # парсер Torque web upload → store, ответ "OK!"
-  torque/store.py        # SQLite: readings / sensor_meta / dtcs; latest(), trend()
-  torque/simulator.py    # VehicleModel (физика-лайт + 6 неисправностей), TorqueSimulator (HTTP), CLI
-  data/common.py         # Doc-схема, PoliteFetcher (кэш + 1 req/s), looks_english
-  data/stackexchange.py  # дамп SE → jsonl
-  data/carcarekiosk.py   # скрапер how-to
-  data/startmycar.py     # скрапер отчётов владельцев
-tests/test_torque.py
-data/raw/ (дамп, gitignored)  data/cache/ (http-кэш, sqlite, логи; gitignored)  data/processed/ (jsonl; gitignored)
-```
-
-## Команды
+## Commands
 
 ```bash
-uv run pytest -q                                   # тесты
+uv run pytest -q
 uv run ruff check --fix src tests && uv run ruff format src tests
-uv run uvicorn mechanic.server:app --port 8000 --reload   # или preview_start backend
+uv run uvicorn mechanic.server:app --port 8000 --reload
 uv run python -m mechanic.torque.simulator --vehicle audi_a4_b8 --mode idle --fault vacuum_leak --time-scale 20
-uv run python -m mechanic.data.stackexchange       # ~3 с
-uv run python -m mechanic.data.carcarekiosk        # ~5 мин с нуля, из кэша — секунды
-uv run python -m mechanic.data.startmycar          # долго (сотни запросов по 1/с), из кэша — быстро
-uv run python -m mechanic.knowledge.dtc            # пересобрать кэш кодов
-uv run python -m mechanic.knowledge.search build   # индекс (~56k пассажей; bm25 быстро, эмбеддинги долго)
+uv run python -m mechanic.data.stackexchange       # ~3 s
+uv run python -m mechanic.data.carcarekiosk        # ~5 min cold, seconds from cache
+uv run python -m mechanic.data.startmycar          # slow: hundreds of requests at 1/s
+uv run python -m mechanic.knowledge.dtc            # rebuild the code cache
+uv run python -m mechanic.knowledge.search build   # the index (~56k passages)
 uv run python -m mechanic.knowledge.search query "high fuel trim at idle" --vehicle audi_a4_b8
 uv run python -m mechanic.evals.run --model <name> --base-url http://127.0.0.1:8001/v1
-# запустить симулятор через API:
-curl -X POST localhost:8000/api/sim/demo -H 'content-type: application/json' -d '{"vehicle":"audi_a4_b8","mode":"idle","fault":"vacuum_leak","time_scale":20}'
+
+# start a simulator through the API:
+curl -X POST localhost:8000/api/sim/demo -H 'content-type: application/json' \
+  -d '{"vehicle":"audi_a4_b8","mode":"idle","fault":"vacuum_leak","time_scale":20}'
 curl localhost:8000/api/sensors/demo
 ```
 
-## Источники данных (замеры 2026-09-17)
+## Data sources (measured 2026-09-17)
 
-| Источник | Что | Объём | Доступ |
+| Source | What | Volume | Access |
 |---|---|---|---|
-| mechanics.stackexchange.com | дамп `archive.org/download/stackexchange_20251231/stackexchange_20251231/mechanics.stackexchange.com.7z` (73 МБ) | 28 380 вопросов, 40 675 ответов → 20 996 тредов с ответом score≥1 или accepted, ~39 МБ текста | CC BY-SA; robots.txt сайта `Disallow: /` + `ai-train=no` → только дамп |
-| carcarekiosk.com | `/videos/<Make>/<Model>/<genYear>` → ~40 (F-150: 81) страниц `/video/...` на поколение; текст = только «Video Description» (шаги в видео) | ~240 страниц на 5 машин | robots.txt разрешает; sitemap.xml есть |
-| startmycar.com | `/us/<make>/<model>/problems[/pageN]`, 30 карточек/стр.; карточка: `div.js-report[data-denunciaid]`, `h3 a`, `.text-ellipsis` (год/комплектация/пробег), `.TagLink`, `.js-report-body`; решено = класс `solucionado`; ответы на детальной стр.: `.CommentCard` (`--solution` = лучший), `.CommentCard__text` | отчёты: accord 2282, f-150 2025, corolla 1000, civic 708, a4 338 (все поколения, много испанского) | robots.txt разрешает; sitemap нет |
+| mechanics.stackexchange.com | the `stackexchange_20251231` dump from archive.org, 73 MB | 28,380 questions, 40,675 answers → 20,996 threads with an accepted or upvoted answer, ~39 MB of text | CC BY-SA. The site's robots.txt disallows everything and sets `ai-train=no`, so the dump is the only legitimate path |
+| carcarekiosk.com | `/videos/<Make>/<Model>/<genYear>` → about 40 pages per generation (81 for the F-150); the text is the video description, which is the steps | ~240 pages across five cars | robots.txt allows it; there is a sitemap |
+| startmycar.com | `/us/<make>/<model>/problems[/pageN]`, 30 cards a page; solved reports carry a `solucionado` class; answers live on the detail page | accord 2282, f-150 2025, corolla 1000, civic 708, a4 338 across all generations, much of it Spanish | robots.txt allows it; no sitemap |
 
-carcarekiosk (готово 2026-09-17): 238 документов (a4 36, accord 41, f150 81, civic 41, corolla 39), в среднем ~1.3k символов, 243 запроса, ~15 мин (сайт отвечает ~3–4 с на страницу).
+## Traps and non-obvious things
 
-SE: матчинг машин по тегу модели (+ год из заголовка, если есть). Результат vehicle_ids: a4_b8 17, accord_9 185, f150_13 51, civic_10 290, corolla_11 108. Марка определена у ~3.7k тредов, остальные — общие вопросы.
+- A browser hands over a microphone only over HTTPS, or on localhost.
+- Tunnels do not proxy UDP, so WebRTC is out and the transport is a WebSocket.
+- Torque web upload, confirmed: GET, keys `k<hex pid>` with no leading zeros (`k5`, `kc`,
+  `kff1005`), metadata in `userFullName<pid>` and friends, answered with `OK!`. The unit arrives
+  as `\xC2\xB0C`, replaced with `°`.
+- In the simulator `dt = interval_s * time_scale`; with a small interval a fault needs a large
+  time scale or it never develops.
+- carcarekiosk's generation page, e.g. `Audi/A4_Quattro/2009`, covers the whole generation.
+- Fake-LLM tests: the `AsyncOpenAI` client is replaced by an object with a scripted chunk list;
+  the loop mutates `messages`, so the fake must copy it.
+- `pytest` does not see `tests` as a package — shared helpers live in `tests/conftest.py` and are
+  imported as `from conftest import …`.
+- **bm25s**: a query needs `bm25s.tokenize(q, return_ids=False)`, a list of strings. Passing ids
+  from a fresh tokeniser points them at a *different* vocabulary and the results are garbage
+  (hit 2026-09-17). Indexing is the opposite and uses ids. `tests/test_search.py` guards this.
+- Secrets: `.env.example` is in git as documentation, `.env` is ignored. `load_env()` uses
+  `os.environ.setdefault`, so on a rented machine the container's environment beats the file.
+- The M4 has no fan: fastembed takes about 490% CPU and the laptop throttles. Locally, pass
+  `--threads 4`; better, compute embeddings on the rented GPU with `--dense-only`.
+- `invalid value encountered in matmul` warnings on macOS are false — Accelerate setting FPU
+  flags. Checked against float64: the difference is 1e-7. Do not fix.
 
-## Грабли и неочевидное
+## Renting a GPU: traps (2026-09-18)
 
-- Браузер даёт микрофон только по HTTPS (или localhost).
-- Cloudflare Tunnel не проксирует UDP → WebRTC не пройдёт, используем WebSocket.
-- Каждый процесс с CUDA съедает ~0.3–0.5 ГБ VRAM только на контекст (?) — проверить на Vast; держать TTS в одном процессе.
-- Qwen3-30B-A3B в Q4 весит ~17–18 ГБ (?) — в 16 ГБ только ~Q3 или Q4 с экспертами на CPU (`--n-cpu-moe` в llama.cpp).
-- Torque web upload: подтверждено — GET, ключи `k<hex pid>` без ведущих нулей (`k5`, `kc`, `kff1005`), метаданные `userFullName<pid>` и т.п., ответ `OK!`. В HA-интеграции единица приходит как `\xC2\xB0C` — заменяем на `°`.
-- В симуляторе `dt = interval_s * time_scale`; при тестах с маленьким interval нужен большой time_scale, иначе неисправность не успевает «развиться».
-- carcarekiosk: страница поколения, напр. `Audi/A4_Quattro/2009`, покрывает все годы поколения («produced from 2009 - 2016»).
-- Тесты фейкового LLM: `AsyncOpenAI`-клиент подменяется объектом со скриптом чанков; список `messages` мутируется циклом, поэтому в фейке его надо копировать.
-- `pytest` не видит `tests` как пакет — общие хелперы кладём в `tests/conftest.py` и импортируем как `from conftest import ...`.
-- Ruff: длинные строки описаний тулов и промпта разрешены через per-file-ignores (E501).
-- **bm25s**: для запроса нужен `bm25s.tokenize(q, return_ids=False)` → список строк. Если передать `ids` от свежего токенизатора, они ссылаются на ДРУГОЙ словарь и выдача будет мусорной (попались 2026-09-17). Индексация — наоборот, через ids (`tokenize_corpus`). Тест `tests/test_search.py` это стережёт.
-- Секреты: `.env.example` в git как документация, `.env` — в gitignore (`git check-ignore -v .env` проверяет). `load_env()` использует `os.environ.setdefault`, так что на арендованной машине переменные окружения контейнера перебивают файл. `idle_shutdown.py` берёт id инстанса из `CONTAINER_ID` (его ставит сам Vast внутри инстанса), а с ноутбука — из `VAST_INSTANCE_ID`.
-- MacBook Air M4 без вентилятора: fastembed забирает ~490% CPU и ноутбук сильно греется + троттлит. Для локальных прогонов `--threads 4`; лучше считать эмбеддинги на арендованной GPU (`--dense-only`).
+- **`cpu_cores` in a Vast offer is the HOST's, not ours.** Our share is `cpu_cores_effective`,
+  and memory likewise: `cpu_ram` is the host's, ours is roughly `cpu_ram * gpu_frac`. The first
+  instance was chosen on `cpu_cores>=8` and had seven effective cores.
+- **fastembed/onnxruntime starts threads by the number of VISIBLE cores.** In a container `nproc`
+  shows the host's 56 while the cgroup gives 6.7 (`/sys/fs/cgroup/cpu.max` → `672000 100000`).
+  The result was 98 threads on 6.7 cores and eight minutes without a single passage. Always pass
+  `--threads N` from the quota, plus `OMP_NUM_THREADS`.
+- **Prebuilt llama.cpp binaries (b11037) need glibc 2.38+**, so Ubuntu 24.04. The
+  `pytorch/pytorch` image is 22.04 with glibc 2.35 and the binaries refuse to start
+  (`GLIBC_2.38 not found`); it has no nvcc or gcc either, so building from source is not an
+  escape. The working image is `nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04`.
+- llama.cpp needs TWO release archives: `llama-<build>-bin-ubuntu-cuda-12.8-x64.tar.gz` and the
+  matching `cudart-…`, plus `apt install libgomp1`. Everything unpacks flat into one directory
+  and `LD_LIBRARY_PATH` points at it.
+- **`vastai create instance` without `--cancel-unavail`, on a machine that has just been taken,
+  silently creates a stopped instance** and returns `success: False`. A later `start` answers
+  "Required resources are currently unavailable, state change queued".
+- `vastai destroy instance` asks for confirmation; in a script, `yes y | vastai destroy …`.
+- **`pkill -f <pattern>` over ssh kills your own session** when the pattern matches the command
+  line running it. This cost four attempts in one afternoon. Kill by PID, or match the executable
+  name exactly with `pgrep -x`.
+- An instance has its own `CONTAINER_API_KEY` in `/proc/1/environ`, next to `CONTAINER_ID`, and
+  can stop itself with it. The account key never needs to go on a rented machine.
+- Vast's variables are visible in PID 1's environment but not in an ssh session — read them with
+  `tr '\0' '\n' < /proc/1/environ`.
+- **`setsid --fork` is the reliable way to detach over ssh.** `setsid nohup … &` intermittently
+  does not survive the session closing.
 
-## Аренда GPU: грабли (2026-09-18)
+## Dependencies: two traps (2026-09-18)
 
-- **`cpu_cores` в оффере Vast — ядра ХОСТА, не наши.** Наша доля — `cpu_cores_effective`
-  (и оперативка тоже: `cpu_ram` — хостовая, наша ≈ `cpu_ram * gpu_frac`). Первый инстанс был
-  выбран по `cpu_cores>=8` и оказался с 7 эффективными ядрами. Фильтровать и сортировать
-  надо по `cpu_cores_effective`; в выдаче `--raw` это поле есть.
-- **fastembed/onnxruntime плодит потоки по числу ВИДИМЫХ ядер.** В контейнере `nproc` показывает
-  ядра хоста (56), а cgroup даёт 6.7 (`/sys/fs/cgroup/cpu.max` → `672000 100000`). Результат:
-  98 потоков на 6.7 ядра, 8 минут без единого пассажа. Всегда передавать `--threads N` по квоте
-  (`cpu.max` / 100000), плюс `OMP_NUM_THREADS`.
-- **Готовые бинарники llama.cpp (b11037) требуют glibc 2.38+**, то есть Ubuntu 24.04.
-  Образ `pytorch/pytorch` — Ubuntu 22.04 / glibc 2.35, бинарники не стартуют
-  (`GLIBC_2.38 not found`), а nvcc и gcc в образе нет — собрать из исходников тоже нельзя без
-  доустановки всего тулчейна. Рабочий образ: **`nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04`**.
-- Для llama.cpp нужны ДВА архива релиза: `llama-<build>-bin-ubuntu-cuda-12.8-x64.tar.gz` и
-  `cudart-<...>.tar.gz` (libcudart/libcublas), плюс `apt install libgomp1`. Всё распаковывается
-  плоско в одну папку; `LD_LIBRARY_PATH` указывает на неё же.
-- **`vastai create instance` без `--cancel-unavail` при занятой машине молча создаёт инстанс в
-  состоянии `stopped`** и возвращает `success: False` с номером контракта. `start` потом отвечает
-  «Required resources are currently unavailable, state change queued». Всегда передавать
-  `--cancel-unavail`.
-- `vastai destroy instance` спрашивает подтверждение — в скрипте `yes y | vastai destroy ...`.
-- **`pkill -f <шаблон>` по ssh убивает собственную сессию**, если шаблон совпадает с её же
-  командной строкой. Убивать по PID.
-- У инстанса есть собственный ключ **`CONTAINER_API_KEY`** (в `/proc/1/environ`, там же
-  `CONTAINER_ID`) — им контейнер останавливает сам себя. Ключ аккаунта на арендованную машину
-  класть не надо.
-- Переменные Vast (`CONTAINER_ID` и др.) видны в окружении PID 1, но НЕ в ssh-сессии —
-  читать через `tr '\0' '\n' < /proc/1/environ`.
+- **`sherpa-onnx` is useless without `sherpa-onnx-core`.** The native libraries are a separate
+  package that `uv sync` will not pull on its own, and the import fails on
+  `Library not loaded: @rpath/libonnxruntime.dylib`. Both lines are in `pyproject.toml`.
+- **`moshi` pins `numpy<2.3` while `fastembed` on Python 3.14 wants `numpy>=2.3`.** Solved by
+  `requires-python = ">=3.12,<3.14"`; on 3.12 both live together on numpy 2.2.6. `moshi` itself
+  is in the `gpu` extra so a laptop does not pull CUDA wheels.
 
-## Зависимости: две ловушки (2026-09-18)
+## Models: verified names and sizes (2026-09-18)
 
-- **`sherpa-onnx` бесполезен без `sherpa-onnx-core`.** Нативные библиотеки лежат в отдельном
-  пакете, `uv sync` его сам не тянет, и импорт падает на
-  `Library not loaded: @rpath/libonnxruntime.dylib`. Обе строки — в `pyproject.toml`.
-- **`moshi` держит `numpy<2.3`, а `fastembed` на Python 3.14 требует `numpy>=2.3`.** Решается
-  ограничением `requires-python = ">=3.12,<3.14"`; на 3.12 обе уживаются (numpy 2.2.6).
-  Сам `moshi` — в extra `gpu` (`uv sync --extra gpu`), чтобы ноутбук не тянул CUDA-колёса.
-
-## Голос: спокойнее — значит дольше (замер 2026-09-20)
-
-Пользователь заметил, что голос слишком эмоциональный, и предположил, что если его приглушить,
-что-то выиграем по времени. Проверено `scripts/bench_voice_style.py` на тех же 10 репликах, что
-и бенчмарк TTS. **Выигрыша нет, есть плата.**
-
-| Образец | Речи всего | Против нынешнего | с/символ |
-|---|---|---|---|
-| `expresso/ex03-ex01_happy_001_channel1_334s.wav` (сейчас) | 40.5 с | — | 0.0648 |
-| `expresso/ex03-ex02_narration_001_channel1_674s.wav` | 42.2 с | +4.2 % | 0.0676 |
-| `expresso/ex03-ex01_calm_001_channel1_1143s.wav` | 43.7 с | +7.9 % | 0.0726 |
-| `expresso/ex01-ex02_default_001_channel1_168s.wav` (другой диктор) | 47.4 с | +17.0 % | 0.0767 |
-| `expresso/ex03-ex01_enunciated_001_channel1_388s.wav` | 49.9 с | +23.3 % | 0.0771 |
-
-- **Первый звук от голоса не зависит:** 616–622 мс у всех пяти, rtf 0.50–0.53. Это частота
-  кадров кодека, а не свойство образца.
-- **Температура не «приглушает», а растягивает.** `temp 0.4` вместо 0.6: happy +16.8 %,
-  calm +15.2 %, enunciated +39.9 %. Меньше вариативности → длиннее паузы и гласные. Трогать не
-  надо; голос меняем только образцом.
-- Голос и температура читаются из `MECHANIC_VOICE` / `MECHANIC_VOICE_TEMP` — можно сравнивать,
-  не пересобирая.
-- Сводные дорожки для прослушивания собираются в `data/cache/voice_style/`, числа —
-  `evals/results/voice_style.json`.
-
-## Установка стека на инстансе — теперь скриптом
-
-`scripts/gpu_up.sh` делает всё ниже автоматически и создаёт `/workspace/gpu_start.sh` для запуска
-обеих половин. Ручные шаги оставлены как справка о том, ПОЧЕМУ каждый из них нужен.
-
-## Установка стека на инстансе (проверено 2026-09-18)
-
-Образ `nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04`. Сначала:
-```bash
-apt-get update -qq && apt-get install -y -qq curl libgomp1 ca-certificates python3.12-dev
-curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=$HOME/.local/bin:$PATH
-```
-`python3.12-dev` нужен не сразу очевидно: без него Triton не может собрать CUDA-хелпер
-(`/usr/include/python3.12/Python.h not found`) и Kyutai падает на первом же синтезе.
-
-llama.cpp — два архива релиза + `libgomp1`, распаковываются плоско в одну папку:
-```bash
-B=b11037
-for f in llama-$B-bin-ubuntu-cuda-12.8-x64.tar.gz cudart-llama-$B-bin-ubuntu-cuda-12.8-x64.tar.gz; do
-  curl -sL -O "https://github.com/ggml-org/llama.cpp/releases/download/$B/$f" && tar xzf "$f"; done
-cp cudart-*/*.so* llama-$B/ && export LD_LIBRARY_PATH=$PWD/llama-$B
-```
-
-**Chatterbox**: `uv pip install chatterbox-tts resemble-perth soundfile "setuptools<81"`.
-Пин на setuptools обязателен: в 84 убран `pkg_resources`, а `perth` его импортирует, и
-Chatterbox падает с невнятным `TypeError: 'NoneType' object is not callable` при загрузке.
-
-**Kyutai**: `uv pip install moshi soundfile "setuptools<81"` (тянет свой torch 2.9).
-API: `CheckpointInfo.from_hf_repo(DEFAULT_DSM_TTS_REPO)` → `TTSModel.from_checkpoint_info(...)`,
-голос через `get_voice_path("expresso/ex03-ex01_happy_001_channel1_334s.wav")`, генерация с
-колбэком `on_frame` — именно он даёт настоящее время до первого аудиокадра.
-
-**VibeVoice-Realtime-0.5B не заводится из PyPI**: пакет `vibevoice` содержит
-`modeling_vibevoice_inference`, но не `..._streaming_inference`, а модель заявляет
-`model_type: vibevoice_streaming` и не имеет `auto_map`. Нужен код с GitHub microsoft/VibeVoice.
-
-**Каждый TTS — в свой venv.** uv кэширует колёса, поэтому второй и третий torch ставятся быстро.
-
-## Модели: проверенные имена и размеры (2026-09-18)
-
-| Репозиторий | Файл | Размер |
+| Repository | File | Size |
 |---|---|---|
-| `ggml-org/gpt-oss-20b-GGUF` | `gpt-oss-20b-MXFP4.gguf` | 11.3 ГБ |
-| `unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF` | `Qwen3-30B-A3B-Instruct-2507-UD-Q3_K_XL.gguf` | 12.9 ГБ |
-| `unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF` | `Qwen3-30B-A3B-Instruct-2507-UD-Q4_K_XL.gguf` | 16.5 ГБ |
-| `Qwen/Qwen3-14B-AWQ` | (vLLM, не GGUF) | — |
+| `ggml-org/gpt-oss-20b-GGUF` | `gpt-oss-20b-MXFP4.gguf` | 11.3 GB |
+| `unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF` | `…-UD-Q3_K_XL.gguf` | 12.9 GB |
+| `unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF` | `…-UD-Q4_K_XL.gguf` | 16.5 GB |
 
-## Качество поиска (BM25-only, 2026-09-17)
+## Benchmarks
 
-Проверка на 3 запросах, поиск ~7 мс:
-- «high fuel trim at idle but normal on the highway» → тред SE «P0171: what to look at next…» (верно).
-- «engine overheating at idle but fine while driving» → треды про перегрев Civic/Mondeo (верно).
-- «how do I check the coolant level» + vehicle=audi_a4_b8 → страница carcarekiosk именно про A4 (буст по машине работает).
+### Language models: VRAM (2026-09-18, RTX A4000, 16,376 MiB)
 
-Плотные векторы ещё не посчитаны: `data/index/dense.npy` отсутствует, `SearchIndex.has_dense == False`, поиск работает только на BM25.
+Peak sampled by `nvidia-smi` twice a second during load and generation. Baseline 16 MiB.
 
-## Бенчмарки
-
-### LLM: VRAM (2026-09-18, RTX A4000 16376 MiB, llama.cpp b11037 CUDA 12.8)
-
-Пик замерен семплером `nvidia-smi` раз в 0.5 с во время загрузки и генерации. Базовая линия 16 MiB.
-
-| Кандидат | Контекст | Пик VRAM | Остаётся на TTS | Загрузка |
+| Candidate | Context | Peak VRAM | Left for a voice | Load |
 |---|---|---|---|---|
-| gpt-oss-20b MXFP4 | 16k | **11 688 MiB** | ~4.6 ГБ | 16.0 с |
-| Qwen3-30B-A3B UD-Q3_K_XL | 16k | **14 886 MiB** | ~1.4 ГБ | 18.3 с |
-| Qwen3-30B-A3B UD-Q3_K_XL | 8k | **14 110 MiB** | ~2.2 ГБ | 11.5 с |
-| Qwen3-30B-A3B UD-Q4_K_XL + `--n-cpu-moe` | — | не замерено | — | — |
-| Qwen3-14B AWQ (vLLM) | — | не замерено | — | — |
+| gpt-oss-20b MXFP4 | 16k | **11,688 MiB** | ~4.6 GB | 16.0 s |
+| Qwen3-30B-A3B UD-Q3_K_XL | 16k | **14,886 MiB** | ~1.4 GB | 18.3 s |
+| Qwen3-30B-A3B UD-Q3_K_XL | 8k | **14,110 MiB** | ~2.2 GB | 11.5 s |
 
-Вывод по памяти: урезание контекста с 16k до 8k экономит всего **776 MiB** — KV-кэш у A3B маленький
-(активны 3B из 30B), основное занимают веса. То есть «уменьшить контекст» нас не спасает,
-и выбор между gpt-oss-20b и Qwen3-30B — это выбор между «хватает места на выразительный TTS»
-и «умнее, но TTS придётся брать крошечный».
+Cutting the context from 16k to 8k saves only **776 MiB** on the A3B: its KV cache is small
+because only 3B of 30B parameters are active, and the weights dominate. So "use a smaller
+context" does not rescue anything, and the choice between gpt-oss-20b and Qwen3-30B is really
+the choice between "there is room for an expressive voice" and "smarter, with a tiny voice".
 
-### LLM: скорость — ПРЕДВАРИТЕЛЬНО, цифры загрязнены
+### gpt-oss-20b: reasoning effort decides whether the candidate is usable (2026-09-18)
 
-Замеры сделаны, пока на тех же ядрах считался dense-индекс (llama.cpp использует CPU для
-семплинга), поэтому tok/s занижены и их надо переснять на свободной машине.
+llama-server accepts `chat_template_kwargs: {"reasoning_effort": …}` in the request body. Timed
+to the first **content** token, since reasoning goes to `delta.reasoning_content` and is never
+spoken. `max_tokens: 250`.
 
-| Кандидат | TTFT | tok/s | Комментарий |
-|---|---|---|---|
-| gpt-oss-20b MXFP4 16k | 4961 мс (?) | 110.4 (?) | **TTFT 5 с** — модель сначала выдаёт reasoning-токены; для голоса это приговор, если не снизить reasoning effort |
-| Qwen3-30B-A3B Q3 16k | 559 мс (?) | 87.5 (?) | |
-| Qwen3-30B-A3B Q3 8k | 287 мс (?) | 42.3 (?) | tok/s сильно скачет от загрузки CPU — переснять |
-
-### gpt-oss-20b: reasoning effort решает судьбу кандидата (2026-09-18)
-
-llama-server принимает `chat_template_kwargs: {"reasoning_effort": "..."}` прямо в теле запроса.
-Меряли время до первого **content**-токена (reasoning уходит в `delta.reasoning_content`, вслух
-его не произносят), `max_tokens: 250`:
-
-| reasoning_effort | до первого слова | до первого токена | reasoning-токенов | ответ |
+| reasoning_effort | to the first word | to the first token | reasoning tokens | answer |
 |---|---|---|---|---|
-| **low** | **1195 мс** | 781 мс | 7 | нормальный |
-| medium | 3774 мс | 118 мс | 223 | нормальный |
-| high | — | 484 мс | 247 | **ответа нет**: весь бюджет токенов съеден размышлениями |
-| default (не задан) | 3213 мс | 573 мс | 178 | нормальный |
+| **low** | **1,195 ms** | 781 ms | 7 | fine |
+| medium | 3,774 ms | 118 ms | 223 | fine |
+| high | — | 484 ms | 247 | **none**: the whole token budget went on thinking |
+| default | 3,213 ms | 573 ms | 178 | fine |
 
-Вывод: без `reasoning_effort: low` gpt-oss-20b для голоса непригоден, с ним — 1.2 с до первого
-слова. Это надо зашить в конфиг LLM-клиента, а не оставлять на умолчание. Отдельно: при `high`
-модель вообще не доходит до ответа в разумном бюджете — если бы мерили только «умность» по
-тексту ответа, кандидат выглядел бы сломанным.
+Without `reasoning_effort: low` this model is unusable for voice; with it, 1.2 s to the first
+word. Note the trap in the other direction: at `high` it never reaches an answer, so a benchmark
+that only scored the text would have called the candidate broken.
 
-### LLM: итоговый прогон (2026-09-18, 32 сценария, A4000 16376 MiB)
+### Language models: the deciding run (2026-09-18, 32 scenarios)
 
-После правки «машина в префиксе» (см. коммит `018f2b9`). Контекст 16k у всех.
+After the "car in the prefix" change. 16k context for all.
 
-| Кандидат | Пик VRAM | На TTS | tok/s | Сценарии | Тулы | Содержание | p50 1-й фразы | p95 |
+| Candidate | Peak VRAM | For a voice | tok/s | Scenarios | Tools | Content | p50 first sentence | p95 |
 |---|---|---|---|---|---|---|---|---|
-| gpt-oss-20b MXFP4 (reasoning low) | 11 700 | 4.6 ГБ | 116.6 | 65.6% | 84.8% | 75.8% | 881 мс | 1650 мс |
-| Qwen3-30B-A3B **Q2_K_XL** | 12 960 | 3.3 ГБ | 120.6 | 71.9% | 84.8% | 75.8% | 630 мс | 1749 мс |
-| Qwen3-30B-A3B Q3_K_XL | 14 908 | 1.4 ГБ | 106.3 | 71.9% | 78.8% | 81.8% | 698 мс | 1633 мс |
-| Qwen3-14B Q5_K_XL (thinking off) | 12 488 | 3.8 ГБ | **35.2** | 75.0% | 90.9% | 81.8% | **2027 мс** | 3363 мс |
+| gpt-oss-20b MXFP4, reasoning low | 11,700 | 4.6 GB | 116.6 | 65.6% | 84.8% | 75.8% | 881 ms | 1,650 ms |
+| Qwen3-30B-A3B Q2_K_XL | 12,960 | 3.3 GB | 120.6 | 71.9% | 84.8% | 75.8% | 630 ms | 1,749 ms |
+| Qwen3-30B-A3B Q3_K_XL | 14,908 | 1.4 GB | 106.3 | 71.9% | 78.8% | 81.8% | 698 ms | 1,633 ms |
+| Qwen3-14B Q5_K_XL | 12,488 | 3.8 GB | **35.2** | 75.0% | 90.9% | 81.8% | **2,027 ms** | 3,363 ms |
 
-**Плотная модель проигрывает по физике, а не по уму.** Qwen3-14B лучший по тулам (90.9%), но
-35 tok/s против 105–120 у остальных: на каждый токен она читает все 9.8 ГБ весов, а MoE 30B-A3B —
-только ~3B активных параметров. При 448 ГБ/с это ровно те цифры. Разреженная архитектура —
-единственный способ получить низкую задержку в 16 ГБ.
+**The dense model loses on physics, not on intelligence.** Qwen3-14B is the best at choosing
+tools (90.9%) and runs at 35 tok/s against 105–120 for the others: every token reads all 9.8 GB
+of weights, where a 30B-A3B mixture reads about 3B. At 448 GB/s those are exactly the numbers.
+Sparsity is the only way to get low latency inside 16 GB.
 
-**Урезание контекста не спасает:** 16k → 8k экономит 776 MiB (замер на Q3), потому что KV-кэш у
-A3B мал. Выбор идёт по весам, не по контексту.
-
-Влияние правки «машина в префиксе» (v1 → v2), точность вызова тулов:
+Effect of putting the car in the system prefix, on tool accuracy:
 gpt-oss 72.7 → 84.8 · Qwen Q3 72.7 → 78.8 · Qwen Q2 69.7 → 84.8 · Qwen3-14B 78.8 → 90.9.
-Первая фраза при этом замедлилась у всех — агент перестал отделываться вопросом и пошёл в поиск.
+The first sentence got slower for all of them: the agent stopped deflecting with a question and
+started searching.
 
-### Что бенчмарк вскрыл в самом агенте
+### What the benchmark exposed in the agent itself
 
-- **Запах топлива: провал у всех четырёх.** Промпт требует сначала сказать «прекрати ехать», но
-  все модели начинают диагностировать. Это не различает кандидатов — это чинить промптом (день 6).
-- Первый запрос к поиску стоит **~800 мс** — это разовая загрузка модели-эмбеддера. Прогревать
-  при старте сервера, иначе первый вопрос водителя получит лишнюю секунду.
-- Проверки на синонимы были слишком узкими: ответ «you should not drive the car» засчитывался как
-  провал. Исправлено в `scenarios.yaml`.
+- **Fuel smell: all four failed.** The prompt demanded "stop driving" first; every model started
+  diagnosing instead. This does not separate candidates — it is a guardrail problem, and it
+  became one.
+- The first search query costs **~800 ms**, a one-off load of the embedding model. Warm it at
+  startup or the first driver pays for it.
+- Synonym checks were too narrow: "you should not drive the car" was scored as a failure.
 
-### TTS (2026-09-18, RTX A4000)
+### Voices (2026-09-18)
 
-10 реплик механика, включая коды и числа. «До первого звука» для стримящего движка — время до
-первого аудиокадра; для нестримящего это неизбежно время всего предложения, потому что раньше
-играть нечего. Первый вызов у обоих платит прогрев CUDA (6.0–6.6 с) — прогревать при старте.
+Ten mechanic's lines including codes and numbers. "To first sound" for a streaming engine is the
+first audio frame; for a non-streaming one it is unavoidably the whole sentence. The first call
+of either pays 6.0–6.6 s of CUDA warm-up.
 
-| Движок | До первого звука | Предложение целиком | RTF | Пик VRAM | Стриминг |
+| Engine | To first sound | Whole sentence | RTF | Peak VRAM | Streams |
 |---|---|---|---|---|---|
-| **Kyutai TTS 1.6B** | **350 мс** (345–351, очень стабильно) | 1560 мс | 0.42 | 4522 MiB | да |
-| Chatterbox 0.1.7 | 1186 мс (= всё предложение) | 1186 мс | 0.41 | 3556 MiB | нет |
+| **Kyutai TTS 1.6B** | **350 ms** (345–351, very stable) | 1,560 ms | 0.42 | 4,522 MiB | yes |
+| Chatterbox 0.1.7 | 1,186 ms (= the whole sentence) | 1,186 ms | 0.41 | 3,556 MiB | no |
 
-Отвергнуты без замера: **Qwen3-TTS** — открытых весов нет, только API (нарушает требование ТЗ);
-**VibeVoice-Realtime-0.5B** — заявлены ~300 мс, но пакет с PyPI не содержит streaming-класса
-(`vibevoice_streaming`), нужен код с GitHub Microsoft; вернуться, если понадобится запас памяти,
-модель всего 0.5B. **Orpheus 3B** — 3B не оставляет места рядом с LLM.
+Rejected without measurement: **Qwen3-TTS** — no open weights, API only, which breaks the brief.
+**VibeVoice-Realtime-0.5B** — claims ~300 ms, but the PyPI package contains no streaming class.
+**Orpheus 3B** — leaves no room beside the language model.
 
-### Сквозной замер: LLM + TTS на одной карте (это и решило выбор)
+### The two together on one card — this is what decided the choice
 
-Отдельные пики складывать НЕЛЬЗЯ: `gpt-oss 16k (11 700) + Kyutai (4522)` по бумаге оставляли
-154 MiB, а на практике дали **OOM** при 39 MiB свободных — одновременные всплески съедают запас.
-
-Рабочая связка (замер `scripts/bench_pipeline.py`, 3 реплики, без тулов):
+Separate peaks must not be added: `gpt-oss 16k (11,700) + Kyutai (4,522)` left 154 MiB on paper
+and produced an **out-of-memory** with 39 MiB free in practice. Simultaneous spikes eat the
+margin.
 
 | | |
 |---|---|
-| gpt-oss-20b MXFP4, контекст **8k**, reasoning low | 11 472 MiB |
-| + Kyutai TTS 1.6B | +4077 MiB → 15 549 MiB |
-| Пик под нагрузкой | **15 875 из 16 376 MiB, запас 501 MiB** |
-| LLM до первой фразы | 297–465 мс |
-| TTS до первого звука | ~355 мс |
-| **До первого звука суммарно** | **655 мс (медиана)** |
+| gpt-oss-20b MXFP4, **8k** context, reasoning low | 11,472 MiB |
+| + Kyutai TTS 1.6B | +4,077 → 15,549 MiB |
+| Peak under load | **15,875 of 16,376 MiB, 501 MiB spare** |
+| Model to first sentence | 297–465 ms |
+| Voice to first sound | ~355 ms |
+| **To first sound, together** | **655 ms median** |
 
-Контекст 8k здесь не косметика: у плотного gpt-oss KV-кэш куда больше, чем у разреженной
-Qwen3-30B-A3B, и урезание дало ~900 MiB — ровно то, чего не хватало. У Qwen тот же приём
-экономил всего 776 MiB и не спасал.
+The 8k context is not cosmetic here: dense gpt-oss has a much larger KV cache than the sparse
+Qwen, and cutting it saved about 900 MiB — exactly what was missing. The same trick on Qwen saved
+776 MiB and rescued nothing.
 
-**Цифра 655 мс — нижняя граница:** укороченный промпт, без вызова тулов, без ASR.
-Настоящая сквозная задержка — день 6.
+**655 ms is a floor**: a shortened prompt, no tool calls, no recognition.
 
-### Почему Qwen3-30B-A3B Q2 проиграла, хотя была лучше по сценариям
+### Why Qwen3-30B-A3B Q2 lost despite scoring better
 
-Q2 занимает 12 960 MiB и оставляет 3416. Kyutai (4522) не влезает вообще; Chatterbox (3556) не
-влезает на 140 MiB. Даже с контекстом 8k остаётся ~4192 — хватает только на Chatterbox, а это
-1186 мс до первого звука вместо 350. То есть на 16 ГБ **выбор голоса диктует выбор модели**,
-а не наоборот, и мерить их по отдельности было ошибкой методики: промежуточная рекомендация
-(Qwen Q2) продержалась два часа и была отменена замером TTS.
+Q2 takes 12,960 MiB and leaves 3,416. Kyutai (4,522) does not fit at all; Chatterbox (3,556)
+misses by 140 MiB. Even at 8k context about 4,192 remain — enough for Chatterbox, which means
+1,186 ms to first sound instead of 350. On 16 GB **the voice chooses the model**, not the other
+way round, and measuring them separately was a methodological mistake: the interim recommendation
+survived two hours before the voice benchmark overturned it.
 
-### ASR на CPU (2026-09-18, MacBook Air M4, 4 потока, sherpa-onnx)
+### Recognition on the CPU (2026-09-18, M4, 4 threads, sherpa-onnx)
 
-Мерили две разные вещи: RTF (успевает ли за речью, пока водитель говорит) и **хвост** — сколько
-он ждёт ПОСЛЕ того, как замолчал. В бюджет ответа попадает только хвост.
-Аудио — 10 наших же TTS-сэмплов (38.7 с). Это чистая синтезированная речь, то есть оценка
-оптимистичная: на реальном микрофоне в гараже будет хуже, проверить на живой записи (?).
+Two different things were measured: real-time factor — whether it keeps up while the driver is
+still speaking — and the **tail**, how long it needs *after* they stop. Only the tail is in the
+latency budget. Audio was ten of our own synthesised samples (38.7 s), so this is optimistic; a
+real microphone in a garage is worse.
 
-| Модель | Хвост p50 | RTF | Расшифровка |
+| Model | Tail p50 | RTF | Transcript |
 |---|---|---|---|
-| parakeet-unified-0.6b int8 **streaming** 240ms | 434 мс | **1.69** | «124 degrees» |
-| parakeet_tdt_ctc **110m** int8 офлайн | 34 мс | 0.009 | приписала «and» в начале |
-| **parakeet-tdt-0.6b-v2 int8 офлайн** | **104 мс** | 0.027 | чисто |
+| parakeet-unified-0.6b int8 **streaming**, 240 ms | 434 ms | **1.69** | "124 degrees" |
+| parakeet_tdt_ctc **110m** int8 offline | 34 ms | 0.009 | invented a leading "and" |
+| **parakeet-tdt-0.6b-v2 int8 offline** | **104 ms** | 0.027 | clean |
 
-**Потоковый ASR здесь — ловушка.** RTF 1.69 означает, что модель не успевает за речью и копит
-отставание: к концу 4-секундной фразы набежит ещё ~2.6 с сверх замеренного хвоста (в замере
-куски подавались без реальной паузы, поэтому цифра 434 мс оптимистична). Офлайновый проход по
-той же фразе — 104 мс. Тяжёлую модель дешевле прогнать один раз целиком, чем по кускам.
+**Streaming recognition is a trap here.** An RTF of 1.69 means the model cannot keep up and falls
+further behind as the sentence goes on: by the end of a four-second question it owes about 2.6 s
+beyond the measured tail. One offline pass over the same sentence takes 104 ms. Running a heavy
+model once is cheaper than running it in pieces.
 
-Вывод для бюджета: **ASR не является проблемой** (104 мс против ~1500 мс на один проход LLM).
-Оптимизировать надо раунды обращения к модели.
+For the budget: **recognition is not the problem** — 104 ms against roughly 1,500 ms for a single
+pass of the language model. What needs optimising is the number of model round trips.
 
-### День 4: что дали правки задержки и безопасности (2026-09-18, A4000, gpt-oss 8k)
+### Day 4: what the latency and safety changes did (2026-09-18)
 
-| | день 3 (16k) | + «скажи до вызова» | **откат + учёт заглушки** | + «how-to только из тула» |
+| | day 3 (16k) | + "announce before calling" | **reverted + filler counted** | + "how-to only from the tool" |
 |---|---|---|---|---|
-| Сценарии | 65.6% | 68.8% | **81.2%** | 81.2% |
-| Тулы | 84.8% | 75.8% | **87.9%** | 87.9% |
-| Содержание | 75.8% | 90.9% | 90.9% | 87.9% |
-| Безопасность | **0%** | 100% | **100%** | 100% |
-| p50 первой фразы | 881 мс | 848 мс | **447 мс** | 436 мс |
-| p95 | 1650 мс | 2783 мс | **857 мс** | 819 мс |
+| Scenarios | 65.6% | 68.8% | **81.2%** | 81.2% |
+| Tools | 84.8% | 75.8% | **87.9%** | 87.9% |
+| Content | 75.8% | 90.9% | 90.9% | 87.9% |
+| Safety | **0%** | 100% | **100%** | 100% |
+| p50 first sentence | 881 ms | 848 ms | **447 ms** | 436 ms |
+| p95 | 1,650 ms | 2,783 ms | **857 ms** | 819 ms |
 | how_to | 25% | 25% | 25% | **75%** |
 
-Три отдельных вывода, их легко перепутать:
+Three separate conclusions, easy to confuse with one another:
 
-1. **«Скажи фразу до вызова тула» — вредная инструкция.** Модель объявляла о вызове и на этом
-   останавливалась («Let me check if other owners have reported…» и конец), то есть произнесённая
-   фраза заменяла собой действие. −9 п.п. по тулам ради +30 мс. Откачено.
-2. **Половина выигрыша по задержке была ошибкой измерения.** `first_sentence_ms` выставлялся
-   только для реплик модели и guardrail, но не для фразы-заглушки — а её водитель слышит. То есть
-   мы всё это время завышали задержку ровно в тех случаях, ради которых заглушка сделана.
-   После починки p50 упал с 881 до 447 мс без единого изменения в поведении агента.
-3. **Guardrail по безопасности работает: 0% → 100%.** Детерминированная проверка до модели,
-   а не надежда на промпт.
+1. **"Say a line before calling a tool" is a harmful instruction.** The model announced the call
+   and stopped there — the spoken sentence replaced the action. Nine points of tool accuracy for
+   thirty milliseconds. Reverted.
+2. **Half the latency win was a measurement error.** `first_sentence_ms` was set for the model's
+   own sentences and for the guardrail, but not for the filler line — which the driver hears. We
+   had been overstating latency in exactly the cases the filler exists for. Fixing it dropped p50
+   from 881 to 447 ms with no change in behaviour.
+3. **The safety guardrail works: 0% → 100%.** A deterministic check ahead of the model, rather
+   than hope invested in a prompt.
 
-Сложение с измеренными частями: ASR 104 мс + первая фраза 447 мс + TTS 355 мс ≈ **900 мс**
-до первого звука. Это внутри разговорного порога, но проверить сквозным замером (день 6).
+**We hit the resolution of the scenario set.** With 32 scenarios, two to four per category, one
+scenario is 3 points overall and 25–50 points inside its category. The how-to change moved its
+own category from 25% to 75% and the overall number did not shift. Tuning a prompt against
+numbers that noisy is self-deception; the set had to grow first.
 
-**Упёрлись в разрешение набора сценариев.** 32 сценария, по 2–4 на категорию: один сценарий —
-3 п.п. общего счёта и 25–50 п.п. внутри категории. Правка про how-to подняла свою категорию
-с 25% до 75%, но общий результат не сдвинулся (`owner_reports` 100→50, `live_data` 100→91).
-Отличить улучшение от перестановки шума нельзя. Дальше тюнить промпт по этим числам —
-самообман; сначала расширить набор (см. бэклог).
+### End-of-utterance detection is the most expensive stretch (2026-09-18, Silero VAD v5)
 
-### Определение конца фразы — самый дорогой участок (2026-09-18, M4, Silero VAD v5)
+Measured honestly: the silence after speech is fed **in real time**, because
+`min_silence_duration` is counted in audio time. Feeding it faster gives a beautiful 2 ms, which
+measures the CPU rather than the wait.
 
-Мерили честно: тишину после речи подаём **в реальном темпе**, потому что `min_silence_duration`
-считается в аудио-времени. Если гнать её быстрее (как я сделал с первого раза), получаются
-красивые 2 мс — замер процессора вместо замера ожидания.
-
-| `min_silence_s` | Конец речи распознан | Текст готов (VAD + ASR) |
+| `min_silence_s` | End of speech detected | Text ready (VAD + ASR) |
 |---|---|---|
-| 0.15 | 302 мс | 412 мс |
-| 0.20 | 405 мс | 509 мс |
-| **0.35 (дефолт)** | 507 мс | **616 мс** |
-| 0.50 | 704 мс | 820 мс |
+| 0.15 | 302 ms | 412 ms |
+| 0.20 | 405 ms | 509 ms |
+| **0.35 (default)** | 507 ms | **616 ms** |
+| 0.50 | 704 ms | 820 ms |
 
-Детектор тратит примерно `min_silence_s + 150–200 мс`: Silero работает окнами и сглаживает,
-плюс наша нарезка по 100 мс.
+The detector costs roughly `min_silence_s + 150–200 ms`: Silero works in windows and smooths,
+and our own chunking adds 100 ms.
 
-**Сквозной бюджет на сегодня:**
+That made the budget **616 ms of waiting + 447 ms of model + 355 ms of voice ≈ 1,418 ms** — the
+voice-activity detector costing more than the language model. The earlier estimate of 900 ms
+simply had no end-of-utterance wait in it at all.
 
-| Участок | мс |
+This is what push-to-talk removes: releasing a button is an exact end of turn.
+
+### The silence threshold cuts a person off mid-question (2026-09-18)
+
+The clip "I am getting a code P zero one seven one, what does that mean?" (5.12 s):
+
+| `min_silence_s` | Split |
 |---|---|
-| Ожидание конца фразы + ASR | **616** |
-| Первая фраза от LLM | 447 |
-| Первый звук от TTS | 355 |
-| **Итого до первого звука** | **~1418** |
+| 0.35 (ours) | **two utterances**: "I am getting a code P0171" \| "What does that mean?" |
+| 0.6 | still two |
+| 0.9 | one |
 
-То есть VAD дороже модели. Раньше я оценивал ~900 мс — в той оценке ожидания конца фразы
-просто не было.
+Ordinary speech contains a **0.6–0.9 s** pause inside a question. The agent answered the first
+half, and the second half arrived as an interruption — and the interruption logic fired
+*correctly*.
 
-Чем это лечить (день 6, по убыванию выигрыша):
-1. **Спекулятивный старт.** Запускать ASR и LLM уже через ~150 мс тишины, не дожидаясь
-   подтверждения конца реплики; если водитель продолжил — отменять. Тогда ожидание VAD
-   перекрывается полезной работой, а не складывается с ней.
-2. Снизить `min_silence_s` до 0.15–0.2 (экономит 100–200 мс, риск перебить думающего человека).
-3. Семантическое определение конца реплики вместо порога тишины.
+**What must not be done:** deciding the turn is over by asking whether the text is a complete
+sentence. "I am getting a code P0171" is a complete sentence and an incomplete question, and a
+model will confidently say it is finished. What separates them is intonation, which is not in the
+text.
 
-### Сквозная задержка: конвейер заработал целиком (2026-09-18, A4000)
+**What is done instead: work early, speak on confirmation.** Recognition, the model and the voice
+all start on the short threshold, but the audio is held until the long one confirms. If the
+driver carries on, the turn is cancelled quietly and the unspoken fragment is glued onto the next
+utterance. Latency becomes the maximum of "confirm" and "work", not their sum.
 
-Прогон `scripts/bench_voice.py`: записанные вопросы водителя подаются в WebSocket **в реальном
-темпе**, отсчёт — от последнего сэмпла речи. Машина: Audi A4 B8 с подсосом воздуха.
+Three rules had to be separated explicitly, each fixing what the previous one broke:
 
-| | мс |
+1. An interruption requires **sustained** speech (≥0.25 s), or echo triggers it.
+2. It does not count inside a 0.8 s window after the answer starts, **and duration inside that
+   window does not accumulate** — the first version of the window merely postponed the same bug.
+3. **Only a confirmed turn can be interrupted.** Before confirmation no sound has been played, so
+   there is nothing to interrupt: speech at that moment is the rest of the question.
+
+### The pipeline running end to end (2026-09-18)
+
+Recorded questions fed into the WebSocket **in real time**, timed from the last sample of speech.
+
+| | ms |
 |---|---|
-| Распознавание | 128–252 |
-| Первая фраза от модели | 510–1130 |
-| **Первый звук у клиента, p50** | **1377** |
-| **p95** | **1878** |
+| Recognition | 128–252 |
+| First sentence from the model | 510–1,130 |
+| **First sound at the client, p50** | **1,377** |
+| p95 | 1,878 |
 
-Первая реплика после старта дороже (~1880 мс) — разовая компиляция ядер torch в синтезе.
-Прогревать при старте сервера обязательно.
+The first turn after a start costs about 1,880 ms — a one-off compilation of torch kernels in the
+synthesiser. Warming at startup is mandatory.
 
-**Четыре бага, которых не было видно ни в одном покомпонентном замере:**
+**Four bugs that no component benchmark could have shown:**
 
-1. **OOM при второй реплике.** «Запас 501 MiB» из дня 3 запасом не был: модель 11 469 + синтез
-   4 485 = впритык, плюс фрагментация. Лечится на стороне llama.cpp: `--cache-type-k q8_0
-   --cache-type-v q8_0 --ubatch-size 128` (−200 MiB) и `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
-   Сейчас: модель 11 304, синтез 4 496, свободно ~570 MiB.
-2. **Терялись последние кадры звука.** Синтез отдаёт кадры из потока через `call_soon_threadsafe`;
-   цикл выходил по `work.done() and queue.empty()`, когда колбэки ещё не выполнились. Предложение
-   приходило без звука.
-3. **Агент перебивал сам себя.** Перебивание срабатывало по «детектор слышит речь», а это
-   истинно ещё какое-то время после конца вопроса — хвост в буфере детектора. Четыре реплики
-   из шести умирали, отчитываясь как успешный турн без содержимого. Условие теперь тройное:
-   речь должна быть устойчивой (≥0.25 с), ответ должен идти дольше окна нечувствительности
-   (0.8 с), и **накопление длительности внутри окна не считается** — первая версия окна просто
-   откладывала тот же баг.
-4. **Турн мог закончиться молчанием**, если модель выдала только внутренние рассуждения.
-   Для голосового агента это неотличимо от оборванной связи; теперь говорит фразу извинения.
+1. **Out-of-memory on the second turn.** The "501 MiB spare" from day 3 was not spare: model
+   11,469 + voice 4,485, plus fragmentation. Fixed on the llama.cpp side with
+   `--cache-type-k q8_0 --cache-type-v q8_0 --ubatch-size 128` (−200 MiB) and
+   `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
+2. **The last audio frames were lost.** The synthesiser hands frames over through
+   `call_soon_threadsafe`; the loop exited on `work.done() and queue.empty()` while callbacks were
+   still pending, and a sentence arrived with no sound.
+3. **The agent interrupted itself.** Interruption fired on "the detector hears speech", which
+   stays true for a while after the question ends — the tail in the detector's buffer. Four turns
+   out of six died while reporting themselves as successful.
+4. **A turn could end in silence** when the model produced only reasoning. For a voice agent that
+   is indistinguishable from a dropped connection; it now apologises out loud.
 
-Нестабильность прогона была в тестовом клиенте: он слал и принимал в одной корутине и делал
-`json.loads` над любым сообщением в рукопожатии после `reset` (прилетевший аудиокадр его ломал).
-После разделения на отправляющую задачу и приём **p95 упал с 1878 до 1442 мс** — клиент сам
-добавлял почти полсекунды разброса. Урок: измерительный стенд надо чинить раньше, чем измеряемое.
+The instability in that run was in the *test client*: it sent and received in one coroutine and
+called `json.loads` on any message during the handshake. After separating them, **p95 fell from
+1,878 to 1,442 ms** — the measuring rig was adding almost half a second of spread. The lesson is
+to fix the rig before the thing being measured.
 
-### Порог тишины режет человека посреди вопроса (2026-09-18)
+## The Garage panel (2026-09-20)
 
-Клип «I am getting a code P zero one seven one, what does that mean?» (5.12 с):
+A panel in `web/`: car, driving mode, fault and how fast it develops (×1/×5/×20), live readings
+every 1.5 s, and trouble codes. It talks to the API that already existed; the backend needed only
+one addition, a `{"type":"vehicle"}` command on the socket so the car can change without
+reconnecting.
 
-| `min_silence_s` | Разбиение |
+Verified in the browser (Audi A4 B8, vacuum leak, ×5):
+
+- P0171 appears after about nine real seconds (the simulator's threshold is `fault_time_s > 45`).
+- **Short-term fuel trim: 6.5% in town against 16.4% at idle** — the signature of a vacuum leak,
+  visible in the panel. A reading turns red exactly where the agent's own tool calls it abnormal,
+  so the panel never knows more than the agent.
+
+Traps:
+
+- `[hidden]` is overridden by any class that sets `display`, because the user-agent style has zero
+  specificity. `[hidden]{display:none !important}` was needed or "hidden" blocks are visible.
+- A global `mouseup` for the hold-to-talk button caught clicks anywhere on the page, so any Garage
+  button put the status into "thinking…".
+- Sensor names come from phone uploads, so they are written into the DOM as text, never as markup.
+- The car keeps running on the server after a page reload; the front end adopts it through
+  `GET /api/sim/{device}` instead of showing an empty garage.
+
+## Day 6: what the rental actually costs, and where the latency really was (2026-09-20)
+
+### 95% of the bill was not the GPU
+
+One session on instance 51763823 (RTX A4000, Estonia, $0.106/h) cost **$0.934**:
+
+| Line | $ |
 |---|---|
-| 0.35 (наш) | **2 фразы**: «I am getting a code P0171» \| «What does that mean?» |
-| 0.6 | всё ещё 2 |
-| 0.9 | 1 фраза целиком |
+| **Download traffic** | **0.844** |
+| GPU hours | 0.037 |
+| Disk | 0.006 |
+| Upload traffic (our code and index) | 0.004 |
 
-То есть в нормальной речи есть пауза **0.6–0.9 с** внутри вопроса. Агент отвечал на половину,
-а вторая половина прилетала как перебивание — и перебивание срабатывало ПРАВИЛЬНО.
+The cause: this machine charges **$0.0390625 per GB, i.e. $39/TB**, where the previous ones
+charged $2.67/TB. `inet_down_cost` is right there in `vastai search offers` and was not looked
+at. The hourly difference between a cheap and an expensive offer is cents; the traffic difference
+is dollars.
 
-**Чего делать нельзя:** определять конец реплики по тому, «законченное ли это предложение».
-«I am getting a code P0171» грамматически законченно, и модель это подтвердит — а реплика не
-закончена. Отличает их интонация, которой в тексте нет.
-
-**Результат правки (2026-09-19): 6/6 реплик, p50 1393 мс, p95 1888 мс.** Было 5/6.
-
-Три правила, которые пришлось развести явно — каждое чинило то, что ломало предыдущее:
-1. Перебивание требует **устойчивой** речи (≥0.25 с), иначе срабатывает на эхо.
-2. Перебивание не считается внутри окна 0.8 с после начала ответа, **и длительность внутри окна
-   не накапливается** — первая версия окна просто откладывала тот же баг.
-3. **Перебить можно только подтверждённый турн.** До подтверждения не прозвучало ни звука, а
-   значит перебивать нечего: речь в этот момент — продолжение вопроса. Без этого правила
-   склейка не срабатывала никогда, потому что перебивание успевало первым.
-
-Признак продолжения — **вторая выданная детектором фраза**, а не «слышна речь»: эхо новой фразы
-не порождает, оно часть уже выданной.
-
-Остаточный пограничный случай: пауза в клипе 02 (0.6–0.9 с) совпадает с нашим порогом
-подтверждения (0.35 + 0.55 = 0.9 с). Иногда успевает подтвердиться до второй половины вопроса —
-тогда это честное перебивание, а не склейка. Оба исхода корректны, но выглядит небрежно.
-Поднимать порог = замедлить всех ради одного случая; нужна калибровка на разнообразной речи.
-
-**Что делаем вместо:** работать рано, говорить по подтверждению. Распознавание, модель и синтез
-стартуют на коротком пороге, но звук придерживается до подтверждения длинным. Продолжил
-говорить — тихо отменяем, а недосказанный кусок текста склеиваем со следующей репликой.
-Задержка становится максимумом из «подтверждение» и «работа», а не суммой.
-
-## Гараж в интерфейсе (2026-09-20)
-
-Панель справа в `web/`: выбор машины, режима езды, неисправности и скорости развития (×1/×5/×20),
-живые показания раз в 1.5 с и коды DTC. Ходит в уже существовавший API (`/api/catalog`,
-`POST|PATCH|DELETE /api/sim/{device}`, `/api/sensors/{device}`) — на бэкенде понадобилось только
-одно: команда `{"type":"vehicle"}` в сокете, чтобы машину можно было сменить не переподключаясь.
-
-Проверено в браузере 2026-09-20 (Audi A4 B8, vacuum_leak, ×5):
-- P0171 появляется примерно через 9 реальных секунд (в симуляторе порог `fault_time_s > 45`);
-- **STFT: 6.5 % в городе против 16.4 % на холостых** — та самая сигнатура подсоса воздуха,
-  видно прямо в панели. Красным показание становится ровно там, где тул агента называет его
-  ненормальным (`normal_range` в `agent/tools.py`), чтобы панель не знала больше агента.
-
-Грабли:
-- `[hidden]` перебивается любым классом с `display` (у UA-стиля специфичность нулевая) —
-  пришлось добавить `[hidden]{display:none !important}`, иначе «скрытые» блоки видны.
-- Глобальный `mouseup` для кнопки «Hold to talk» ловил клики по всей странице: любая кнопка
-  Гаража переводила статус в «thinking…». Теперь `release()` выходит сразу, если не говорили.
-- Имена датчиков приходят из загрузок телефона, поэтому в DOM пишутся только как текст
-  (`textContent`), не как разметка.
-- Машина продолжает крутиться на сервере после перезагрузки страницы — фронт при старте
-  подхватывает её через `GET /api/sim/{device}` вместо того, чтобы показывать пустой гараж.
-
-## День 6: цена трафика и где на самом деле лежала задержка (2026-09-20)
-
-### Счёт за аренду: 95 % денег ушло НЕ на GPU
-
-Сессия на инстансе 51763823 (RTX A4000, Эстония, $0.106/ч) стоила **$0.934**, из них:
-
-| Статья | $ |
-|---|---|
-| **Трафик на скачивание** | **0.844** |
-| GPU-часы | 0.037 |
-| Диск | 0.006 |
-| Трафик на загрузку (наш код и индекс) | 0.004 |
-
-Причина: у этой машины **$0.0390625 за ГБ = $39/ТБ**, а не $2.67/ТБ, как у предыдущих. Поле
-`inet_down_cost` есть в выдаче `vastai search offers`, и я его не посмотрел при выборе оффера.
-Разница по цене за час между дешёвым и дорогим оффером — центы, разница по трафику — доллары.
-
-**Выбирать оффер теперь обязательно с фильтром `inet_down_cost`:**
 ```bash
-vastai search offers 'gpu_ram>=15.5 gpu_ram<=17 cpu_cores_effective>=6 inet_down_cost<=0.005 ...'
+vastai search offers 'gpu_ram>=15.5 gpu_ram<=17 cpu_cores_effective>=6 inet_down_cost<=0.005 …'
 ```
 
-Скачано 21.56 ГБ (сверено с `/sys/class/net/eth0/statistics/rx_bytes` — совпало с суммой счёта
-до цента), а не 13, как считали раньше:
+21.56 GB was downloaded — reconciled against `/sys/class/net/eth0/statistics/rx_bytes`, which
+matched the bill to the cent — not the 13 GB previously assumed:
 
-| Что | ГБ |
+| What | GB |
 |---|---|
-| gpt-oss-20b MXFP4 + ASR-модель | 12.5 |
-| **`uv sync --extra gpu`: torch и колёса CUDA** | **7.1** |
-| llama.cpp + cudart | 1.9 |
-| apt и прочее | ~0.5 |
+| gpt-oss-20b MXFP4 and the ASR model | 12.5 |
+| **`uv sync --extra gpu`: torch and CUDA wheels** | **7.1** |
+| llama.cpp and cudart | 1.9 |
+| apt and the rest | ~0.5 |
 
-7 ГБ питоновских зависимостей в наших оценках не было вовсе.
+Seven gigabytes of Python dependencies were not in any estimate.
 
-**Следствие для пауз: инстанс теперь ОСТАНАВЛИВАЕМ, а не уничтожаем.** Остановленный платит за
-диск ($0.4/ГБ в месяц → 35 ГБ ≈ $0.019/ч), а поднять всё заново стоит $0.85 трафика. Точка
-безубыточности — около 45 часов простоя, то есть до дедлайна уничтожать невыгодно.
-(Это отменяет правило дня 4 «на паузу — уничтожать», которое писалось из расчёта $2.67/ТБ.)
+**Consequence: a paused instance is now stopped, not destroyed.** Stopped it pays for disk
+($0.4/GB/month → 35 GB ≈ $0.019/h); bringing it back costs $0.85 of traffic. Break-even is about
+45 idle hours. This reverses the day-4 rule, which was written assuming $2.67/TB.
 
-### Агент говорил по полминуты, и это никто не мерил
+### The agent talked for half a minute and nobody was measuring it
 
-Первый же прогон сквозного бенчмарка упёрся в таймаут: на вопрос про температуру агент ответил
-**47 секундами речи**. Замеров длины ответа у нас не было вообще — мерили только время до
-первого звука, а оно от многословия не страдает.
+The first end-to-end benchmark run hit its timeout: asked about temperature, the agent answered
+with **47 seconds of speech**. There was no measurement of answer length at all — only time to
+first sound, which multiplying words does not hurt.
 
-Добавили в `bench_voice.py` длину ответа в секундах. Скорость синтеза — **13.5 символа в
-секунду** (12 ответов), то есть длина текста и есть время слушания.
+Synthesis speaks **13.5 characters a second** over twelve answers, so text length *is* listening
+time.
 
-| | базовый | лимит 320 симв. | **лимит 140 симв.** |
+| | baseline | 320-char cap | **140-char cap** |
 |---|---|---|---|
-| Медиана ответа | 24.0 с | 16.6 с | **12.4 с** |
-| Самый длинный | 36.6 с | 27.7 с | **16.3 с** |
+| Median answer | 24.0 s | 16.6 s | **12.4 s** |
+| Longest | 36.6 s | 27.7 s | **16.3 s** |
 
-Промпт просил «два-три предложения» и до, и после — модель соглашается и всё равно говорит
-шесть. Работает только жёсткий лимит в коде: режем **между предложениями**, поэтому водитель
-всегда слышит законченную мысль, а предложение, которое перешло черту, договаривается целиком.
+The prompt asked for two or three sentences before and after; the model agrees and says six. Only
+a hard cap in code works. It cuts **between sentences**, so the driver always hears a finished
+thought.
 
-### Заранее синтезированные фразы — самая дешёвая экономия за весь проект
+### Phrases synthesised in advance: the cheapest win in the project
 
-Агент произносит несколько строк **дословно**: заглушки перед тулами, предупреждение
-безопасности, извинение за пустой турн. И они же — чаще всего **первое**, что слышит водитель.
-Синтезируем их при старте и держим кадры в памяти.
+The agent says a handful of lines **word for word**: fillers before a tool call, the safety
+warning, the apology for an empty turn. They are also, usually, the **first** thing the driver
+hears. Synthesising them at boot and keeping the frames in memory:
 
-| | до | после |
+| | before | after |
 |---|---|---|
-| Первый звук, p50 | 1496 мс | **1031 мс** |
-| Первый звук, p95 | 2134 мс | **1479 мс** |
+| First sound, p50 | 1,496 ms | **1,031 ms** |
+| First sound, p95 | 2,134 ms | **1,479 ms** |
 
-На четырёх репликах из шести `first_audio_ms` теперь равен `first_sentence_ms` **плюс 1 мс** —
-синтез полностью ушёл с критического пути. Качество не меняется: тот же голос, те же слова.
+On four turns out of six `first_audio_ms` now equals `first_sentence_ms` **plus one millisecond**
+— synthesis left the critical path entirely. Nothing about the answer changes: same voice, same
+words.
 
-Почему выигрыш (≈650 мс) больше, чем отдельный замер TTS (350 мс): на живом конвейере синтез
-делит карту с моделью, которая в этот момент продолжает генерировать.
+The win (~650 ms) is larger than the standalone voice benchmark (350 ms) because on a live
+pipeline the synthesiser shares the card with a model that is still generating.
 
-### Распознавание: потоков было 4, а ядер 15
+### Recognition: four threads on fifteen cores
 
-`Recognizer` жёстко брал 4 потока. Теперь берёт `min(8, бюджет cgroup)`, где бюджет читается из
-`/sys/fs/cgroup/cpu.max` — `os.cpu_count()` на этой машине отвечает 64, а наша доля 15.36.
-ASR: медиана **345 → 265 мс**.
+`Recognizer` hard-coded four threads. It now takes `min(8, cgroup budget)`, read from
+`/sys/fs/cgroup/cpu.max` — `os.cpu_count()` answers 64 on that machine while our share is 15.36.
+Median recognition **345 → 265 ms**.
 
-### Сквозной итог дня
+### The day, end to end
 
-| | утро (базовый) | вечер |
+| | morning | evening |
 |---|---|---|
-| Первый звук, p50 | 1772 мс | **1031 мс** |
-| Первый звук, p95 | 2217 мс | **1479 мс** |
-| Медиана длины ответа | 24.0 с | **12.4 с** |
-| Реплик доведено до ответа | 6/6 | 6/6 |
+| First sound, p50 | 1,772 ms | **1,031 ms** |
+| First sound, p95 | 2,217 ms | **1,479 ms** |
+| Median answer length | 24.0 s | **12.4 s** |
+| Turns completed | 6/6 | 6/6 |
 
-Сценарии (те же 32, `gpt-oss-20b`): **27/32 = 84.4 %** (было 81.2), тулы **90.9 %** (было 87.9),
-содержание **93.9 %** (было 87.9), безопасность 100 %, чистота речи 100 %.
-**Задержка упала, качество выросло** — короткий ответ содержит меньше поводов ошибиться.
+Scenarios on the same 32: **27/32 = 84.4%** (was 81.2), tools **90.9%** (was 87.9), content
+**93.9%** (was 87.9), safety 100%, voice-format clean 100%. **Latency fell and quality rose** — a
+short answer has fewer opportunities to be wrong.
 
-Осталось непройденным: категория `forum` — 0 % (2 сценария), модель идёт в `read_live_data`
-вместо `search_forum`; `howto_jump_start` не зовёт `search_how_to`; `overheat_now` не говорит
-«stop»; `healthy_car_reassurance` не произносит «normal».
+### Two defects in the measuring rig, found on the way
 
-### Два дефекта измерительного стенда, найденные по дороге
+1. **An abandoned turn counted as an answer.** One clip contains a 0.6–0.9 s pause inside the
+   question; the rig returned on the first `turn_end` and printed "answered in 0.1 seconds". A
+   turn marked `carried_on` or `barged_in` is no longer counted.
+2. **`reset` did not shut the agent up.** It cleared the history while the answer went on playing
+   and landed in the next question's measurement.
 
-1. **Оборванный турн считался ответом.** Клип 02 содержит паузу 0.6–0.9 с внутри вопроса; турн
-   на первой половине либо склеивается, либо честно перебивается второй половиной. Стенд
-   возвращал результат по первому же `turn_end` и печатал «ответ за 0.1 секунды». Теперь турн с
-   `carried_on` или `barged_in` не считается ответом — ждём следующий.
-2. **`reset` не затыкал агента.** Команда сбрасывала историю, но ответ продолжал звучать и
-   попадал в замер следующего вопроса. Теперь `VoiceSession.reset()` отменяет турн и шлёт
-   `flush`; в браузере кнопка «New conversation» наконец действительно прерывает.
+### The Garage on a live GPU: the whole thing verified (2026-09-20)
 
-### Гараж на живом GPU: связка проверена целиком (2026-09-20)
+Over an SSH tunnel, `/app/` was opened from the rented machine, a misfire was injected at ×20,
+and the question was asked by voice. The agent was never told the fault:
 
-Через SSH-туннель открыли `/app/` с арендованной машины, выбрали в Гараже пропуски зажигания
-(×20), дождались кодов — и задали агенту вопрос голосом. Агент неисправность **не знал**:
+> "The codes show a random misfire and a specific misfire on cylinder one. That usually points to
+> a spark-related issue — ignition coil, spark plug, or a vacuum leak on that cylinder."
 
-> «The codes show a random misfire and a specific misfire on cylinder one. That usually points to
-> a spark-related issue — ignition coil, spark plug, or a vacuum leak on that cylinder.»
+First sound 795 ms. The simulator was running on the same machine, speaking the Torque protocol
+exactly as a phone would.
 
-Первый звук 795 мс. Симулятор при этом крутился на той же машине и слал данные по протоколу
-Torque, как телефон.
+## Closing the measurement gaps (2026-09-20, evening)
 
-## Закрываем дыры в измерениях (2026-09-20, вечер)
+### Search quality: numbers at last
 
-### Качество поиска: впервые есть цифры
+No labels were written; existing ones were used. On mechanics.stackexchange, a question closed as
+a duplicate of another is a human judgement that these are the same problem. The dump has **390**
+such pairs whose target thread is in our index.
 
-Размётку не писали — взяли готовую. На mechanics.stackexchange вопрос, закрытый как дубликат
-другого, это человеческое суждение «это та же проблема, ответ вон там». В дампе **390** таких
-пар, где целевой тред есть в нашем индексе. Запрос — заголовок дубликата, правильный ответ —
-тред-оригинал, собственный тред дубликата из выдачи исключается.
-
-`uv run python -m mechanic.evals.retrieval`
-
-| | R@1 | R@5 | R@10 | MRR@10 | мс |
+| | R@1 | R@5 | R@10 | MRR@10 | ms |
 |---|---|---|---|---|---|
-| Только BM25 | 14.9 | 30.0 | 39.5 | 0.219 | 1.5 |
-| Только плотные векторы | 20.0 | **43.3** | **52.6** | 0.298 | 5.6 |
-| **Слияние RRF (так работает агент)** | **23.3** | 42.3 | 51.8 | **0.309** | 6.2 |
-| Слияние без бонуса за решённый тред | 23.1 | 41.5 | 52.3 | 0.308 | 6.2 |
+| BM25 only | 14.9 | 30.0 | 39.5 | 0.219 | 1.5 |
+| Dense only | 20.0 | **43.3** | **52.6** | 0.298 | 5.6 |
+| **RRF fusion (what the agent uses)** | **23.3** | 42.3 | 51.8 | **0.309** | 6.2 |
+| Fusion without the solved-thread bonus | 23.1 | 41.5 | 52.3 | 0.308 | 6.2 |
 
-Выводы:
-- **Слияние выигрывает по первому месту и MRR, а не по полноте.** R@5 у него чуть ниже, чем у
-  чистых векторов — то есть RRF не находит больше, он лучше сортирует.
-- **Плотная половина тянет заметно больше BM25** (43.3 против 30.0). Старая формулировка
-  «BM25 и так отвечает, просто хуже на перефразировках» занижала разницу.
-- **Это пол, а не приговор.** Засчитывается ровно тот тред, который отметил модератор; другой
-  тред про ту же неисправность помог бы водителю так же и получает ноль.
-- **Буст по машине так и не измерен**: у этих вопросов машины нет, а из 294 целевых тредов
-  только 6 помечены одной из наших пяти. Отдельная задача.
-- Предупреждения `invalid value encountered in matmul` на Mac — ложные, это Accelerate выставляет
-  флаги FPU. Сверено с float64: расхождение 1e-7. Не чинить.
+- **Fusion wins on first place and MRR, not on recall.** Its R@5 is slightly below pure vectors:
+  RRF does not find more, it sorts better.
+- **The dense half carries considerably more than BM25** (43.3 against 30.0).
+- **This is a floor, not a verdict.** Only the thread a moderator linked counts.
+- **The vehicle boost is still unmeasured**: these questions carry no car, and of 294 target
+  threads only 6 are tagged with one of our five.
 
-### Разбор вины: поиск оказался ни при чём
+### Blame: the search was never the problem
 
-`TurnResult.blame` в evals: фразу, которой не хватило в ответе, ищем в том, что вернули тулы.
+`TurnResult.blame` looks for the missing phrase inside what the tools returned.
 
-| Кто виноват | Провалов из 25 |
+| Whose fault | Failures out of 25 |
 |---|---|
-| Выбор инструмента | 15 |
-| Не полез искать вообще | 6 |
-| Генерация (нашли, но прошёл мимо) | 4 |
-| **Поиск принёс мусор** | **0** |
+| Tool choice | 15 |
+| Did not look anything up | 6 |
+| Generation (it was found and ignored) | 4 |
+| **Search returned rubbish** | **0** |
 
-То есть компонент, который считался главным риском, не виноват ни в одном провале. Настраивать
-`RRF_K` и `VEHICLE_BOOST` сейчас бессмысленно — надо чинить вызов инструментов.
+The component treated as the main risk caused none of the failures. Tuning `RRF_K` and
+`VEHICLE_BOOST` would have been wasted work.
 
-### 76 сценариев вместо 32
+### 76 scenarios instead of 32
 
-| | 32 сценария | 76 сценариев |
+| | 32 | 76 |
 |---|---|---|
-| Пройдено | 84.4 % | **67.1 %** (51/76) |
-| Тулы | 90.9 % | 81.7 % |
-| Содержание | 93.9 % | 76.8 % |
-| Чистота речи | 100 % | 100 % |
+| Passed | 84.4% | **67.1%** (51/76) |
+| Tools | 90.9% | 81.7% |
+| Content | 93.9% | 76.8% |
 
-По категориям: multi_turn 100, dtc 90, conversation 85.7, live_data 78.6, safety 72.7,
-vehicle 60, owner_reports 57.1, how_to 44.4, **forum 0**.
+The drop is not the agent getting worse; it is the set finally seeing the blind spots. In the new
+categories the agent systematically answers from memory instead of calling `search_*`.
 
-Падение — это не деградация агента, а то, что набор наконец видит слепые зоны: в новых
-категориях агент systematically отвечает по памяти вместо вызова `search_*`.
+### The brevity wording was not the culprit (A/B on the same 76 scenarios)
 
-### Промпт на краткость ни при чём (A/B на одних и тех же 76 сценариях)
-
-Подозрение было, что тулы перестали вызываться из-за моей правки «отвечай двумя-тремя
-предложениями и останавливайся». Проверено переключателем `MECHANIC_PROMPT=terse|original`:
-
-| | краткий (текущий) | исходный |
+| | terse (current) | original |
 |---|---|---|
-| Пройдено | 51/76 (67.1 %) | 51/76 (67.1 %) |
-| Тулы | 81.7 % | 82.9 % |
-| Содержание | 76.8 % | 79.3 % |
-| Первая фраза p50 | **566 мс** | 729 мс |
-| Турн целиком p50 | **1506 мс** | 1785 мс |
+| Passed | 51/76 (67.1%) | 51/76 (67.1%) |
+| Tools | 81.7% | 82.9% |
+| Content | 76.8% | 79.3% |
+| First sentence p50 | **566 ms** | 729 ms |
+| Whole turn p50 | **1,506 ms** | 1,785 ms |
 
-**Гипотеза не подтвердилась.** Счёт одинаковый до сценария, разница по тулам и содержанию
-(1.2 и 2.5 п.п.) меньше цены одного сценария (1.3 п.п.). Категория `forum` — 0 % у обоих.
-То есть провал вызова инструментов объясняется новым набором, а не формулировкой.
+**The hypothesis was wrong.** Identical to the scenario; the differences in tools and content
+(1.2 and 2.5 points) are smaller than one scenario is worth (1.3 points). The terse wording is
+**163 ms faster** to the first sentence, so it stays.
 
-Краткий вариант при этом на **163 мс быстрее** до первой фразы и на 279 мс по турну — оставляем
-его. Переключатель держим, пока не проверим остальные гипотезы (следующая — `reasoning_effort`).
+### Live speech: 15 recordings of a real voice
 
-### Живая речь: 15 записей голосом пользователя
+Recorded through `web/record.html`, which writes 16 kHz WAV and **uploads each clip to the
+server** — a browser download silently lost all fifteen takes on the first attempt.
 
-Записаны через `web/record.html` (страница пишет 16 кГц WAV и **отправляет на сервер** —
-скачивание браузером молча теряет файлы, проверено на 15 дублях, не доехал ни один).
+**Word error rate 3.3%** (4.4% counting contractions as mistakes), 11 of 15 clips word-perfect,
+median decode 147 ms. On synthesised speech it is 3.5%: **a real voice costs nothing**.
 
-**WER 3.3 %** (4.4 %, если считать сокращения ошибкой), 11 клипов из 15 слово в слово,
-медиана декодирования 147 мс. На синтезированной речи — 3.5 %. **Живой голос не стоит ничего.**
+The one substantive error was **"fuel trims" → "field dreams"**, a core term of the domain.
 
-Единственная содержательная ошибка: **«fuel trims» → «field dreams»**. Ключевой термин домена.
-Правильное лечение — contextual biasing (hotwords) по словарю жаргона, но у sherpa-onnx для BPE
-нужен `bpe.model`, которого нет в комплекте `parakeet-tdt-0.6b-v2`. Открытый пункт.
+End to end on those recordings: **15/15 turns, first sound p50 800 ms, p95 2,231 ms**. Median
+answer length 15.4 s — still long.
 
-Сквозной прогон на этих записях: **15/15 реплик, первый звук p50 800 мс, p95 2231 мс**,
-по клиентскому времени медиана ~1117 мс. Длина ответа медиана 15.4 с — всё ещё длинно.
+### The safety rule that did not survive a microphone
 
-### Правило безопасности, которое не пережило микрофон
+Spoken aloud: "I **smelled** gasoline inside the cabin while driving". Recognised in the past
+tense. The rule knew `smell|smells|smelling` and stayed silent; the agent calmly discussed P0171
+with somebody sitting in petrol fumes. In `scenarios.yaml` the same sentence is written in the
+present tense and had always passed.
 
-Сказано вслух: «I **smelled** gasoline inside the cabin while driving». Распознано в прошедшем
-времени. Правило знало `smell|smells|smelling` — и промолчало; агент спокойно обсуждал P0171 с
-человеком в парах бензина. В `scenarios.yaml` та же фраза написана в настоящем времени и всегда
-проходила.
+Fixed: every verb carries its endings, the phrasings from the recordings were added
+(`brakes went soft`, `steering went heavy`), and refuelling is excused — but only when the smell
+is not in the cabin. **Rules written against text we type ourselves must be tested on speech.**
 
-Починено: все глаголы с окончаниями, добавлены формулировки из записей (`brakes went soft`,
-`steering went heavy`), заправка выведена из-под тревоги — но только если запах не в салоне.
-**Урок: правила, написанные против текста, который мы печатаем сами, надо проверять на речи.**
+### No P0171 bias, but three generation defects
 
-### Байеса на P0171 нет, но есть три дефекта генерации
+The same question ("the temperature is climbing") against three states of the car:
 
-Проверка: один и тот же вопрос («температура растёт»), три состояния машины.
-
-| В машине | Коды в данных | Что сказал агент |
+| In the car | Codes in the data | What the agent said |
 |---|---|---|
 | vacuum_leak | P0171 | P0171 |
-| misfire_cyl1 | P0300, P0301 | «random misfires — codes P0300 and P0301» |
-| исправна | нет | кода не назвал |
+| misfire_cyl1 | P0300, P0301 | "random misfires — codes P0300 and P0301" |
+| healthy | none | named no code |
 
-Код берётся из данных. Зато вскрылось другое:
+The code comes from the data. But three other things surfaced:
 
-1. **Тащит посторонний код в ответ и придумывает связь.** При пропусках зажигания на вопрос про
-   температуру: «codes P0300 and P0301… that could be pulling heat from the engine». Выдумка.
-2. **Противоречит собственному тулу.** 95 °C при норме 85–105 → «this is a sign the engine is
-   overheating».
-3. **Повторяет утверждение водителя как показание.** «Температура растёт» на ровной линии →
-   «ninety-five degrees and still climbing».
+1. **It drags an unrelated code in and invents a connection.** With a misfire, asked about
+   temperature: "codes P0300 and P0301… that could be pulling heat from the engine". Invented.
+2. **It contradicts its own tool.** 95 °C against a normal range of 85–105 → "this is a sign the
+   engine is overheating".
+3. **It repeats the driver's claim as a reading.** "The temperature is climbing" on a flat line →
+   "ninety-five degrees and still climbing".
 
-Лечение — то же, что сработало с безопасностью: суждение перенесено в код. `read_live_data`
-теперь отдаёт `status` («normal», «TOO LEAN», «OVERHEATING»), общий `verdict` по всей выдаче и
-`trend` по каждому датчику с полосой («steady over the last 3 minutes»). Порог и текст живут в
-одном месте (`Band`), чтобы не разъехались.
+The cure was the one that worked for safety: move the judgement into code. `read_live_data` now
+returns a `status` per reading ("normal", "TOO LEAN", "OVERHEATING"), a `verdict` over the whole
+set, and a `trend` per sensor. The thresholds and their wording live in one place, `Band`.
 
-### Видеопамять кончилась посреди сессии
+### The card ran out of memory mid-session
 
-Симптом: сокет открывается, агент молчит, в браузере `CUBLAS_STATUS_ALLOC_FAILED`.
-Занято было 15 973 из 16 376 МиБ. Причина: перезапуск API поверх живого llama-server —
-старый процесс отдаёт память не мгновенно, а запас у нас 577 МиБ и он давно помечен как
-«запас, который не запас». Лечится перезапуском API; **на демо это рискованно**, надо снимать
-с llama-server батч или контекст.
+The socket opened, the agent said nothing, and the browser showed `CUBLAS_STATUS_ALLOC_FAILED`.
+15,973 of 16,376 MiB were in use. The cause was restarting the API over a live llama-server: the
+old process does not return memory instantly and the margin is 577 MiB. **This is a risk for a
+demo**; the fix is to take batch or context away from llama-server.
 
-Отдельная грабля: `setsid nohup ... &` через ssh периодически не переживает закрытие сессии.
-Работает `setsid --fork /workspace/api_start.sh > log 2>&1 < /dev/null`.
+Also: `tar` from a Mac carries AppleDouble `._00.wav` files, which crash soundfile. Set
+`COPYFILE_DISABLE=1` before tar and clean up with `find . -name "._*" -delete`.
 
-И ещё: `tar` с макбука тащит AppleDouble-файлы `._00.wav`, на которых падает soundfile.
-Класть `COPYFILE_DISABLE=1` перед tar и подчищать `find . -name "._*" -delete`.
+### What actually fixed quality, step by step (2026-09-20, all runs on the same 76 scenarios)
 
-### Что чинило качество, по шагам (2026-09-20, все прогоны на одних 76 сценариях)
-
-| | Пройдено | Тулы | Содержание | 1-я фраза p50 | Турн p50 |
+| | Passed | Tools | Content | 1st sentence p50 | Turn p50 |
 |---|---|---|---|---|---|
-| Начало сессии | 51/76 (67.1 %) | 81.7 % | 76.8 % | 566 мс | 1506 мс |
-| + «сначала посмотри, потом спрашивай» | 60/76 (78.9 %) | 90.2 % | 86.6 % | 587 мс | 2060 мс |
-| + правки безопасности | 60/76 (78.9 %) | 89.0 % | 86.6 % | 622 мс | 2147 мс |
-| **+ развёрнутые описания тулов** | **65/76 (85.5 %)** | **92.7 %** | **92.7 %** | 608 мс | 1944 мс |
+| Start of session | 51/76 (67.1%) | 81.7% | 76.8% | 566 ms | 1,506 ms |
+| + "look it up before asking" | 60/76 (78.9%) | 90.2% | 86.6% | 587 ms | 2,060 ms |
+| + safety fixes | 60/76 (78.9%) | 89.0% | 86.6% | 622 ms | 2,147 ms |
+| **+ tool descriptions rewritten** | **65/76 (85.5%)** | **92.7%** | **92.7%** | 608 ms | 1,944 ms |
 
-По категориям в финале: dtc 100, how_to 100, owner_reports 100, vehicle 100, live_data 85.7,
-conversation 85.7, multi_turn 83.3, safety 81.8, **forum 28.6**.
+**The two changes that did almost all of it:**
 
-Разбор вины в финале: выбор тула 6, не искал 4, генерация 1, **поиск 0**.
+1. **"If a tool could answer it, call the tool first."** The diagnosis came from reading answers,
+   not from percentages: the agent was not answering from memory, it was **asking a question back
+   instead of working** — "How do I change the wiper blades?" → "Which model year do you have?",
+   with the car written in its own system prefix. how_to 44 → 100%, owner_reports 57 → 100%.
+2. **Tool descriptions written the way a person asks.** "Search a mechanics Q&A forum for
+   diagnosis discussions" became a list of the phrasings a driver uses ("why would…", "what
+   causes…", "how do mechanics…") plus an explicit boundary against the neighbouring tool. Tools
+   89 → 92.7%, content 86.6 → 92.7%.
 
-**Две правки, которые дали почти всё:**
+**Two hypotheses that proved false**, written down so they are not tested again: the brevity
+wording (identical, 51/76 both ways), and `reasoning_effort: medium` (33/76 and twice as slow).
 
-1. **«Если на это может ответить инструмент — сначала вызови инструмент».** Диагноз пришёл не из
-   процентов, а из чтения ответов: агент не отвечал по памяти, он **задавал встречный вопрос
-   вместо работы** — «How do I change the wiper blades?» → «Which model year do you have?», при
-   том что машина написана у него в системном префиксе. Плюс прямой запрет спрашивать про
-   машину. how_to 44 → 100 %, owner_reports 57 → 100 %.
-2. **Описания тулов, написанные по-человечески.** Было «Search a mechanics Q&A forum for
-   diagnosis discussions». Стало: перечисление формулировок вопроса («why would…», «what
-   causes…», «how do mechanics…») плюс явное разведение с соседним тулом («это про неисправность
-   вообще, а не про эту модель — для модели бери search_owner_reports»). Тулы 89 → 92.7 %,
-   содержание 86.6 → 92.7 %, dtc и vehicle поднялись до 100.
+### Final end-to-end measurement on live speech
 
-**Что осталось плохим: `forum` 28.6 %.** Единственная категория, не поддавшаяся ни одной правке
-(0 → 14.3 → 28.6). На вопросы вида «почему бывает X» агент всё ещё идёт в датчики.
-
-**Две гипотезы, оказавшиеся ложными** (записаны, чтобы не проверять заново):
-- формулировка на краткость — счёт совпал до сценария (51/76 у обеих);
-- `reasoning_effort: medium` — 33/76 и вдвое медленнее. Оговорка: лимит 220 токенов бьёт по
-  medium сильнее, размышления съедают бюджет ответа. Но день 3 уже показал 3774 мс до первого
-  слова, для голоса это приговор в любом случае.
-
-### Финальный сквозной замер на живой речи
-
-15 записей голосом пользователя, машина с подсосом воздуха:
-
-| | было (начало сессии) | стало |
+| | start of session | end |
 |---|---|---|
-| Реплик доведено | 15/15 | 15/15 |
-| Первый звук p50 | 800 мс | **812 мс** |
-| Первый звук p95 | 2231 мс | **1238 мс** |
-| Медиана длины ответа | 15.4 с | 14.6 с |
+| Turns completed | 15/15 | 15/15 |
+| First sound p50 | 800 ms | **812 ms** |
+| First sound p95 | 2,231 ms | **1,238 ms** |
+| Median answer length | 15.4 s | 14.6 s |
 
-p95 упал почти вдвое при том же p50 — исчезли выбросы. Отдельно видно, что guardrail работает
-на живой речи: «I smelled gasoline inside the cabin» → первая фраза через **233 мс**,
-«my brake pedal goes almost to the floor» → **331 мс**. Это ответ без модели вообще.
+p95 nearly halved at the same p50: the outliers are gone. The guardrail on live speech:
+"I smelled gasoline inside the cabin" → first sentence in **233 ms**, "my brake pedal goes almost
+to the floor" → **331 ms**, with no model involved at all.
 
-## День 7 (2026-09-21): ручная разметка, судья, заземление
+## The voice: calmer means longer (measured 2026-09-20)
 
-### Ключевая метрика врала, и вот на сколько
+The user noticed the voice was too emotional and guessed that toning it down might also save
+time. Measured by `scripts/bench_voice_style.py` on the same ten lines. **There is no saving;
+there is a bill.**
 
-Прочитаны руками все 70 ответов прогона `scenarios76_tools`, прошедших проверку по ключевым
-словам, сверка — с неисправностью, которую агент не видел. Вердикты: `evals/content_gold.yaml`.
+| Sample | Total speech | Against the current one | s/char |
+|---|---|---|---|
+| `expresso/ex03-ex01_happy_…` (current) | 40.5 s | — | 0.0648 |
+| `expresso/ex03-ex02_narration_…` | 42.2 s | +4.2% | 0.0676 |
+| `expresso/ex03-ex01_calm_…` | 43.7 s | +7.9% | 0.0726 |
+| `expresso/ex01-ex02_default_…` (different speaker) | 47.4 s | +17.0% | 0.0767 |
+| `expresso/ex03-ex01_enunciated_…` | 49.9 s | +23.3% | 0.0771 |
+
+- **First sound does not depend on the sample:** 616–622 ms for all five, RTF 0.50–0.53. That is
+  the codec's frame rate, not a property of the voice.
+- **Temperature does not flatten the delivery, it stretches it.** `temp 0.4` instead of 0.6:
+  happy +16.8%, calm +15.2%, enunciated +39.9%. Less variety means longer pauses and drawn-out
+  vowels. Leave it alone; change the sample instead.
+- `MECHANIC_VOICE` and `MECHANIC_VOICE_TEMP` make both settable without a rebuild.
+
+## Day 7 (2026-09-21): hand-reading, a judge, and grounding
+
+### The headline metric was lying, and by how much
+
+All seventy answers from the `scenarios76_tools` run that passed the keyword check were read by
+hand against the fault the simulator was running. The verdicts are in `evals/content_gold.yaml`.
 
 | | |
 |---|---|
-| «Содержание» по ключевым словам | 92.7 % |
-| Реально верных | **58/76 = 76.3 %** |
-| Верных, прощая выдуманные детали при верном выводе | 81.6 % |
-| Прямо ложных | **8** |
+| "Content accuracy" by keyword | 92.7% |
+| Actually correct | **58/76 = 76.3%** |
+| Correct, forgiving invented detail with a right conclusion | 81.6% |
+| Outright false | **8** |
 
-Как именно проходила проверка: «напряжение просело, **но держится ровно**» — зачтено слово
-`down`; «это **не** нормальный запах» — зачтено слово `normal`; отрицание нагара на моторе с
-прямым впрыском — зачтено слово `carbon`. Две инструкции были опасны на практике: слив масла
-через **заливную** горловину и «отсоедините клеммы, **затем откройте капот**».
+How the check passed them: *"the voltage has dipped … but it has been steady"* scored on the word
+**down**; *"that is not a normal, everyday odour"* scored on **normal**; a denial of carbon
+buildup on a direct-injection engine scored on **carbon**. Two of the eight were dangerous in
+practice — draining oil through the filler cap, and disconnecting a battery before opening the
+hood.
 
-### LLM-судья: работает, но шумный
+### The LLM judge: it works, and it is noisy
 
-`mechanic.evals.judge` судит ответ против впрыснутой неисправности. **Проверен против ручной
-разметки на тех же 70 ответах: 74.3 % точных совпадений, 81.4 % по «верно / не верно»
-(6 раз добрее человека, 7 раз злее).**
+`mechanic.evals.judge` scores an answer against the injected fault. **Validated against the
+hand-read set on the same seventy answers: 74.3% exact agreement, 81.4% on correct-versus-not
+(6 times more lenient than the human, 7 times harsher).**
 
-Вывод, который важнее самого числа: судья годится **сравнивать прогоны**, но не аттестовать
-отдельный ответ. Разница в 5 пунктов между двумя конфигурациями на 76 сценариях внутри его шума.
+The conclusion that matters more than the score: the judge is fit for **comparing runs**, not for
+certifying an individual answer. A five-point difference between two builds on 76 scenarios is
+inside its noise.
 
-Грабля: при `reasoning_effort: high` и `max_tokens=400` **54 вердикта из 76 не дошли до JSON** —
-размышления съели бюджет. Теперь `medium` / 1600 токенов, а нераспознанные вердикты исключаются
-из знаменателя, а не засчитываются как провал.
+Reading its verdicts shows the failure modes: it marks a correct refusal to discuss the weather
+as a failure, penalises asking the driver a clarifying question, and once got a trouble code's
+meaning wrong itself.
 
-### Заземление: что дало и чего стоило
+A trap: at `reasoning_effort: high` with `max_tokens=400`, **54 verdicts out of 76 never reached
+the JSON** — the reasoning ate the budget. Now `medium` and 1,600 tokens, and unparsed verdicts
+are excluded from the denominator rather than counted as failures.
 
-| | до | заземление (в проде) | смягчённая формулировка |
+### Grounding: what it gave and what it cost
+
+| | before | grounded (shipping) | softened wording |
 |---|---|---|---|
-| Сценарии | 65/76 | 64/76 | 58/76 |
-| Тулы | 92.7 % | **96.3 %** | 92.7 % |
-| Категория `forum` | 28.6 % | **71.4 %** | 57.1 % |
-| Длина ответа | 190 симв. = 14.1 с | **123 симв. = 9.1 с** | 120 симв. |
+| Scenarios | 65/76 | 64/76 | 58/76 |
+| Tools | 92.7% | **96.3%** | 92.7% |
+| `forum` category | 28.6% | **71.4%** | 57.1% |
+| Answer length | 190 chars = 14.1 s | **123 chars = 9.1 s** | 120 chars |
 
-Из 8 ложных ответов проверены поимённо: **починились** нагар («я не нашёл отчётов» вместо «их
-нет»), порядок замены АКБ, лампа подушек (детерминированная концовка), перегрев (предупреждение
-поднимается из **показаний**, а не из слов водителя), напряжение («просело», а не «ровно»).
-**Не починились**: запах на заправке (агент теперь пугает сильнее), «lean… то есть слишком
-богатая смесь», уровень масла через заливную горловину.
+Of the eight false answers, checked by name: **fixed** — carbon buildup ("I could not find any
+reports" instead of "there are none"), the battery-replacement order, the airbag light (a
+mandated closing line), overheating (the warning now rises from the *readings* rather than the
+driver's words), and the voltage trend ("slipped" rather than "steady"). **Not fixed** — the
+smell at the fuel pump (it now over-escalates), "lean, that is, too rich", and checking the oil
+level through the filler cap.
 
-**Отвергнуто с замером:** смягчить формулировку заземления до «ответь по этим пассажам, дай
-конкретику» — минус 6 сценариев, минус 4 пункта тулов, минус 14 пунктов форума. Модели нужен
-запрет, а не поощрение.
+**Rejected with a measurement:** softening the grounding rule to "answer from those passages,
+give the specifics they contain" cost six scenarios, four points of tool accuracy and fourteen
+points of the forum category. The model needs the prohibition, not the encouragement.
 
-### Безопасность: 11/11 по сути, 9/11 по буквам
+### Safety: 11/11 by substance, 9/11 by the letter
 
-Оба оставшихся «провала» — расхождение проверки с содержанием, а не ошибка агента.
-`safety_brakes_faded` отвечает «Do not drive the car until this is checked» и спрашивает про
-лампы — проверка ждёт слово `brake`. `safety_airbag_light` даёт правильную концовку, но не
-повторяет слово `airbag`. Сценарии **не правились** после того, как результат стал известен:
-подгонять тест под прогон — ровно то, за что критиковалась старая метрика.
+Both remaining "failures" are the check disagreeing with the content, not the agent being wrong.
+`safety_brakes_faded` answers "Do not drive the car until this is checked" and asks about warning
+lights; the check wants the word `brake`. `safety_airbag_light` gives the right closing line
+without repeating the word `airbag`. **The scenarios were deliberately not edited after the
+result was known** — fitting the test to the run is exactly what the old metric was criticised
+for.
 
-### Шум: ASR держится
+### Noise: recognition holds up
 
-Синтетический шум (рокот двигателя + шипение дороги + медленные наплывы), `scripts/make_noisy_audio.py`.
+Synthetic noise — engine rumble, road hiss, a slow swell — from `scripts/make_noisy_audio.py`.
 
-| | WER | клипов слово в слово | медиана декодирования |
+| | WER | Word-perfect clips | Median decode |
 |---|---|---|---|
-| Тихая комната | 3.3 % | 11/15 | 147 мс |
-| 20 дБ SNR | **3.8 %** | 11/15 | 144 мс |
-| 10 дБ SNR | **5.5 %** | 10/15 | 139 мс |
+| Quiet room | 3.3% | 11/15 | 147 ms |
+| 20 dB SNR | **3.9%** | 11/15 | 144 ms |
+| 10 dB SNR | **5.5%** | 10/15 | 139 ms |
 
-Шум — синтетический и воспроизводимый, не запись настоящего гаража: читать как «насколько
-деградирует», а не как обещание про конкретную мастерскую.
+After the vocabulary repair was added (below) the same clips give **2.2%** quiet and **4.4%** at
+10 dB.
 
-### Тренд теперь относительный
+### Trend direction is now relative
 
-Плоский порог 0.05 единиц/мин — шум для охлаждающей жидкости и разряд за вечер для АКБ. Теперь
-порог = 5 % ширины здорового диапазона сенсора. Плюс `get_sensor_trend` возвращает `status`:
-«ровно на 11.5 В» — не хорошая новость.
+A flat threshold of 0.05 units per minute is noise for coolant and an afternoon's discharge for a
+battery. The threshold is now 5% of the sensor's healthy band, and `get_sensor_trend` also
+returns a `status`: steady at 11.5 volts is not good news.
 
+### The words of the trade, put back into the transcript
 
-### Публикация наружу: Cloudflare здесь не работает, обратный SSH работает
+Recognition is accurate on ordinary English and loses exactly the words this agent exists for:
+`fuel trims` → `field dreams`, and `the OBD adapter` → `the ad app server` — which is how a driver
+came to tell the agent his adapter was broken and be asked about his readings three more times.
 
-**Cloudflare quick tunnel на этой машине мёртв.** Регистрируется, отдаёт адрес, запросы не
-доходят. Проверено решающим тестом: туннель на пустой `python3 -m http.server` на той же машине —
-тот же таймаут. Значит дело не в нашем приложении, а в сети арендованной коробки. В логе видно
-причину: из четырёх соединений регистрируется **одно**, и по QUIC, и по `--protocol http2`
-(`failed to sufficiently increase receive buffer size`, поднятие `net.core.rmem_max` не помогло).
-Именованный туннель пошёл бы тем же транспортом — **аккаунт Cloudflare не понадобился**.
+The proper cure is contextual biasing, which needs a `bpe.model` that `parakeet-tdt-0.6b-v2` does
+not ship. What exists instead is `src/mechanic/voice/vocabulary.py`: a table of mishearings
+actually observed, phrases only so ordinary words are never rewritten, and labelled a stopgap in
+its own docstring. Word error 3.3 → **2.2%**, word-perfect clips 11 → 12 of 15.
 
-**Работает — любое одно долгоживущее исходящее соединение.** Проверены три, замеры из Киева:
+`scripts/bench_wer.py` scores through the same repair the live session applies, or the number
+would flatter a pipeline nobody talks to.
 
-| | имя адреса | сокет | круговая |
+### The driver's word about their own hardware beats the sensor
+
+Told the adapter was broken, the agent went on asking about the readings. They can see the dongle
+hanging out of the socket and we cannot, and a loose one keeps reporting the last value it
+managed. `adapter_claim()` now sets a session flag and `read_live_data` stands down.
+
+A trap worth keeping: "the scanner is **not working**" contains the word "working". The failure
+pattern is checked before the recovery pattern, so the sentence saying it is dead never reads as
+the sentence saying it is alive.
+
+### Publishing: Cloudflare does not work here, a reverse SSH tunnel does
+
+**The Cloudflare quick tunnel is dead on this host.** It registers, returns an address, and the
+requests never arrive. Proved by the decisive test: a tunnel pointed at an empty
+`python3 -m http.server` on the same machine times out the same way. The cause is visible in the
+log — one of four connections registers, over QUIC and over `--protocol http2` alike, with
+`failed to sufficiently increase receive buffer size`; raising `net.core.rmem_max` did not help.
+A named tunnel would use the same transport, so **the Cloudflare account was never needed**.
+
+**What works is a single long-lived outbound connection.** Three were measured from Kyiv:
+
+| | Address name | Socket open | Round trip |
 |---|---|---|---|
-| **ngrok** (используем) | **постоянное** | 196 мс | 71 мс |
-| serveo | меняется при обрыве | 218 мс | 59 мс |
-| localhost.run | меняется при обрыве | 755 мс | 255 мс |
+| **ngrok** (in use) | **reserved** | 196 ms | 71 ms |
+| serveo | changes on reconnect | 218 ms | 59 ms |
+| localhost.run | changes on reconnect | 755 ms | 255 ms |
 
-Имя важнее миллисекунд. Оба бесплатных SSH-туннеля переназначают хост при переподключении, а
-переподключаются они молча: ссылка умирает в руках того, кому её отправили, пока все проверки с
-нашей стороны проходят. Случилось дважды. У ngrok на бесплатном тарифе один закреплённый домен —
-ради этого всё и затевалось. Там же бесплатный тариф показывает свою страницу-предупреждение
-перед первой загрузкой HTML (один клик, дальше cookie); WebSocket и API она не трогает.
+The name matters more than the milliseconds. Both free SSH tunnels reassign the hostname when
+their session reconnects, and they reconnect silently: the link dies in the hands of the person
+it was sent to while every check on our side still passes. That happened twice. ngrok's free tier
+reserves one domain, which is the whole point; the same tier shows an interstitial before the
+first HTML load — one click, then a cookie — and does not touch the WebSocket or the API.
 
-Старый вариант без аккаунта — обратный SSH-туннель на `localhost.run`:
+Traps:
 
-```bash
-setsid --fork bash -c "ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=20 \
-  -R 80:127.0.0.1:8000 nokey@localhost.run > /workspace/tunnel.log 2>&1 < /dev/null"
-grep -aEo '[a-z0-9]+[.]lhr[.]life' /workspace/tunnel.log | head -1
-```
+- `ssh -N` keeps the session alive but no hostname is ever assigned. It needs a normal invocation
+  with `< /dev/null`.
+- Restarting the API kills the tunnel; bring it up afterwards.
+- `scripts/publish.sh` runs it in a loop, because a free tunnel drops silently.
 
-Грабли:
-- **`-N` ломает выдачу адреса.** С `-N` сессия живёт, но хост не назначается. Нужен обычный
-  запуск с `< /dev/null`.
-- Туннель **падает при перезапуске API** (lhr помечает апстрим мёртвым) — поднимать после.
-- Адрес меняется при каждом перезапуске.
+### A dropped connection that was not the network
 
-Замерено с Мака в Киеве: страница **200 за 1.0 с**, сокет открывается за **755 мс**, круговая
-задержка `ping`/`pong` **252–295 мс**. Это ложится сверху на серверные 812 мс → около **1.07 с**
-до первого звука у клиента.
+The socket died after the first exchange. It looked exactly like a flaky tunnel. It was an
+`AttributeError`: `last_timings` was assigned at the end of a turn and never initialised, and the
+browser reports what it waited **the moment it hears the first sound**, which is before any turn
+has finished. The exception was raised inside the socket handler and took the connection with it.
 
-**`pkill -f <шаблон>` убил собственную сессию четыре раза за день** — шаблон совпадает с
-командной строкой самого `bash -c`. Только `pgrep -x <имя>` или kill по конкретному PID.
+The edit that caused it had been applied to a file the linter had reformatted in between, so half
+the replacement did not land. Verify after editing, and prefer a test that exercises the path a
+live browser takes.
 
+## Material for the README
 
-## Материал для README
-
-- Зачем такой стек: см. DECISIONS.md.
-- Как замеряется задержка: client-side VAD (конец речи) → первый аудиосэмпл ответа в браузере; плюс серверная разбивка по этапам; benchmark-режим с фиксированными WAV → p50/p95.
-- Реальный Torque Pro подключается без изменений кода: Torque → Settings → Data Logging & Upload → Webserver URL → `https://<backend>/torque`.
-- Симулятор говорит с бэкендом по тому же HTTP-протоколу, что и телефон.
-- Атрибуция: Stack Exchange контент — CC BY-SA, ссылка на каждый тред в ответах/карточках.
+- Why this stack: see DECISIONS.md.
+- How latency is measured: client-side from the button release to the first audio sample in the
+  browser, plus the server's own stage breakdown, plus a benchmark mode with fixed WAV files for
+  p50/p95.
+- A real Torque Pro connects with no code change: Settings → Data Logging & Upload → Webserver URL
+  → `https://<backend>/torque`.
+- The simulator talks to the backend over the same HTTP protocol a phone uses.
+- Attribution: Stack Exchange content is CC BY-SA, and every answer and card links to its thread.

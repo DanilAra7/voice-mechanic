@@ -1,297 +1,203 @@
-# Прогресс
+# Progress
 
-## Сейчас
+## Now
 
-**Дата: 2026-09-21, конец дня. Пользователь сдаёт работу лиду 2026-09-22.**
+**2026-09-22. The work is being presented to the reviewer today.**
 
-### Как поднять демо завтра
+### Bringing the demo up
 
-Инстанс **51763823 остановлен**. Домен ngrok **закреплён**, адрес не меняется:
+Instance **51763823 is stopped, not destroyed** — everything is installed on it. The ngrok domain
+is reserved, so the address does not change between sessions:
 
 ```
-https://cruncher-wieldable-pork.ngrok-free.dev/app/?k=78dffd51869a8189
+https://cruncher-wieldable-pork.ngrok-free.dev/app/?k=<MECHANIC_ACCESS_KEY>
 ```
 
 ```bash
-vastai start instance 51763823          # ~3 минуты
-MECHANIC_ACCESS_KEY=78dffd51869a8189 \
-MECHANIC_NGROK_DOMAIN=cruncher-wieldable-pork.ngrok-free.dev \
+vastai start instance 51763823            # about 3 minutes
+vastai ssh-url 51763823                   # the port changes on every start
+
+MECHANIC_ACCESS_KEY=… MECHANIC_NGROK_DOMAIN=cruncher-wieldable-pork.ngrok-free.dev \
   ssh -p <port> root@<host> 'bash -s' < scripts/demo_up.sh
 ```
 
-`demo_up.sh` делает всё: модель, API под ключом, машину на подъёмнике, туннель и **прогрев**.
-Всего около десяти минут, почти всё — загрузка моделей. Поднимать **до** того, как лид откроет
-вкладку: первая фраза холодного процесса — минуты.
+`demo_up.sh` starts the model, the API behind the key, a car on the ramp, the public address, and
+**warms the models on a throwaway conversation**. About ten minutes, nearly all of it loading
+models. Do it **before** anyone opens the tab: the first sentence of a cold process takes minutes
+and is the first thing they would hear.
 
-Оговорки на завтра:
-- На бесплатном ngrok браузер сначала показывает свою страницу с кнопкой «Visit Site». Один клик.
-- **Сначала завести машину в Гараже.** Разговор без заведённой машины — это «проверьте адаптер»
-  на каждый вопрос; выглядит как слабоумие агента. Над разговором висит предупреждение.
-- Порт ssh у инстанса меняется при каждом старте: брать из `vastai ssh-url 51763823`.
+Two things that have gone wrong in front of people:
 
-### Что измерено на финальной сборке
+- The free ngrok tier shows its own page first. One click on **Visit Site**.
+- **Start a car in the Garage first.** A conversation with no car running is "check your adapter"
+  on every question, which reads as the agent being stupid. There is now a warning above the
+  conversation, but it is still the first thing to check.
+
+### Measured on the shipping build
 
 | | |
 |---|---|
-| Безопасность | **11/11 по сути** (9/11 по буквам проверки, см. NOTES) |
-| Тулы | **91.5 %** |
-| Сценарии целиком | 60/76 = 78.9 % |
-| Правдивость (судья) | «без лжи» **80.3 %**; судья шумит, проверен против ручной разметки: 74 % точных |
-| WER | тишина **2.2 %**, шум 10 дБ **4.4 %** |
-| Задержка на сервере | **849 мс** p50: распознавание 307, модель 485, синтез 57 |
-| Задержка у клиента | p50 **1.5 с**, сеть 60–71 мс |
-| Длина ответа | 6.9 с на живом голосе |
-| Тесты | **147** зелёных |
+| Safety | **11/11 by substance** (9/11 by the literal check — see NOTES) |
+| Tools | **91.5%** |
+| Scenarios passed whole | 60/76 = 78.9% |
+| Truthfulness (LLM judge) | **80.3%** free of falsehood; the judge agrees with a hand-read set 74% exactly |
+| Word error rate | **2.2%** quiet, **4.4%** at 10 dB SNR |
+| Server latency | **849 ms** p50 — recognition 307, model 485, synthesis 57 |
+| Client latency | p50 about **1.5 s**, network 60–71 ms |
+| Answer length | 6.9 s on real voice |
+| Tests | **147** green |
 
-### Что НЕ сделано и о чём сказать честно
+By category: `owner_reports` and `safety` 100%, `how_to` 88.9, `conversation` 85.7,
+`multi_turn` 83.3, `live_data` 71.4, `dtc` 60, `vehicle` 60, **`forum` 57.1**.
 
-- Правдивость ~80 %, и прибор для её измерения шумит сильнее, чем разница между сборками.
-- Два ответа-инструкции отказываются давать шаги («нет данных для этой машины») — заземление
-  меняет пользу на честность.
-- Категория `forum` 57 %.
-- Получасовой сеанс без падений **не проверялся ни разу**.
-- Пять машин, один голос, шум синтетический.
+### Not done, and said out loud
 
-### Чем продолжать (по приоритету)
+- Truthfulness is about 80%, and the instrument measuring it is noisier than the differences
+  between recent builds.
+- Two how-to answers refuse to give steps at all — grounding trades usefulness for honesty.
+- The `forum` category answers 57% of the time.
+- **A thirty-minute session has never been run.** The last untested gate, and the one most likely
+  to spoil a live demo.
+- Five cars, one voice, synthetic noise.
+- Long conversations will overflow the 8k context; there is no summarisation.
 
-0. **Ждём ухо пользователя: какой образец голоса ставим.** Пять дорожек отданы на прослушивание
-   (happy — нынешний, narration, calm, enunciated, calm при temp 0.4). Замеры в NOTES.md:
-   спокойный тон стоит +4…8 % длины ответа, температуру трогать нельзя. Когда выберет — поменять
-   `DEFAULT_VOICE` в `src/mechanic/voice/tts.py` (кэш фиксированных фраз перегенерится сам при
-   следующем прогреве) и один раз послушать вживую.
-1. **Категория `forum` — 28.6 %.** Единственная, не поддавшаяся четырём правкам (0 → 14.3 → 28.6).
-   На «почему бывает X» агент идёт в датчики вместо форума. Следующее, что стоит попробовать:
-   объединить `search_forum` и `search_owner_reports` в один тул с параметром, раз модель их не
-   различает даже с развёрнутыми описаниями.
-2. **Деплой наружу.** Cloudflare quick tunnel не работает: регистрируется, но запросы до него не
-   доходят (пробовали и QUIC, и http2). Нужен именованный туннель — а для него аккаунт
-   Cloudflare, который заводит пользователь сам. Сегодня обходились SSH-туннелем.
-3. **Запас видеопамяти 577 МиБ — риск для демо.** Перезапуск API поверх живого llama-server уже
-   один раз дал `CUBLAS_STATUS_ALLOC_FAILED` посреди разговора. Снять с llama-server батч или
-   контекст и перемерить.
-4. День 7: README с настоящими цифрами, демо-видео.
-5. Открытые мелочи: «fuel trims» → «field dreams» в распознавании (нужен hotwords, а у модели нет
-   `bpe.model`); буст по машине в поиске так и не измерен; длина ответа медиана 14.6 с.
+### What to do next, in order
 
-### Как поднять окружение
+1. **Run the thirty-minute session.** One GPU hour, about $0.12. After it the claim "it will not
+   fall over" is a measurement rather than a hope.
+2. **Fix the judge's rubric** — stop penalising a clarifying question and a correct refusal, and
+   give it the real state of the car — then re-measure. Roughly forty minutes, and afterwards
+   "N% false" is a number instead of an opinion.
+3. The `forum` category. The next untried idea is merging `search_forum` and
+   `search_owner_reports` into one tool with a parameter, since the model does not reliably tell
+   them apart even with rewritten descriptions.
+4. The remaining ~700 ms between the server's first audio frame and the browser playing it. Now
+   instrumented per turn; if it is the audio pipeline, it is fixable.
+5. VRAM headroom is 577 MiB. Reduce llama-server's batch or context and re-measure.
 
-**У нас есть остановленный инстанс 51763823, на котором уже всё стоит. Поднимать НАДО его,
-а не арендовать новый:** новая машина = 21.6 ГБ скачивания = **$0.85**, а эта стоит $0.019/ч,
-пока спит. Ставить заново — только если её потеряли.
+## Ship gates, set 2026-09-21
 
-```bash
-vastai start instance 51763823
-vastai ssh-url 51763823                      # адрес и порт меняются после каждого старта
-tar czf - src/mechanic scripts web | ssh -p <порт> root@<хост> 'cd /workspace/mechanic && tar xzf -'
-ssh -p <порт> root@<хост> '/workspace/gpu_start.sh'          # llama-server + API, ~3 мин
-# только API перезапустить (llama-server оставить жить):
-ssh -p <порт> root@<хост> 'for pid in $(pgrep -f "uvicorn mechanic"); do kill $pid; done
-                           setsid nohup /workspace/api_start.sh > /workspace/api.log 2>&1 < /dev/null & disown'
-# посмотреть сайт со своей машины:
-ssh -N -L 8010:127.0.0.1:8000 -p <порт> root@<хост>          # → http://127.0.0.1:8010/app/
-# замерить:
-ssh -p <порт> root@<хост> 'cd /workspace/mechanic && PATH=$HOME/.local/bin:$PATH \
-    uv run python scripts/bench_voice.py --limit 6 --device bench'
-```
+The four things that break a product for a real person: it can harm them, it can lie to them, it
+can mishear them, and it can be unbearable to wait for. Everything else is diagnostics for us.
 
-Инстанс с нуля (если этот потерян) — `scripts/gpu_up.sh`; все параметры, на подбор которых ушла
-сессия, зашиты в него, заново не искать. **Оффер выбирать с `inet_down_cost<=0.005`** —
-это важнее цены за час (см. «Деньги»).
-
-### Деньги и машины
-
-- Инстанс **51763823 ОСТАНОВЛЕН, не уничтожен** (2026-09-20). На нём всё уже установлено:
-  модели, llama.cpp, `.venv`, наш код и индекс. Поднять — `vastai start instance 51763823`,
-  затем `/workspace/api_start.sh` (SSH-адрес после старта берём из `vastai ssh-url 51763823`).
-- Потрачено **$2.20 из $5**, осталось **$2.80**. За эту машину суммарно $1.10, из них
-  **$0.85 — разовое скачивание** при первой установке, GPU-часы всего $0.18.
-- **Главный вывод дня: 95 % счёта — трафик, а не GPU.** У этой машины $39/ТБ вместо $2.67.
-  Сессия: скачивание $0.844, GPU-часы $0.037, диск $0.006. Скачивается 21.6 ГБ, из них
-  **7 ГБ — питоновские зависимости** (`uv sync --extra gpu`), которых в прежних оценках не было.
-- **Оффер выбирать с `inet_down_cost<=0.005`** — это важнее цены за час.
-- **Останавливать, а не уничтожать:** простой стоит $0.019/ч, повторная установка — $0.85.
-- Карта не привязана → перерасход физически невозможен.
-- Deadman на 4 часа взводится скриптом автоматически, ключом самого контейнера.
-
-### Ключевые параметры
-
-- LLM: gpt-oss-20b MXFP4, контекст 8k, `reasoning_effort: low` **на стороне сервера**
-  (при умолчании 3.2 с до первого слова, при `high` ответа нет вовсе).
-- TTS: Kyutai 1.6B, `n_q=32`, голос `expresso/ex03-ex01_happy_001_channel1_334s.wav`.
-- ASR: parakeet-tdt-0.6b-v2 int8 **офлайновый** (потоковый не успевает за речью), потоков
-  `min(8, бюджет cgroup)` — `os.cpu_count()` врёт на арендованной машине.
-- Длина ответа ограничена `MAX_SPOKEN_CHARS = 140` в `agent/loop.py` (синтез говорит
-  13.5 символа/с, то есть это ≈10 с слушания; режем между предложениями).
-- Дословные фразы (заглушки, предупреждения) синтезируются при старте — `Synthesiser.prime`.
-- Вместе занимают ~15.8 из 16.4 ГБ — запас ~570 MiB, и он не с запасом.
-- `.env` читается `src/mechanic/config.py` → `load_env()`; окружение приоритетнее файла.
-- Репозиторий: `git@github.com:DanilAra7/voice-mechanic.git` (приватный). Код на инстанс —
-  через `git archive`, deploy key не нужен.
-- Контекст сессии: `autoCompactWindow` из `.claude/settings.local.json` удалён 2026-09-18,
-  руками его больше не трогаем; непрерывность держится на этих файлах.
-
-## Браузер (где остановились)
-
-Состояние не должно зависеть от того, жив ли Browser pane. Чтобы восстановиться:
-- Dev-серверы запускаются по имени из `.claude/launch.json` → `preview_start backend` (FastAPI на :8000, `--reload`).
-- В будущем приложение будет хранить сессию в URL (`?session=…`) + SQLite на сервере.
-
-| Когда | URL | Что делали / где остановились |
+| Gate | Baseline | Now |
 |---|---|---|
-| 2026-09-17 | http://localhost:8000/docs | Swagger backend-а: `POST /api/sim/{device}` запускает симулятор, `GET /api/sensors/{device}` — показания + DTC |
-| 2026-09-20 | http://localhost:8000/app/ | Гараж: сломали A4 (vacuum_leak, ×5), в панели поднялся STFT и вылез P0171. Голос не проверяли — нет GPU |
-| 2026-09-20 | http://127.0.0.1:8010/app/ (SSH-туннель на GPU) | Связка целиком: Гараж → пропуски зажигания ×20 → агент назвал катушку/свечу по датчикам. Туннель: `ssh -N -L 8010:127.0.0.1:8000 -p <порт> root@<хост>` |
+| Safety | 11/11, zero false answers in that category | **met by substance** |
+| Outright false answers | ≤5% | ~20% by the judge, ~11% by hand |
+| Strictly correct answers | ≥85% | 76.3% when last hand-read |
+| Tools | ≥90%, and zero "answered without looking" | **91.5%** |
+| Word error rate | ≤5% quiet, ≤10% in noise | **2.2% / 4.4%** |
+| Latency in the browser | p50 ≤1.0 s, p95 ≤1.5 s | p50 ~1.5 s, accepted by the user |
+| Answer length | median ≤8 s | **6.9 s** |
+| Thirty-minute session | zero failures | **not run** |
 
-## Vast.ai
+Deliberately **not** gated: search quality. Across eleven scenario failures, retrieval caused
+zero of them. A threshold on a non-binding constraint is a day spent making a number prettier
+while the product stays the same.
 
-| Когда | Инстанс | GPU | $/ч | Статус |
+## Where a driver would still be let down
+
+Written after the first run on live speech, and kept because a demo that hides these is worth
+less than one that names them.
+
+**Measured and short of the mark**
+
+- `forum` at 57%: one weak category out of nine.
+- "Content accuracy" by keyword is not diagnostic correctness. Reading seventy passing answers by
+  hand found eight outright false and four half-invented. The verdicts are in
+  `evals/content_gold.yaml`.
+- Two how-to answers now decline to give steps.
+- The vehicle boost in search is still unmeasured: only 6 of 294 target threads in the duplicate
+  set are tagged with one of our five cars.
+
+**Never tested**
+
+- A thirty-minute session, and long conversations against an 8k context.
+- Two drivers at once. One card, one conversation, contention unmeasured.
+- Voices other than the one the word error rate was measured on.
+- Cars outside the five.
+- The adapter dropping mid-sentence. There is "no data"; there is no "the data stopped halfway".
+- Hands-free end to end. Under a bonnet both hands are busy, so it is the only honest mode, and
+  it costs roughly 880 ms more than push-to-talk.
+
+**Closed since that list was written**: the public address, the access key, the disclaimer, the
+cold-start warm-up, noise measurement, and the safety scenarios.
+
+## Deliberately considered and deferred
+
+**Putting a sensor summary in the context, the way the car is.** It would remove a whole tool
+round from questions like "why is the temperature climbing". Deferred on purpose: the brief asks
+for an agent with tools and `read_live_data` is the most-used one, and the scenarios explicitly
+require it — changing the implementation and the measurement together to make the number go up
+is fitting the test. Worth revisiting when there is an independent measure of answer quality.
+
+**Calibrating the confirmation threshold on varied speech.** It is 0.9 s (0.35 from the detector
+plus 0.55) set from a single measured clip. Different speakers pause differently; somewhere this
+cuts a question short and somewhere it waits for nothing.
+
+## Browser state
+
+No state may depend on the browser pane being alive. Dev servers start by name from
+`.claude/launch.json` (`preview_start backend`, FastAPI on :8000).
+
+| When | URL | What was done |
+|---|---|---|
+| 2026-09-17 | /docs | the backend's Swagger: `POST /api/sim/{device}` starts a simulator, `GET /api/sensors/{device}` returns readings and codes |
+| 2026-09-20 | /app/ | Garage: broke an A4 with a vacuum leak at ×5, watched the short-term trim rise and P0171 appear |
+| 2026-09-20 | :8010/app/ over an SSH tunnel | the whole pipeline: injected a misfire, the agent named the coil or plug from the sensors alone |
+| 2026-09-21 | the public ngrok address | real conversations, latency recorded per turn |
+
+## Vast.ai instances
+
+| When | Instance | GPU | $/h | State |
 |---|---|---|---|---|
-| 2026-09-18 | 51427537 | RTX A4000 16 ГБ | 0.129 | УНИЧТОЖЕН (образ 22.04, llama.cpp не стартовал) |
-| 2026-09-18 | 51432831 | RTX A4000 16 ГБ | 0.151 | УНИЧТОЖЕН после дня 3 |
-| 2026-09-18 | 51469409 | RTX A4000 16 ГБ | 0.098 | УНИЧТОЖЕН: замер правок задержки |
-| 2026-09-19 | 51478762 | RTX A4000 16 ГБ | 0.096 | УНИЧТОЖЕН: первый рабочий сквозной прогон |
+| 2026-09-18 | 51427537 | RTX A4000 16 GB | 0.129 | destroyed — Ubuntu 22.04 image, llama.cpp would not start |
+| 2026-09-18 | 51432831 | RTX A4000 16 GB | 0.151 | destroyed after day 3 |
+| 2026-09-18 | 51469409 | RTX A4000 16 GB | 0.098 | destroyed — measuring latency changes |
+| 2026-09-19 | 51478762 | RTX A4000 16 GB | 0.096 | destroyed — first working end-to-end run |
+| 2026-09-20 | **51763823** | RTX A4000 16 GB | 0.120 | **stopped, everything installed** |
 
-> Перед завершением работы — проверить, что инстанс остановлен.
+> Before finishing a session, check the instance is stopped.
 
-## Что отделяет нас от «инструмента, которым реально пользуется водитель» (2026-09-20)
+### Money
 
-Список составлен после первого прогона на живой речи. Разделено по тому, что видно лиду на
-демо, и что вылезет у настоящего водителя.
+- **$3.86 of $5 spent**, $1.14 left. No card is attached, so overspending is impossible.
+- **95% of the bill was traffic, not GPU.** One session: downloads $0.844, GPU hours $0.037,
+  disk $0.006. Of 21.6 GB downloaded, 7 GB was Python and CUDA wheels.
+- A stopped instance costs $0.019/h for its disk. Reinstalling from scratch costs $0.85 on a host
+  charging $39/TB, so stopping pays for itself after 45 idle hours.
+- The dead-man switch is armed automatically by `gpu_up.sh` using the container's own key.
 
-### Блокирует показ лиду
+## Key parameters
 
-- [ ] **Деплой наружу не работает.** Cloudflare quick tunnel регистрируется, но запросы не
-      доходят (пробовали QUIC и http2). Нужен именованный туннель → аккаунт Cloudflare заводит
-      пользователь. Пока только SSH-туннель.
-- [ ] **Запас VRAM 577 МиБ.** Уже один раз дал `CUBLAS_STATUS_ALLOC_FAILED` посреди разговора.
-      Снять батч/контекст у llama-server и перемерить.
-- [ ] **Холодный старт.** Первая реплика после подъёма платит прогрев; на арендованной машине
-      это минуты. Нужен прогрев до того, как лид открыл вкладку.
-- [ ] **Клиентская задержка из Киева/Львова не набрана.** Панель её меряет, нужно 20–30 реплик.
+- Language model: gpt-oss-20b MXFP4, 8k context, `reasoning_effort: low` **set on the server**.
+- Voice: Kyutai 1.6B, `n_q=32`, sample `expresso/ex03-ex01_happy_001_channel1_334s.wav`.
+  Five calmer samples were measured and are waiting on the user's ear; see NOTES.
+- Recognition: parakeet-tdt-0.6b-v2 int8 **offline**, threads `min(8, cgroup budget)` —
+  `os.cpu_count()` lies inside a container.
+- Answer length capped by `MAX_SPOKEN_CHARS = 140` in `agent/loop.py`; synthesis speaks about
+  13.5 characters a second, and the cut lands between sentences.
+- Fixed phrases are synthesised at boot by `Synthesiser.prime`.
+- Everything resident peaks at about 15.8 of 16.4 GB.
+- `.env` is read by `src/mechanic/config.py`; the environment wins over the file.
+- Repository: `git@github.com:DanilAra7/voice-mechanic.git`. Code reaches the instance through
+  `git archive`, so no deploy key is needed.
 
-### Качество, измеренное и недотянутое
+## The plan, by day
 
-- [ ] **`forum` 28.6 %** — единственная категория, не поддавшаяся четырём правкам. Гипотеза:
-      слить `search_forum` и `search_owner_reports` в один тул с параметром.
-- [ ] **«Содержание 92.7 %» — это совпадение слов, а не верность диагноза.** Проверка ищет
-      ключевые фразы; «это НЕ пропуски зажигания» засчитается так же, как «это пропуски».
-      Нужна разметка «правильная причина / неправильная», хотя бы на 20 сценариях.
-- [ ] **Безопасность: 3 сценария из 11 всё ещё падают**, и всего 5 машин в наборе.
-- [ ] **Буст по машине в поиске не измерен** (в наборе дубликатов только 6 из 294 тредов
-      помечены нашими машинами).
-- [ ] **«fuel trims» → «field dreams».** Жаргон домена. Лечится hotwords, но у
-      `parakeet-tdt-0.6b-v2` нет `bpe.model` в комплекте.
-- [ ] **Длина ответа 14.6 с медиана.** Главное, что водитель чувствует как «долго».
+- [x] **Day 1** — repository skeleton, Torque simulator, choice of cars and forum, all three data builders
+- [x] **Day 2** — trouble-code database, tools, agent loop, scenarios and runner, search index
+- [x] **Day 3 (GPU)** — benchmarked four language models and five voices; chose gpt-oss-20b 8k + Kyutai
+- [x] **Day 4** — the WebSocket pipeline: VAD → ASR → model → voice, streaming and barge-in
+- [x] **Day 5** — the site: conversation, tool cards, latency panel, Garage, benchmark mode
+- [x] **Day 6 (GPU)** — latency work, prompt work, the 76-scenario suite, real voice recordings
+- [x] **Day 7** — hand-read accuracy, the LLM judge, grounding, safety rules, noise, the public address, README
 
-### Вылезет у настоящего водителя, пока не проверено вообще
+## Log
 
-- [ ] **Шум.** Все записи — тихая комната. В гараже работает двигатель, в машине — дорога.
-      Нужен прогон с наложенным шумом и замер WER при 10–20 дБ SNR.
-- [ ] **Один голос.** WER 3.3 % измерен на одном человеке. Нужны ещё два-три.
-- [ ] **Только 5 машин.** У водителя своя; сейчас ответ «эта машина не поддерживается».
-- [ ] **Hands-free ни разу не замерен сквозняком** — а под капотом руки заняты, и это
-      единственный честный режим. Он же дороже на ~900 мс.
-- [ ] **Длинный разговор.** Контекст 8k, сворачивания истории нет: на десятке реплик переполнится.
-- [ ] **Два водителя одновременно.** Одна карта, одна сессия; контеншн не замерен.
-- [ ] **Обрыв адаптера посреди реплики.** Есть «данных нет», нет «данные пропали на полуслове».
-- [ ] **Открытый URL = чужие люди на нашем GPU.** Нужен хотя бы простой ключ.
-- [ ] **Дисклеймер.** Агент ставит диагнозы; водителю должно быть ясно, что это не автосервис.
-
-## Бэклог качества (заведён 2026-09-18 по итогам бенчмарка дня 3)
-
-Выбор модели закрыт цифрами, но качество агента — нет. Здесь всё, что замеры вскрыли и что
-надо добить. Порядок примерно по важности.
-
-### Безопасность — блокирующее
-- [ ] **Запах топлива: провал у всех четырёх моделей.** Промпт требует сначала сказать «прекрати
-      ехать», модели вместо этого начинают диагностировать. Неправильный ответ здесь опаснее
-      отсутствия ответа. Вынести правило в начало промпта, потребовать фразу в ПЕРВОМ предложении
-      до любых тулов; проверить, что это не ломает остальные категории.
-- [ ] Сценариев безопасности всего 2 — на такой выборке 0% и 50% неотличимы. Довести до 8–10
-      (тормоза, руль, дым, запах, перегрев >110 °C, подушки, отказ света, потеря тяги на трассе).
-
-### Разделить ошибки поиска и ошибки генерации
-Сейчас мерим только сквозной результат, поэтому непонятно, ответ плох потому что поиск принёс
-мусор, или потому что модель не воспользовалась хорошей выдачей.
-- [ ] Отдельная метрика качества поиска: размеченный набор «запрос → релевантные пассажи»,
-      recall@5 и MRR отдельно для BM25, для плотных векторов и для их слияния. Без этого нельзя
-      настраивать `RRF_K` и `VEHICLE_BOOST` осмысленно.
-- [ ] В результатах evals сохранять, что именно вернул поиск на каждый вызов тула — тогда провал
-      можно отнести к retrieval или к generation, а не гадать.
-- [ ] Отдельно мерить: agent выбрал НЕ ТОТ тул vs выбрал верный, но с плохим запросом.
-
-### Расширить набор сценариев — БЛОКИРУЕТ дальнейшую настройку
-- [ ] 32 сценария дают разрешение в 3 п.п. общего счёта; категории по 2–4 сценария неотличимы
-      от шума. Довести до ~100, по 8–12 на категорию. Без этого любые правки промпта нельзя
-      оценить: правка how-to подняла свою категорию вдвое, а общий счёт не изменился.
-
-### Точность вызова инструментов (сейчас 78–91%, цель ≥90%)
-- [ ] `how_to` — слабейшая категория (25–50%): агент отвечает по памяти вместо `search_how_to`.
-- [ ] `owner_reports` (50%) — путается с `search_forum`; развести описания тулов чётче.
-- [ ] `live_data` (55–91%) — иногда отвечает про датчики, не прочитав их (Q3 в `overheat_now`
-      сказал верное по сути, но не посмотрел на 124 °C).
-
-### Качество ответа
-- [ ] Qwen3-30B Q2 однажды озвучил реплику водителя как свою («I smell gasoline...» в начале
-      собственного ответа) — гигиена вывода, проверить, не системное ли.
-- [ ] Проверки `expect_any` хрупкие: «you should not drive» не совпадало с литералом
-      «do not drive». Часть исправлена, но подход в целом надо пересмотреть — сверять смысл,
-      а не подстроки (возможно, вторая модель-судья на спорных случаях).
-
-### Задержка: упреждающая работа (идея пользователя, 2026-09-19) — САМЫЙ БОЛЬШОЙ ОСТАВШИЙСЯ ВЫИГРЫШ
-
-Начинать работать, пока водитель ещё говорит, вместо того чтобы ждать конца реплики.
-
-**Что делает это возможным:** наш офлайновый ASR идёт с RTF 0.027. Перераспознать растущий
-пятисекундный буфер стоит ~140 мс, то есть **промежуточные расшифровки можно получать каждые
-300 мс, не добавляя ни одной новой модели** — просто перезапуская тот же распознаватель на
-том, что уже наговорено. Потоковая модель, не прошедшая по скорости, для этого не нужна.
-
-- [ ] **Шаг 1: промежуточные расшифровки.** Перезапускать распознаватель по растущему буферу,
-      отдавать текст в интерфейс по ходу речи (это ещё и заметно оживляет демо).
-- [ ] **Шаг 2: спекулятивная генерация.** Запускать модель на промежуточном тексте и отменять,
-      если водитель продолжил. Ожидание конца реплики перекрывается работой, а не складывается
-      с ней. Частично уже реализовано как «работать рано, говорить по подтверждению»
-      (`CONFIRM_EXTRA_S`), но старт пока привязан к концу фразы, а не к её середине.
-
-**Чего делать НЕЛЬЗЯ (возражение пользователя, и оно верное):** определять конец реплики,
-спрашивая модель «это законченное предложение?». «I am getting a code P0171» — законченное
-предложение и незаконченный вопрос; модель уверенно ответит «да» и ошибётся. Отличает их
-интонация, которой в тексте нет. Поэтому ставка на «работать рано, говорить по подтверждению»:
-ошибка в сторону «рано» тогда ничего не стоит — водитель просто ничего не услышал.
-
-### Задержка
-- [x] ~~Нестабильность прогона~~ — была в тестовом клиенте (отправка и приём в одной корутине).
-      После разделения p95 упал 1878 → 1442 мс. Сейчас 6/6 реплик, p50 1393, p95 1888.
-- [ ] **Калибровать порог подтверждения на разнообразной речи.** Сейчас 0.9 с (0.35 детектор +
-      0.55 сверху) выставлены по ОДНОМУ замеренному клипу. Нужен набор записей с разными
-      темпами и паузами: где-то это режет вопрос, где-то зря тормозит. Пока держим 0.9 с.
-- [ ] **Рассмотренное и отложенное: класть сводку датчиков в контекст, как машину.** Убрало бы
-      целый раунд тулов на вопросах вида «почему растёт температура». Отложено сознательно:
-      (1) ТЗ требует именно агента с тулами, а `read_live_data` — самый частый из них;
-      (2) сценарии evals прямо требуют `expect_tools: [read_live_data]`, и менять реализацию
-      вместе с измерением, чтобы цифры стали лучше, — подгонка. Вернуться, когда будет отдельная
-      метрика качества поиска и можно будет честно сравнить два варианта.
-- [ ] Первый поисковый запрос стоит **~800 мс** — разовая загрузка модели-эмбеддера.
-      Прогревать при старте сервера.
-- [ ] После правки «машина в префиксе» первая фраза замедлилась у всех (агент перестал
-      отделываться вопросом и пошёл в поиск) — смотреть, что можно вернуть параллелизмом:
-      начинать говорить вводную фразу одновременно с поиском.
-
-## План по дням
-
-- [x] **День 1 (Mac)** — каркас репо; симулятор Torque; выбор машин и форума; все три парсера данных
-- [x] **День 2 (Mac)** — база DTC, тулы, агентский цикл, 32 сценария + раннер, индекс (dense посчитан на GPU 2026-09-18)
-- [x] **День 3 (GPU)** — бенчмарк LLM (4 варианта) и TTS; связка выбрана: gpt-oss-20b 8k + Kyutai TTS, 15 875/16 376 MiB, 655 мс до первого звука
-- [x] **День 4** — конвейер по WebSocket: VAD → ASR (CPU) → LLM → TTS, стриминг, перебивание. Pipecat отвергнут (см. DECISIONS). Сквозной замер: первый звук p50 1377 мс, p95 1878 мс
-- [~] **День 5** — фронт: разговор, карточки тулов и панель задержки ГОТОВЫ (`web/`), benchmark-режим готов (`scripts/bench_voice.py`). Осталось: Гараж (выбор машины и инъекция неисправностей в интерфейсе)
-- [ ] **День 6 (GPU)** — оптимизация задержки, промпт, прогон сценариев
-- [ ] **День 7 (Mac)** — деплой (Cloudflare Pages + Tunnel), `deploy.sh`, README, демо-видео
-
-## Лог
-
-- **2026-09-17** — выбрана тема, стек, план (см. DECISIONS.md). Созданы файлы памяти проекта.
-- **2026-09-17** — день 1: выбраны машины и форум по замерам данных; симулятор Torque работает end-to-end; SE-дамп обработан; запущен скрапинг сайтов. Коммит `6f4370f`.
-- **2026-09-17** — день 2: DTC-база, поиск, тулы, агентский цикл, eval-харнесс.
-- **2026-09-18** — конфиг через `.env` (`load_env()`), ключ Vast вписан пользователем. Начат день 3.
-- **2026-09-18** — день 3: сделано на инстансе — llama.cpp b11037 (CUDA 12.8) видит A4000 (15976 MiB), запущен расчёт dense-индекса на 13 ядрах, качаются 3 GGUF (40.7 ГБ). Арендован инстанс. Первый оффер (RTX 4060 Ti, id 50694756) создался в состоянии `stopped` — «Required resources are currently unavailable», машину перехватили; контракт уничтожен, пересоздано с `--cancel-unavail`. Взят A4000 ($0.108/ч базовых): 448 ГБ/с против 288 у 4060 Ti — для скорости генерации токенов важнее, плюс сеть 7 Гбит/с. Внимание: в оффере `cpu_cores=56` — это ядра ХОСТА, на нашу долю приходится `cpu_cores_effective=7`. Это ниже «8+ ядер» из GPU.md → dense-индекс считать дольше, возможно стоит попробовать GPU-вариант fastembed.
+- **2026-09-17** — subject, stack and plan chosen. Day 1: cars and forum picked by measuring how much data exists for each; the Torque simulator works end to end; the Stack Exchange dump is processed. Day 2: trouble-code database, search, tools, agent loop, evaluation harness.
+- **2026-09-18** — day 3 on a rented box. llama.cpp b11037 sees the A4000. The first offer was taken while we were creating it and silently produced a stopped instance; recreated with `--cancel-unavail`. An A4000 was chosen over a 4060 Ti for memory bandwidth (448 against 288 GB/s). Noted that `cpu_cores` in an offer is the host's, not ours.
+- **2026-09-19** — first working end-to-end spoken run.
+- **2026-09-20** — the Garage; fixed phrases primed at boot; answer length capped; ASR threads from the cgroup budget; 15 real voice recordings made and the whole pipeline measured on them; two real safety holes found and closed.
+- **2026-09-21** — all seventy passing answers read by hand against the injected fault; the LLM judge and the pooled retrieval judge written; grounding moved to where the passages arrive; trend direction made band-relative; safety rules made deterministic; noise measurement; the public address, the access key and the disclaimer; the vocabulary repair; a dropped-connection bug that looked like a flaky tunnel and was an `AttributeError`.
+- **2026-09-22** — README and documentation written in English for a reader who knows nothing about the project.

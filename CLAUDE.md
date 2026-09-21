@@ -1,25 +1,32 @@
-# SoftTest — голосовой агент «автомеханик»
+# SoftTest — the "car mechanic" voice agent
 
-Тестовое задание: голосовой AI-агент на открытых моделях (без LLM API), английский язык, весь стек ≤16 ГБ VRAM, минимальная задержка, сдаём браузерный сайт с замером латентности. Дедлайн: **2026-09-24**.
+A job-test assignment: a voice AI agent on open models (no LLM APIs), English, the whole stack
+within 16 GB of VRAM, minimal latency. The deliverable is a browser site where latency can be
+measured. Deadline: **2026-09-24**.
 
-## Память проекта (читать ПЕРВЫМ делом в новой сессии и после компакта)
+## Project memory (read FIRST in a new session and after a compaction)
 
-| Файл | Что там | Когда обновлять |
+| File | What is in it | When to update |
 |---|---|---|
-| [docs/PROJECT.md](docs/PROJECT.md) | ТЗ, ограничения, архитектура, стек, тулы | Когда меняется архитектура/стек |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Журнал решений: что выбрали, почему, что отвергли | Сразу после любого принятого решения |
-| [docs/PROGRESS.md](docs/PROGRESS.md) | План по дням, чеклист, **текущее состояние и следующий шаг**, где остановились в браузере | В конце каждого логического шага и перед долгими операциями |
-| [docs/NOTES.md](docs/NOTES.md) | Команды, окружение, грабли, цифры бенчмарков, материал для README | Как только узнали что-то неочевидное |
+| [docs/PROJECT.md](docs/PROJECT.md) | the brief, constraints, architecture, stack, tools | when the architecture or stack changes |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | every decision: what was chosen, why, what was rejected | immediately after any decision |
+| [docs/PROGRESS.md](docs/PROGRESS.md) | the plan by day, the checklist, **the current state and next step** | at the end of every logical step and before anything long-running |
+| [docs/NOTES.md](docs/NOTES.md) | commands, environment, traps, benchmark figures, material for the README | as soon as something non-obvious is learned |
 
-Правила ведения:
-- Факты и цифры — только проверенные (замеры, реальные выводы команд). Непроверенное помечать `(?)`.
-- Даты — абсолютные (YYYY-MM-DD).
-- `PROGRESS.md` → раздел «Сейчас» всегда должен позволять продолжить работу без истории чата.
-- Эти файлы — источник для итогового README; README пишется из них.
+Rules for keeping them:
 
-## Рабочие договорённости
+- Facts and figures only when measured. Anything unverified is marked `(?)`.
+- Absolute dates (YYYY-MM-DD).
+- The "Now" section of `PROGRESS.md` must always be enough to continue without the chat history.
+- These files are the source for the README; the README is written from them.
 
-- Общение с пользователем — на русском. Код, комментарии, README — на английском (?) — уточнить перед README.
-- Бюджет минимальный: разработка локально (MacBook Air M4, 16 ГБ), GPU арендуется почасово на **Vast.ai** только когда нужно. Всегда напоминать выключать инстанс.
-- Пользователь хочет работать через встроенный Browser pane; состояние не должно зависеть от живости браузера (см. PROGRESS.md → «Браузер»).
-- Не вводить пароли/платёжные данные и не создавать аккаунты за пользователя.
+## Working agreements
+
+- **Talk to the user in Russian.** Code, comments, documentation and the README are in English —
+  the whole repository is English, with no exceptions.
+- The budget is minimal: development happens locally on a MacBook Air M4 (16 GB); the GPU is
+  rented by the hour on **Vast.ai** only when it is needed. **Always remind the user to shut the
+  instance down.**
+- The user works through the built-in browser pane; no state may depend on a browser being alive
+  (see PROGRESS.md → "Browser").
+- Do not enter passwords or payment details, and do not create accounts on the user's behalf.

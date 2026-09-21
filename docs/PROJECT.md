@@ -1,72 +1,86 @@
-# Проект: голосовой агент «автомеханик»
+# Project: the voice mechanic
 
-## ТЗ (от лида)
+## The brief, as given
 
-- Голосовой агент на **открытой модели** (никаких LLM API).
-- Запуск на сервере с ограничением GPU. Внутреннее ограничение проекта: **весь стек ≤ 16 ГБ VRAM**.
-- **Минимизировать задержку.**
-- Именно **агент с несколькими тулами**, не «таск-трекер».
-- Только **английский** язык.
-- Модель — **максимально умная**, что влезает (квантизация допустима).
-- Сдаём: **сайт**, где пользователь говорит с агентом и **сам может замерить латентность**.
-- Дедлайн: **2026-09-24** (неделя с 2026-09-17).
+- A voice agent on an **open model**. No LLM APIs.
+- Runs on a server with a GPU limit. The project's own constraint: **the whole stack ≤ 16 GB of
+  VRAM**.
+- **Minimise latency.**
+- A genuine **agent with several tools**, not a task tracker with a voice.
+- **English** only.
+- The **smartest model that fits**. Quantisation is allowed.
+- The deliverable is a **website** where a person talks to the agent and **measures the latency
+  themselves**.
+- Deadline: **2026-09-24** (one week from 2026-09-17).
 
-## Ограничения и вводные
+## Constraints we started with
 
-- Сервера нет → Vast.ai почасово (рекомендация лида), карта ровно 16 ГБ (физически гарантирует лимит).
-- Локальная машина: MacBook Air M4, 16 ГБ unified memory, macOS 26.6. Есть `uv`, `node 24`, `git`. Нет `brew`, `docker`, `ollama`.
-- Реальная машина пользователя: **Audi A4** (есть Android + Torque Pro + OBD-адаптер), но в демо используем **только симулятор**.
-- Лид пользователю лично незнаком → всё должно работать «из коробки» и быть понятно без объяснений.
+- No server of our own, so Vast.ai by the hour. A card with exactly 16 GB, which enforces the
+  budget physically rather than by good intentions.
+- Development machine: MacBook Air M4, 16 GB unified memory, macOS 26.6. Has `uv`, `node 24`,
+  `git`. No `brew`, no `docker`, no `ollama`.
+- The user's real car is an **Audi A4** with an Android phone, Torque Pro and an OBD adapter, but
+  the demo uses the **simulator only** — a demo that needs a particular car in a particular
+  driveway is not a demo.
+- The person judging the work has never seen the project. Everything has to make sense without a
+  guided tour.
 
-## Архитектура (черновик)
+## Architecture, as built
 
 ```
-Браузер (статический фронт: Cloudflare Pages / GitHub Pages)
-  ├─ микрофон → WebSocket (аудио + события/метрики)
-  ├─ панель разговора, карточки tool-calls
-  ├─ Garage: выбор авто, инъекция неисправностей, графики датчиков
-  └─ Latency: client-side VAD → первый звук ответа; разбивка по этапам; benchmark-режим (WAV-фразы), p50/p95; RTT; VRAM
-        │ Cloudflare Tunnel (HTTPS, без домена)
-        ▼
-Vast.ai инстанс (16 ГБ GPU)
-  Pipecat pipeline: Silero VAD → Smart-Turn → ASR (Parakeet, CPU) → LLM → TTS (GPU)
-  LLM-сервер: vLLM или llama.cpp (решится бенчмарком)
-  Tools API + симулятор Torque + локальный поисковый индекс
+Browser ── microphone ──► WebSocket ──► Silero VAD ──► Parakeet ASR (CPU)
+                                                            │
+                                                            ▼
+                                            safety rules (regex, no model)
+                                                            │
+                                                            ▼
+    speaker ◄── audio frames ◄── Kyutai TTS ◄── gpt-oss-20b + 8 tools ──► SQLite sensors
+                                   (GPU)              (GPU)              hybrid search index
 ```
 
-## Компоненты и кандидаты
+The browser is served by the same FastAPI process as the API, because a browser hands over a
+microphone only on a secure origin and one origin is one fewer thing to get wrong.
 
-| Компонент | Кандидаты | Статус |
+Everything resident peaks at **15,819 MiB of 16,376**.
+
+The original draft had Pipecat for orchestration and a Cloudflare Tunnel for the public address.
+Both were dropped after measurement; see DECISIONS.md for why, and NOTES.md for what the
+Cloudflare tunnel actually did on this host.
+
+## Components, and what they became
+
+| Part | Candidates considered | Chosen |
 |---|---|---|
-| LLM | gpt-oss-20b (MXFP4) · Qwen3-30B-A3B-Instruct-2507 (~Q3 или Q4 + `--n-cpu-moe`) · Qwen3-14B AWQ | бенчмарк, день 3 |
-| TTS (цель — качество ~ElevenLabs) | Chatterbox / Chatterbox Turbo · Kyutai TTS 1.6B · Orpheus 3B (квант.) · VibeVoice-Realtime-0.5B · Qwen3-TTS (?) | A/B + TTFA, день 3 |
-| ASR | Parakeet TDT 0.6B через sherpa-onnx на CPU | план |
-| VAD / turn | Silero VAD, Pipecat Smart-Turn | план |
-| Оркестрация | Pipecat, транспорт WebSocket (Cloudflare Tunnel не пропускает UDP → не WebRTC) | план |
-| Поиск | гибрид BM25 + эмбеддинги (CPU), фильтр по make/model/year | план |
-| Локальная LLM для разработки | Qwen3-8B / 4B Q4 (MLX или llama.cpp) — gpt-oss-20b на 16 ГБ Mac слишком тесно | план |
+| Language model | gpt-oss-20b MXFP4 · Qwen3-30B-A3B · Qwen3-14B AWQ | **gpt-oss-20b**, the only one a streaming voice fits beside |
+| Speech synthesis | Chatterbox · Kyutai TTS 1.6B · Orpheus 3B · VibeVoice-Realtime | **Kyutai**, the only one that streams |
+| Speech recognition | Parakeet TDT 0.6B via sherpa-onnx on the CPU | **as planned**, offline rather than streaming |
+| Turn detection | Silero VAD, Pipecat Smart-Turn | **Silero + push-to-talk** |
+| Orchestration | Pipecat, or our own | **our own**, over WebSocket |
+| Search | BM25 + embeddings on the CPU, filtered by car | **as planned**, fused with RRF |
 
-## Тулы агента
+## The agent's tools
 
-| Тул | Источник данных |
+| Tool | Where its data comes from |
 |---|---|
-| `vehicle_profile` (get/set) | состояние сессии: make, model, year, mileage |
-| `get_live_sensors` / `get_sensor_trend` | симулятор в формате Torque web-upload → SQLite |
-| `lookup_dtc` | локальная база OBD-II кодов (открытый датасет, проверить лицензию) |
-| `search_howto` | спарсенный carcarekiosk.com |
-| `search_known_issues` | спарсенный startmycar.com |
-| `search_forum` | **mechanics.stackexchange.com** из дампа (21k Q&A-тредов) |
+| `get_vehicle` / `set_vehicle` | session state |
+| `read_live_data` / `get_sensor_trend` | the simulator, speaking the Torque web-upload protocol into SQLite |
+| `lookup_dtc` | a local OBD-II code database |
+| `search_how_to` | carcarekiosk.com |
+| `search_owner_reports` | startmycar.com |
+| `search_forum` | the Motor Vehicle Maintenance & Repair Stack Exchange dump |
 
-Во время медленных тулов агент говорит фразу-заглушку («Let me check…»). Системный промпт содержит safety-оговорку (тормоза, рулевое, запах топлива → не ехать, в сервис).
+While a slow tool runs the agent says a fixed filler line ("Let me check that"), synthesised at
+boot so it costs nothing. Safety rules run in code before the model sees the question.
 
-## Автомобили для MVP (5 шт.)
+## The five cars
 
-| id | Машина | Двигатель |
+| id | Car | Engine |
 |---|---|---|
-| `audi_a4_b8` | Audi A4 B8, 2009–2016 (машина пользователя) | 2.0 TFSI I4 turbo |
+| `audi_a4_b8` | Audi A4 B8, 2009–2016 (the user's own car) | 2.0 TFSI I4 turbo |
 | `honda_accord_9` | Honda Accord 9th gen, 2013–2017 | 2.4 I4 |
 | `ford_f150_13` | Ford F-150 13th gen, 2015–2020 | 2.7 EcoBoost V6 |
 | `honda_civic_10` | Honda Civic 10th gen, 2016–2021 | 2.0 I4 |
 | `toyota_corolla_11` | Toyota Corolla 11th gen, 2014–2019 | 1.8 I4 |
 
-Выбраны по объёму данных (см. DECISIONS.md, NOTES.md → «Источники данных»).
+Chosen by how much real data exists for each, not by preference. See DECISIONS.md and the data
+sources table in NOTES.md.

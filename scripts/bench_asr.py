@@ -160,10 +160,10 @@ def measure_turn_delay(clips, silences: list[float]) -> dict:
                 if fed > slept:
                     time.sleep(fed - slept)
             if utterance is None:
-                print(f"    {name}: конец фразы не распознан за 3 с")
+                print(f"    {name}: end of speech not detected within 3 s")
                 continue
             if early:
-                print(f"    {name}: фраза закрылась ещё во время речи — замер по ней неверен")
+                print(f"    {name}: the utterance closed while speech was still going - this measurement is invalid")
             detected_ms = (time.monotonic() - end_of_speech) * 1000
             text = rec.transcribe(utterance.audio).text
             rows.append(
@@ -181,8 +181,8 @@ def measure_turn_delay(clips, silences: list[float]) -> dict:
         }
         d = out[f"min_silence_{min_silence}s"]
         print(
-            f"  тишина {min_silence:.2f}s -> конец речи распознан за {d['detect_ms_p50']} ms, "
-            f"текст готов через {d['total_ms_p50']} ms"
+            f"  silence {min_silence:.2f}s -> end of speech detected in {d['detect_ms_p50']} ms, "
+            f"text ready after {d['total_ms_p50']} ms"
         )
     return out
 
@@ -201,7 +201,7 @@ def main() -> None:
 
     models = Path(args.models)
     if args.turn_only:
-        print("=== от конца речи до готового текста (VAD + ASR)")
+        print("=== from the end of speech to finished text (VAD + ASR)")
         measure_turn_delay(clips, [0.15, 0.2, 0.35, 0.5])
         return
     streaming_dir = "sherpa-onnx-nemo-parakeet-unified-en-0.6b-int8-streaming-240ms"
@@ -229,14 +229,14 @@ def main() -> None:
         }
         print(f"=== {name}")
         print(
-            f"    после конца речи: p50 {summary[name]['tail_ms_p50']} ms, max {max(tails)} ms · "
+            f"    after speech ends: p50 {summary[name]['tail_ms_p50']} ms, max {max(tails)} ms - "
             f"rtf med {summary[name]['rtf_median']}"
         )
         for r in rows[:2]:
             print(f'    "{r["text"]}"')
         print()
 
-    print("=== от конца речи до готового текста (VAD + ASR)")
+    print("=== from the end of speech to finished text (VAD + ASR)")
     turn = measure_turn_delay(clips, [0.2, 0.35, 0.5])
     print()
 

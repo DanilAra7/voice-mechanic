@@ -149,7 +149,7 @@ async def main_async(args) -> None:
             row["spoken_s"] = round(row["audio_bytes"] / (ready["audio_rate"] * 2), 1)
             rows.append(row)
             if err := row.get("error"):
-                print(f"{path.name}: ОШИБКА {err}")
+                print(f"{path.name}: ERROR {err}")
                 continue
             s = row.get("server", {})
             print(f'{path.name}: heard "{row.get("transcript", "")[:56]}"')
