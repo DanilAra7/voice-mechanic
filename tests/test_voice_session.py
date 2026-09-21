@@ -349,3 +349,12 @@ async def test_a_held_button_keeps_the_answer_back():
     await session.end_of_speech()
     assert session._confirmed.is_set()
     await asyncio.gather(session._turn, return_exceptions=True)
+
+
+def test_latency_can_be_asked_for_before_a_turn_has_finished():
+    """The browser reports what it waited the moment it hears the first sound, which is before
+    the turn is over. Without this attribute existing from the start, the socket handler raised
+    AttributeError and the connection dropped after the first exchange - a failure that looked
+    like the network and was not."""
+    session, _, _ = build()
+    assert session.last_timings is None

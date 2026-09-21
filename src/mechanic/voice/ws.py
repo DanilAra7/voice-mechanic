@@ -213,7 +213,7 @@ def build_router(store: TorqueStore, models: SharedModels) -> APIRouter:
                         # What the listener waited, measured on their clock and kept on ours.
                         # Every other latency number on this project is the server timing itself,
                         # which cannot see the network, the tunnel or the browser's audio stack.
-                        record_client_latency(command, session_id=device, server=session.last_timings)
+                        record_client_latency(command, session_id=device, server=getattr(session, "last_timings", None))
                     case "ping":
                         # Echoed straight back so the browser can price the network on its own
                         # clock; the latency panel shows it beside the time the server spent.

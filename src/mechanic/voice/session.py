@@ -90,6 +90,11 @@ class VoiceSession:
         self._turn: asyncio.Task | None = None
         # The timings of the turn being spoken right now, so the tool-call callback can add to them.
         self._timings: TurnTimings | None = None
+        # Initialised here, not only assigned at the end of a turn: the browser reports its own
+        # latency as soon as it hears the first sound, which is before any turn has finished.
+        # Missing it raised AttributeError inside the socket handler and dropped the connection
+        # after the first exchange - the failure looked like a network problem and was not.
+        self.last_timings: TurnTimings | None = None
         self._confirmed = asyncio.Event()
         self._confirm_timer: asyncio.Task | None = None
         self._continued = False
