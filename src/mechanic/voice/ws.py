@@ -18,6 +18,8 @@ does not carry UDP.
 import json
 import logging
 import os
+from datetime import UTC, datetime
+from pathlib import Path
 
 import numpy as np
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -44,6 +46,62 @@ def pcm_to_float(payload: bytes) -> np.ndarray:
 
 def float_to_pcm(audio: np.ndarray) -> bytes:
     return (np.clip(audio, -1.0, 1.0) * INT16_SCALE).astype("<i2").tobytes()
+
+
+# One JSON line per turn. A file rather than the database because it outlives the process, is
+# readable with tail, and nothing about it needs a schema migration at eleven at night.
+LATENCY_LOG = Path(os.environ.get("MECHANIC_LATENCY_LOG") or "data/cache/client_latency.jsonl")
+
+
+def record_client_latency(command: dict, session_id: str) -> None:
+    try:
+        client_ms = float(command.get("client_ms"))
+    except (TypeError, ValueError):
+        return
+    if not 0 < client_ms < 120_000:  # a clock that jumped is not a measurement
+        return
+    row = {
+        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "device": session_id,
+        "client_ms": round(client_ms),
+        "rtt_ms": command.get("rtt_ms"),
+        "hands_free": bool(command.get("hands_free")),
+    }
+    try:
+        LATENCY_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with LATENCY_LOG.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
+    except OSError as e:  # a full disk must not end the conversation
+        log.warning("could not record client latency: %s", e)
+
+
+def latency_summary() -> dict:
+    """p50 and p95 over every turn anyone has ever waited through, on this machine."""
+    if not LATENCY_LOG.exists():
+        return {"turns": 0}
+    rows = []
+    for line in LATENCY_LOG.read_text(encoding="utf-8").splitlines():
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    waits = sorted(r["client_ms"] for r in rows if isinstance(r.get("client_ms"), int | float))
+    if not waits:
+        return {"turns": 0}
+    rtts = sorted(r["rtt_ms"] for r in rows if isinstance(r.get("rtt_ms"), int | float))
+
+    def q(xs: list, p: float) -> int:
+        return round(xs[min(len(xs) - 1, int(len(xs) * p))])
+
+    return {
+        "turns": len(waits),
+        "client_p50_ms": q(waits, 0.5),
+        "client_p95_ms": q(waits, 0.95),
+        "client_min_ms": waits[0],
+        "client_max_ms": waits[-1],
+        "rtt_p50_ms": q(rtts, 0.5) if rtts else None,
+        "hands_free_turns": sum(1 for r in rows if r.get("hands_free")),
+    }
 
 
 class SharedModels:
@@ -126,6 +184,11 @@ def build_router(store: TorqueStore, models: SharedModels) -> APIRouter:
                     case "end_of_speech":
                         # Push-to-talk button released: the turn is over because they said so.
                         await session.end_of_speech()
+                    case "client_latency":
+                        # What the listener waited, measured on their clock and kept on ours.
+                        # Every other latency number on this project is the server timing itself,
+                        # which cannot see the network, the tunnel or the browser's audio stack.
+                        record_client_latency(command, session_id=device)
                     case "ping":
                         # Echoed straight back so the browser can price the network on its own
                         # clock; the latency panel shows it beside the time the server spent.

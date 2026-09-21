@@ -22,7 +22,7 @@ from mechanic.torque.receiver import build_router
 from mechanic.torque.simulator import DRIVE_MODES, FAULTS, TorqueSimulator, VehicleModel
 from mechanic.torque.store import TorqueStore
 from mechanic.vehicles import VEHICLES, get_vehicle
-from mechanic.voice.ws import SharedModels
+from mechanic.voice.ws import SharedModels, latency_summary
 from mechanic.voice.ws import build_router as build_voice_router
 
 load_env()
@@ -210,6 +210,12 @@ async def health() -> dict:
         "seconds_since_activity": round(time.time() - _last_activity, 1),
         "simulators": len(simulators.sims),
     }
+
+
+@app.get("/api/latency")
+def latency() -> dict:
+    """Every wait anyone has sat through on this machine, so nobody has to remember numbers."""
+    return latency_summary()
 
 
 @app.get("/api/catalog")

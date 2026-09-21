@@ -63,6 +63,21 @@ function renderLatency() {
 
 /** Round trip to the server on the browser's own clock, so the network has a number of its own
  *  rather than being whatever is left over. */
+// One line per turn, appended server-side: what this listener actually waited for sound, with
+// the network round trip beside it so a slow answer can be told from a slow connection.
+function report(clientMs) {
+  const sorted = [...state.rtts].sort((a, b) => a - b);
+  const rtt = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
+  try {
+    state.ws.send(JSON.stringify({
+      type: "client_latency",
+      client_ms: Math.round(clientMs),
+      rtt_ms: rtt === null ? null : Math.round(rtt),
+      hands_free: state.handsFree,
+    }));
+  } catch { /* a closed socket must never cost the listener their answer */ }
+}
+
 function ping() {
   if (state.ws?.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type: "ping", t: performance.now() }));
 }
@@ -112,6 +127,10 @@ async function connect() {
       if (state.askedAt !== null && state.turn && state.turn.client_ms === undefined) {
         state.turn.client_ms = performance.now() - state.askedAt;
         state.askedAt = null;
+        // Sent back so nobody has to read a number off a panel and remember it. The panel shows
+        // this session; the server keeps every session, which is the only way a figure survives
+        // the tab being closed.
+        report(state.turn.client_ms);
       }
       return playPcm(ev.data);
     }
