@@ -45,3 +45,23 @@ def test_latency_is_kept_rather_than_remembered(tmp_path, monkeypatch):
     assert out["client_p50_ms"] == 1100
     assert out["client_min_ms"] == 700 and out["client_max_ms"] == 2500
     assert out["rtt_p50_ms"] == 250
+
+
+def test_the_browsers_number_is_filed_with_the_servers_stages(tmp_path, monkeypatch):
+    """A single figure says the wait was long, not which part of it was."""
+    import mechanic.voice.ws as ws
+    from mechanic.voice.session import TurnTimings
+
+    monkeypatch.setattr(ws, "LATENCY_LOG", tmp_path / "lat.jsonl")
+    stages = TurnTimings(asr_ms=300.4, first_sentence_ms=800.2, first_audio_ms=860.0, total_ms=4000.0)
+    stages.tools = ["read_live_data"]
+    for waited in (1500, 1600, 1700):
+        ws.record_client_latency({"client_ms": waited, "rtt_ms": 60}, session_id="demo", server=stages)
+
+    out = ws.latency_summary()
+    assert out["recognition_ms"] == 300
+    assert out["model_ms"] == 500
+    assert out["synthesis_ms"] == 60
+    assert out["server_total_ms"] == 860
+    # The remainder is named, not left for somebody to subtract and guess at.
+    assert out["network_and_browser_ms"] == out["client_p50_ms"] - 860

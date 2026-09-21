@@ -260,6 +260,7 @@ class VoiceSession:
         if self._confirm_timer:
             self._confirm_timer.cancel()
         timings.total_ms = (time.monotonic() - zero) * 1000
+        self.last_timings = timings
         await self._emit("turn_end", {k: v for k, v in asdict(timings).items() if v is not None})
         return timings
 

@@ -53,7 +53,7 @@ def float_to_pcm(audio: np.ndarray) -> bytes:
 LATENCY_LOG = Path(os.environ.get("MECHANIC_LATENCY_LOG") or "data/cache/client_latency.jsonl")
 
 
-def record_client_latency(command: dict, session_id: str) -> None:
+def record_client_latency(command: dict, session_id: str, server: object | None = None) -> None:
     try:
         client_ms = float(command.get("client_ms"))
     except (TypeError, ValueError):
@@ -67,6 +67,14 @@ def record_client_latency(command: dict, session_id: str) -> None:
         "rtt_ms": command.get("rtt_ms"),
         "hands_free": bool(command.get("hands_free")),
     }
+    # The server's own stages for the same turn. Without them the browser's number is a single
+    # figure nobody can act on: it says the wait was long, not which part of it was.
+    for stage in ("asr_ms", "first_sentence_ms", "first_audio_ms", "total_ms", "tool_ms"):
+        value = getattr(server, stage, None)
+        if isinstance(value, int | float):
+            row[stage] = round(value)
+    if tools := getattr(server, "tools", None):
+        row["tools"] = list(tools)
     try:
         LATENCY_LOG.parent.mkdir(parents=True, exist_ok=True)
         with LATENCY_LOG.open("a", encoding="utf-8") as f:
@@ -93,8 +101,25 @@ def latency_summary() -> dict:
     def q(xs: list, p: float) -> int:
         return round(xs[min(len(xs) - 1, int(len(xs) * p))])
 
+    def med(key: str) -> int | None:
+        xs = sorted(r[key] for r in rows if isinstance(r.get(key), int | float))
+        return round(xs[len(xs) // 2]) if xs else None
+
+    asr, sentence, audio = med("asr_ms"), med("first_sentence_ms"), med("first_audio_ms")
+    stages = {}
+    if asr and sentence and audio:
+        stages = {
+            "recognition_ms": asr,
+            "model_ms": sentence - asr,
+            "synthesis_ms": audio - sentence,
+            "server_total_ms": audio,
+            # What the browser waited beyond anything the server did: the network each way plus
+            # the audio pipeline in the tab. Named rather than left as an unexplained remainder.
+            "network_and_browser_ms": q(waits, 0.5) - audio,
+        }
     return {
         "turns": len(waits),
+        **stages,
         "client_p50_ms": q(waits, 0.5),
         "client_p95_ms": q(waits, 0.95),
         "client_min_ms": waits[0],
@@ -188,7 +213,7 @@ def build_router(store: TorqueStore, models: SharedModels) -> APIRouter:
                         # What the listener waited, measured on their clock and kept on ours.
                         # Every other latency number on this project is the server timing itself,
                         # which cannot see the network, the tunnel or the browser's audio stack.
-                        record_client_latency(command, session_id=device)
+                        record_client_latency(command, session_id=device, server=session.last_timings)
                     case "ping":
                         # Echoed straight back so the browser can price the network on its own
                         # clock; the latency panel shows it beside the time the server spent.
