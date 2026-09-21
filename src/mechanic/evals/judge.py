@@ -161,8 +161,12 @@ async def main_async(args) -> None:
         "correct_or_weak_pct": round((counts["correct"] + counts["weak"]) / scored * 100, 1) if scored else 0.0,
         "verdicts": judged,
     }
-    if GOLD_PATH.exists():
-        gold = {g["id"]: g["verdict"] for g in yaml.safe_load(GOLD_PATH.read_text())}
+    gold_source = ""
+    for line in GOLD_PATH.read_text().splitlines() if GOLD_PATH.exists() else []:
+        if line.startswith("# source_run:"):
+            gold_source = line.split(":", 1)[1].strip()
+    if GOLD_PATH.exists() and gold_source and Path(args.results).name == gold_source:
+        gold = {g["id"]: g["verdict"] for g in yaml.safe_load(GOLD_PATH.read_text()) if "verdict" in g}
         report["vs_hand_read"] = agreement(judged, gold)
         report["disagreements"] = [
             {"id": j["id"], "judge": j["verdict"], "hand": gold[j["id"]], "why": j["why"]}
@@ -178,6 +182,8 @@ async def main_async(args) -> None:
         f"  correct {counts['correct']}  weak {counts['weak']}  wrong {counts['wrong']}  unparsed {counts['unparsed']}"
     )
     print(f"  correct {report['correct_pct']}%  ·  correct or weak {report['correct_or_weak_pct']}%")
+    if not report.get("vs_hand_read"):
+        print(f"  (no agreement figure: the hand-read set describes {gold_source or 'another run'})")
     if vs := report.get("vs_hand_read"):
         print(
             f"  against {vs['compared']} hand-read answers: {vs['exact_agreement']}% exact, "

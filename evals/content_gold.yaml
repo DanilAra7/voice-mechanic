@@ -11,6 +11,11 @@
 #   wrong    - a material falsehood, a contradiction, or the opposite of what was asked
 #
 # Read from the run in evals/results/scenarios76_tools.json (65/76, content 92.7%).
+#
+# These verdicts describe THAT RUN'S ANSWERS. Judging a later build and comparing it to this file
+# compares two different sets of answers and means nothing, so the judge refuses to print an
+# agreement figure unless it is judging the run named here.
+# source_run: scenarios76_tools.json
 
 - id: overheat_trend
   verdict: correct
