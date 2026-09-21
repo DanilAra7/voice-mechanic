@@ -7,10 +7,18 @@
 # connections ever registers, over QUIC and over http2 alike. A named tunnel would use the same
 # transport, which is why no Cloudflare account was needed in the end.
 #
-# What works: a reverse SSH tunnel to localhost.run. No account, no domain, no token, and one
-# long-lived TCP connection, which is apparently what this host's network will carry. HTTPS and
-# WebSocket both pass - measured: page 200 in 1.0 s, socket open in 755 ms, round trip 255 ms
-# from Kyiv.
+# What works: a reverse SSH tunnel. No account, no domain, no token, and one long-lived TCP
+# connection, which is apparently what this host's network will carry.
+#
+# serveo.net over localhost.run, on two measurements from Kyiv that are not close:
+#
+#     socket open    218 ms   vs   755 ms
+#     round trip      59 ms   vs   255 ms
+#
+# Two hundred milliseconds on every single turn, which is a quarter of the whole budget to first
+# sound. localhost.run also reassigns the hostname when its session reconnects, so a link handed
+# to somebody stops working while the tunnel is still up and looking healthy - which is exactly
+# how it failed in front of the person it was sent to.
 #
 # HTTPS is not a nicety here. A browser hands over a microphone only on a secure origin, so
 # without this there is no demo at all.
@@ -31,10 +39,10 @@ sleep 2
 
 # setsid --fork, because `nohup … &` over ssh intermittently does not survive the session.
 setsid --fork bash -c "ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=20 \
-  -R 80:127.0.0.1:$PORT nokey@localhost.run > $LOG 2>&1 < /dev/null"
+  -R 80:127.0.0.1:$PORT serveo.net > $LOG 2>&1 < /dev/null"
 
 for _ in $(seq 1 20); do
-  host=$(grep -aEo '[a-z0-9]+[.]lhr[.]life' "$LOG" 2>/dev/null | head -1 || true)
+  host=$(grep -aEo '[a-z0-9-]+[.]serveousercontent[.]com' "$LOG" 2>/dev/null | tail -1 || true)
   [ -n "$host" ] && break
   sleep 3
 done
