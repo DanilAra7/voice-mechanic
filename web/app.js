@@ -323,6 +323,10 @@ function showTruth() {
 
 function setRunning(running, note) {
   garage.running = running;
+  // Talking to Dex with no car running is the worst state this page has: every answer becomes
+  // "check your adapter", which reads as the agent being stupid rather than as the garage being
+  // empty. It happened to the first person who tried it, so it is said out loud now.
+  els("noCar").hidden = running;
   els("gState").textContent = note;
   els("gState").classList.toggle("running", running);
   els("gStop").disabled = !running;
