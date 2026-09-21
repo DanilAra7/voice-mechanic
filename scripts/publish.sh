@@ -1,67 +1,63 @@
 #!/usr/bin/env bash
 # Put the running demo on a public HTTPS address, from the rented box itself.
 #
+# HTTPS is not a nicety: a browser hands over a microphone only on a secure origin, so without
+# this there is no demo at all.
+#
 # Why not Cloudflare: the quick tunnel registers and then never receives a request. Tested on
 # 2026-09-21 against an empty `python3 -m http.server` on the same machine, so it is not our
-# application - the edge cannot deliver back through this host. Only one of the four tunnel
-# connections ever registers, over QUIC and over http2 alike. A named tunnel would use the same
-# transport, which is why no Cloudflare account was needed in the end.
+# application - the edge cannot deliver back through this host, over QUIC and http2 alike, with
+# one of four connections ever registering. A named tunnel uses the same transport, which is why
+# no Cloudflare account was needed in the end.
 #
-# What works: a reverse SSH tunnel. No account, no domain, no token, and one long-lived TCP
-# connection, which is apparently what this host's network will carry.
+# What works is a single long-lived outbound connection. Three were tried:
 #
-# serveo.net over localhost.run, on two measurements from Kyiv that are not close:
+#   ngrok        stable name, socket open 196 ms, round trip 71 ms   <- this
+#   serveo       new name on every reconnect, 218 ms, 59 ms
+#   localhost.run new name on every reconnect, 755 ms, 255 ms
 #
-#     socket open    218 ms   vs   755 ms
-#     round trip      59 ms   vs   255 ms
+# The names matter more than the milliseconds. Both free SSH tunnels reassign the hostname when
+# their session reconnects, and the session reconnects silently: the link dies in the hands of
+# the person it was sent to while every check on this side still passes. It happened twice.
+# ngrok's free tier gives one reserved domain, which is the whole point.
 #
-# Two hundred milliseconds on every single turn, which is a quarter of the whole budget to first
-# sound. localhost.run also reassigns the hostname when its session reconnects, so a link handed
-# to somebody stops working while the tunnel is still up and looking healthy - which is exactly
-# how it failed in front of the person it was sent to.
-#
-# HTTPS is not a nicety here. A browser hands over a microphone only on a secure origin, so
-# without this there is no demo at all.
+# Its free tier also puts an interstitial in front of the first HTML load - one click, then a
+# cookie. The WebSocket and the API are not affected.
 #
 #   ssh … 'bash -s' < scripts/publish.sh
 #
-# The hostname changes every time the tunnel restarts. It is a demo address, not an address to
-# put in a document.
+# Needs: ngrok installed, `ngrok config add-authtoken …` run once, and MECHANIC_NGROK_DOMAIN set.
 set -euo pipefail
 
 PORT=${PORT:-8000}
-LOG=${LOG:-/workspace/tunnel.log}
-: > "$LOG"  # a fresh log, so "the newest hostname" means this run
+LOG=${LOG:-/workspace/ngrok.log}
+DOMAIN=${MECHANIC_NGROK_DOMAIN:?set MECHANIC_NGROK_DOMAIN to the reserved ngrok domain}
 
-# pkill -f would match this script's own command line and kill the session running it; that has
-# cost an afternoon more than once. Match the executable name exactly instead.
-for pid in $(pgrep -x ssh || true); do kill "$pid" 2>/dev/null || true; done
+# pkill -f would match this script's own command line and kill the session running it; that cost
+# four attempts in one afternoon. Match the executable name exactly instead.
+for pid in $(pgrep -x ngrok || true); do kill "$pid" 2>/dev/null || true; done
 sleep 2
 
-# A free tunnel drops, and it drops silently: the demo goes dark while everything on this side
-# still looks healthy. So it is a loop, not a command. The hostname changes on every reconnect,
-# which is why the log is appended to and the newest match is the live one.
-#
+# A loop, not a command: a free tunnel drops, and it drops silently.
 # setsid --fork, because `nohup … &` over ssh intermittently does not survive the session.
 setsid --fork bash -c "while true; do
-  ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=20 -o ExitOnForwardFailure=yes \
-    -R 80:127.0.0.1:$PORT serveo.net >> $LOG 2>&1 < /dev/null
-  echo \"--- tunnel dropped, reconnecting \$(date -u +%H:%M:%S) ---\" >> $LOG
+  ngrok http $PORT --domain=$DOMAIN --log=stdout >> $LOG 2>&1
+  echo \"--- ngrok exited, restarting \$(date -u +%H:%M:%S) ---\" >> $LOG
   sleep 3
 done"
 
 for _ in $(seq 1 20); do
-  host=$(grep -aEo '[a-z0-9-]+[.]serveousercontent[.]com' "$LOG" 2>/dev/null | tail -1 || true)
-  [ -n "$host" ] && break
+  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$DOMAIN/api/health" || true)
+  [ "$code" = "200" ] && break
   sleep 3
 done
 
-if [ -z "${host:-}" ]; then
-  echo "no hostname after 60s; see $LOG" >&2
+if [ "${code:-}" != "200" ]; then
+  echo "tunnel did not answer after 60s; see $LOG" >&2
   exit 1
 fi
 
-echo "https://$host/app/"
+echo "https://$DOMAIN/app/"
 if [ -n "${MECHANIC_ACCESS_KEY:-}" ]; then
-  echo "https://$host/app/?k=$MECHANIC_ACCESS_KEY   <- the link to send"
+  echo "https://$DOMAIN/app/?k=$MECHANIC_ACCESS_KEY   <- the link to send"
 fi
