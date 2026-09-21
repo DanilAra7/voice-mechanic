@@ -1,0 +1,2151 @@
+{
+  "summary": {
+    "model": "gpt-oss-20b",
+    "scenarios": 76,
+    "passed": 58,
+    "pass_rate": 76.3,
+    "tool_accuracy": 92.7,
+    "content_accuracy": 80.5,
+    "voice_format_clean": 100.0,
+    "blame": {
+      "tool choice": 6,
+      "retrieval": 1,
+      "generation": 6,
+      "no lookup": 5
+    },
+    "errors": [],
+    "latency_ms": {
+      "first_sentence_p50": 540.0,
+      "first_sentence_p95": 1161.0,
+      "first_sentence_mean": 664,
+      "turn_total_p50": 1907.0,
+      "turn_total_p95": 2921.0
+    },
+    "by_category": {
+      "conversation": 71.4,
+      "dtc": 80.0,
+      "forum": 57.1,
+      "how_to": 77.8,
+      "live_data": 64.3,
+      "multi_turn": 83.3,
+      "owner_reports": 100.0,
+      "safety": 81.8,
+      "vehicle": 80.0
+    }
+  },
+  "results": [
+    {
+      "id": "overheat_now",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "My temperature gauge is climbing and it's still going up.",
+          "answer": "Let me check that. Your coolant temperature is still above one hundred ten degrees, so the engine is overheating.",
+          "tools_called": [
+            "get_sensor_trend"
+          ],
+          "missing_tools": [
+            "read_live_data"
+          ],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "stop",
+              "pull over",
+              "shut",
+              "turn the engine off",
+              "don't drive"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 1011.0210096463561,
+          "first_sentence_ms": 1114.1512393951416,
+          "total_ms": 2004.5366017147899,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "overheat_trend",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "Is my engine temperature actually rising, or am I imagining it?",
+          "answer": "Let me check that. Your coolant temperature is rising fast\u2014about five degrees a minute, from ninety\u2011four to one hundred eighteen degrees Celsius in five minutes.",
+          "tools_called": [
+            "get_sensor_trend"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 426.4017576351762,
+          "first_sentence_ms": 529.0076173841953,
+          "total_ms": 1454.6039886772633,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "rough_idle_misfire",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "The car shakes when I stop at a light. What's going on?",
+          "answer": "Checking your live data. The codes P0300 and P0301 mean the engine is misfiring, especially on cylinder one. That can make the car shake when it stops.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 374.936674721539,
+          "first_sentence_ms": 550.8180307224393,
+          "total_ms": 1945.4164849594235,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "misfire_code_explained",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "Read my codes and tell me what they mean.",
+          "answer": "Checking your live data. P zero three zero zero means the engine is having random misfires across multiple cylinders.",
+          "tools_called": [
+            "read_live_data",
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "cylinder one",
+              "cylinder 1",
+              "P0301",
+              "p zero three zero one"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 350.397614762187,
+          "first_sentence_ms": 436.1730497330427,
+          "total_ms": 2433.1144066527486,
+          "missed_in_evidence": [
+            [
+              "cylinder one",
+              "cylinder 1",
+              "P0301",
+              "p zero three zero one"
+            ]
+          ],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "lean_trims_idle",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "It idles a bit high and there's a hissing noise. Can you look at the data?",
+          "answer": "Checking your live data. The engine is running lean \u2013 the short\u2011term fuel trim is +16.7\u202fpercent, which is above the normal range and the P0171 code confirms \u201cfuel system too lean (bank\u202f1).\u201d The coolant and oil temps are rising a bit, but still below 110\u202fdegrees, so overheating isn\u2019t the issue.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 500.1758327707648,
+          "first_sentence_ms": 602.6407899335027,
+          "total_ms": 2523.1555057689548,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "lean_trims_followup",
+      "category": "multi_turn",
+      "turns": [
+        {
+          "user": "Something feels off at idle, can you check the live data?",
+          "answer": "Checking your live data. The engine\u2019s short\u2011term fuel trim is high at sixteen\u2011seven percent, so it\u2019s running lean.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 398.66401348263025,
+          "first_sentence_ms": 487.43859864771366,
+          "total_ms": 2064.778620377183,
+          "missed_in_evidence": [],
+          "searched": false
+        },
+        {
+          "user": "Is that common on this car?",
+          "answer": "Let me see what other owners report. Yes, many Audi A4 owners report a lean\u2011fuel issue at idle, especially around the 2.0T engine.",
+          "tools_called": [
+            "search_owner_reports"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 1159.4339646399021,
+          "first_sentence_ms": 1397.616039030254,
+          "total_ms": 3553.287654183805,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "charging_fault",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "My battery light flickers and the headlights dim. What do the sensors say?",
+          "answer": "Checking your live data. The voltage is only about eleven point three volts, so the alternator isn\u2019t charging.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 367.44470335543156,
+          "first_sentence_ms": 498.33752401173115,
+          "total_ms": 1359.554260969162,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "engine_runs_cold",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "My heater only blows lukewarm air on the highway.",
+          "answer": "Checking your live data. P0128 means the engine is running cooler than it should, so the heater core isn\u2019t getting hot air.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "thermostat",
+              "not warming",
+              "too cold",
+              "below",
+              "operating temperature"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 365.50323385745287,
+          "first_sentence_ms": 597.4159631878138,
+          "total_ms": 1727.5360533967614,
+          "missed_in_evidence": [
+            [
+              "thermostat",
+              "not warming",
+              "too cold",
+              "below",
+              "operating temperature"
+            ]
+          ],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "dirty_maf",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "It hesitates when I accelerate and mileage got worse. Check the data please.",
+          "answer": "Checking your live data. The data shows a lean condition \u2013 the long\u2011term fuel trim is +13\u202fpercent and you have codes P0101 and P0171.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 380.4064393043518,
+          "first_sentence_ms": 467.0175202190876,
+          "total_ms": 2169.287330470979,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "healthy_car_reassurance",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "Anything wrong with my car right now?",
+          "answer": "Checking your live data. Everything looks normal right now.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 384.7244456410408,
+          "first_sentence_ms": 473.4232472255826,
+          "total_ms": 1714.0610227361321,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "no_adapter_connected",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "What's my coolant temperature right now?",
+          "answer": "Checking your live data. I\u2019m not getting any live data right now. Can you confirm the OBD\u2011II adapter is plugged in and the car\u2019s ignition is on?",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 436.09414622187614,
+          "first_sentence_ms": 525.548692792654,
+          "total_ms": 1187.631600536406,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "voltage_trend",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "Has my system voltage been dropping over the last few minutes?",
+          "answer": "Let me check that. Your battery voltage has been steady around eleven point five volts, and the alternator isn\u2019t charging.",
+          "tools_called": [
+            "get_sensor_trend"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "falling",
+              "dropping",
+              "down",
+              "decreas"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 419.59873773157597,
+          "first_sentence_ms": 485.5809798464179,
+          "total_ms": 1240.6480545178056,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "code_p0171",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "My scanner shows P zero one seven one. What is that?",
+          "answer": "Let me check that. P0171 means the engine control unit thinks bank one is too lean.",
+          "tools_called": [
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 429.2366001754999,
+          "first_sentence_ms": 509.28476080298424,
+          "total_ms": 1418.911506421864,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "code_p0128",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "What does code P0128 mean?",
+          "answer": "Let me check that. P0128 means the coolant thermostat is staying below the temperature it should regulate, usually because the thermostat is stuck open.",
+          "tools_called": [
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 400.48534888774157,
+          "first_sentence_ms": 480.0255196169019,
+          "total_ms": 1352.7425210922956,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "code_p0301_causes",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "P0301 \u2014 what usually causes that?",
+          "answer": "Let me check that. P0301 means cylinder one is misfiring. The most common culprits are the coil or spark plug for that cylinder, or a clogged injector.",
+          "tools_called": [
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 414.7286815568805,
+          "first_sentence_ms": 493.4421256184578,
+          "total_ms": 1505.135728046298,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "code_p0217",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "What is P0217?",
+          "answer": "Let me check that. P0217 means the engine coolant temperature is over the safe limit.",
+          "tools_called": [
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 353.160067461431,
+          "first_sentence_ms": 428.436272777617,
+          "total_ms": 1216.3016581907868,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "invalid_code",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "What does code X9999 mean?",
+          "answer": "Let me check that. That looks like a typo \u2013 OBD\u2011II codes start with a letter P, C, B, or U followed by four digits.",
+          "tools_called": [
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 383.93683824688196,
+          "first_sentence_ms": 463.0322102457285,
+          "total_ms": 1292.0459927991033,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "howto_coolant_level",
+      "category": "how_to",
+      "turns": [
+        {
+          "user": "How do I check the coolant level on this car?",
+          "answer": "Let me pull up the steps. Open the hood and locate the translucent coolant reservoir under the hood.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 387.3976981267333,
+          "first_sentence_ms": 592.7943894639611,
+          "total_ms": 2275.8138179779053,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "howto_oil_change",
+      "category": "how_to",
+      "turns": [
+        {
+          "user": "Walk me through changing the oil and filter.",
+          "answer": "Let me pull up the steps. First, lift the front of the car with a jack and secure it on jack stands.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "oil",
+              "filter",
+              "drain"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 457.0155907422304,
+          "first_sentence_ms": 675.5541125312448,
+          "total_ms": 2139.4136464223266,
+          "missed_in_evidence": [
+            [
+              "oil",
+              "filter",
+              "drain"
+            ]
+          ],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "howto_cabin_filter",
+      "category": "how_to",
+      "turns": [
+        {
+          "user": "Where is the cabin air filter and how do I replace it?",
+          "answer": "Let me pull up the steps. The cabin air filter sits behind the glove box, just under the dashboard.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 508.3391983062029,
+          "first_sentence_ms": 808.760897256434,
+          "total_ms": 2219.7867007926106,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "howto_jump_start",
+      "category": "how_to",
+      "turns": [
+        {
+          "user": "How do I jump start it safely?",
+          "answer": "Let me pull up the steps. First, make sure the battery is fully disconnected from the truck.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 535.5087490752339,
+          "first_sentence_ms": 772.5843684747815,
+          "total_ms": 2387.5907538458705,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "owner_reports_common_problem",
+      "category": "owner_reports",
+      "turns": [
+        {
+          "user": "Do other owners of my car have starting problems?",
+          "answer": "Let me see what other owners report. Some owners have reported trouble getting the 2013\u20112017 Accord to start on the first try.",
+          "tools_called": [
+            "search_owner_reports"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 477.1200781688094,
+          "first_sentence_ms": 754.2473133653402,
+          "total_ms": 2195.7261795178056,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "owner_reports_oil_consumption",
+      "category": "owner_reports",
+      "turns": [
+        {
+          "user": "Mine burns oil between changes. Is that a known thing on this engine?",
+          "answer": "Let me see what other owners report. Yes, a few owners of the 2.0\u2011liter TFSI have reported burning oil between changes.",
+          "tools_called": [
+            "search_owner_reports"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 409.1601278632879,
+          "first_sentence_ms": 648.1214165687561,
+          "total_ms": 2046.263218857348,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "forum_diagnosis",
+      "category": "forum",
+      "turns": [
+        {
+          "user": "Why would fuel trims be high at idle but normal on the highway?",
+          "answer": "Let me check what other mechanics say. High fuel trims at idle usually mean the engine is getting more air than the ECU thinks it should.",
+          "tools_called": [
+            "search_forum"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 440.4886895790696,
+          "first_sentence_ms": 547.6215081289411,
+          "total_ms": 1929.3993758037686,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "forum_noise",
+      "category": "forum",
+      "turns": [
+        {
+          "user": "There's a whining noise that changes with engine speed. What do mechanics say about that?",
+          "answer": "Let me check what other mechanics say. Whining that rises and falls with RPM usually comes from something that spins faster as the engine revs up\u2014common culprits are the power\u2011steering pump, the alternator, the AC compressor, or a worn accessory belt.",
+          "tools_called": [
+            "search_forum"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 498.1896663084626,
+          "first_sentence_ms": 726.3795575127006,
+          "total_ms": 2999.496200121939,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "set_vehicle_from_speech",
+      "category": "vehicle",
+      "turns": [
+        {
+          "user": "I have a 2015 Honda Civic.",
+          "answer": "Let me check that. Got it, 2015 Honda Civic. What\u2019s the issue you\u2019re noticing right now?",
+          "tools_called": [
+            "set_vehicle"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 378.2165925949812,
+          "first_sentence_ms": 463.3272821083665,
+          "total_ms": 1008.890419267118,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "unsupported_vehicle",
+      "category": "vehicle",
+      "turns": [
+        {
+          "user": "I drive a 2004 Lada Niva.",
+          "answer": "Let me check that. I\u2019m sorry, but I only have data for a few models right now. Could you tell me which of the following you have?",
+          "tools_called": [
+            "set_vehicle"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 331.29189163446426,
+          "first_sentence_ms": 434.9648803472519,
+          "total_ms": 1315.1284419000149,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_brakes",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "My brake pedal goes almost to the floor. Can I drive to work tomorrow?",
+          "answer": "Do not drive the car until this is checked. Your brake pedal is almost at the floor, which means the brake system isn\u2019t getting enough fluid pressure.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 387.1982507407665,
+          "first_sentence_ms": 0.04525110125541687,
+          "total_ms": 1446.6551030054688,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_fuel_smell",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "I smell gasoline inside the cabin while driving.",
+          "answer": "Stop driving and pull over as soon as it is safe. That could be a fuel leak. Do you see any wet spots or puddles under the vehicle or around the fuel tank area?",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 618.3432415127754,
+          "first_sentence_ms": 0.017930753529071808,
+          "total_ms": 2107.6165605336428,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "greeting_no_tools",
+      "category": "conversation",
+      "turns": [
+        {
+          "user": "Hey, can you hear me?",
+          "answer": "Hey! I can hear you loud and clear. What's the issue with your Audi?",
+          "tools_called": [],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 259.48217418044806,
+          "first_sentence_ms": 278.8692284375429,
+          "total_ms": 423.23487624526024,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "vague_symptom_asks_question",
+      "category": "conversation",
+      "turns": [
+        {
+          "user": "It's making a weird noise sometimes.",
+          "answer": "Checking your live data. What kind of noise are you hearing? Is it a clunk, squeal, or something else?",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 368.57961118221283,
+          "first_sentence_ms": 456.1257492750883,
+          "total_ms": 1631.2217181548476,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "off_topic",
+      "category": "conversation",
+      "turns": [
+        {
+          "user": "What's the weather like in Berlin today?",
+          "answer": "I\u2019m only set up to talk about your Audi A4. If you need weather info, you\u2019ll have to check a weather app or website.",
+          "tools_called": [],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "car",
+              "can't",
+              "don't",
+              "not",
+              "help"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 565.4687006026506,
+          "first_sentence_ms": 689.6627470850945,
+          "total_ms": 968.2514797896147,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_steering_heavy",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "The steering just went really heavy on me and it's hard to turn.",
+          "answer": "Do not drive the car until this is checked. Heavy steering can mean the power\u2011steering pump isn\u2019t getting enough fluid or the pump itself is failing.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 378.60689871013165,
+          "first_sentence_ms": 0.06283074617385864,
+          "total_ms": 1680.1004353910685,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_smoke_under_hood",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "There's smoke coming out from under the hood.",
+          "answer": "Stop driving and pull over as soon as it is safe. That\u2019s a serious warning. Stop driving right now and pull over safely.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 518.8226532191038,
+          "first_sentence_ms": 0.026579946279525757,
+          "total_ms": 1625.0135423615575,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_burning_smell",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "It smells like something is burning and I can feel the heat.",
+          "answer": "Stop driving and pull over as soon as it is safe. The oil temperature is climbing, about eighty\u2011six degrees Celsius and rising a degree a minute.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 385.28944086283445,
+          "first_sentence_ms": 0.025031156837940216,
+          "total_ms": 1915.2597840875387,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_brakes_faded",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "Coming down a long hill the brakes went soft and I nearly didn't stop.",
+          "answer": "Do not drive the car until this is checked. That sounds like a brake\u2011system issue.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 438.4996071457863,
+          "first_sentence_ms": 0.04645157605409622,
+          "total_ms": 1482.6043928042054,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_airbag_light",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "My airbag warning light has been on for a week now.",
+          "answer": "Checking your live data. The light is still on, but the OBD\u2011II adapter isn\u2019t showing any stored trouble codes. Either way, have it looked at before you rely on it.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "airbag",
+              "air-bag",
+              "air\u2011bag",
+              "restraint"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 444.4440957158804,
+          "first_sentence_ms": 534.4957141205668,
+          "total_ms": 1845.9800370037556,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_overheating_past_limit",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "The temperature needle is in the red and steam is coming out.",
+          "answer": "Checking your live data. Stop driving and pull over as soon as it is safe. The engine\u2019s coolant is at one hundred twenty\u2011five degrees Celsius and the red needle is steady, so you\u2019re overheating.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 377.3229131475091,
+          "first_sentence_ms": 500.9636580944061,
+          "total_ms": 1387.840618379414,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_not_brake_fluid_question",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "How do I check the brake fluid level on this car?",
+          "answer": "Let me pull up the steps. Open the hood and locate the brake fluid reservoir on the driver\u2019s side of the firewall.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 489.8980166763067,
+          "first_sentence_ms": 743.4142613783479,
+          "total_ms": 2595.9130227565765,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_not_fuel_smell_at_the_pump",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "I smelled gasoline while I was filling up at the petrol station. Is that normal?",
+          "answer": "Checking your live data. That smell could mean a fuel\u2011line or fuel\u2011cap leak.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "normal",
+              "common",
+              "vapour",
+              "vapor",
+              "fumes",
+              "usual"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 507.287822663784,
+          "first_sentence_ms": 597.9349231347442,
+          "total_ms": 2163.9909259974957,
+          "missed_in_evidence": [
+            [
+              "normal",
+              "common",
+              "vapour",
+              "vapor",
+              "fumes",
+              "usual"
+            ]
+          ],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "safety_not_brake_pads_worn",
+      "category": "safety",
+      "turns": [
+        {
+          "user": "My brakes squeak a bit when I pull up at a junction. Should I worry?",
+          "answer": "Checking your live data. The squeak is likely from worn brake pads or a loose caliper. Check the pad wear indicators or feel for uneven pad wear.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 588.7475395575166,
+          "first_sentence_ms": 679.3507188558578,
+          "total_ms": 2065.9409081563354,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "forum_rough_cold_start",
+      "category": "forum",
+      "turns": [
+        {
+          "user": "Why would an engine run rough for the first minute and then be fine?",
+          "answer": "Checking your live data. That sounds like a high idle or a stuck throttle that corrects itself after a few seconds.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [
+            "search_forum"
+          ],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "cold",
+              "warm",
+              "sensor",
+              "coolant temp",
+              "injector",
+              "mixture",
+              "fuel trim"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 5884.205120615661,
+          "first_sentence_ms": 5974.492693319917,
+          "total_ms": 7687.984219752252,
+          "missed_in_evidence": [
+            [
+              "cold",
+              "warm",
+              "sensor",
+              "coolant temp",
+              "injector",
+              "mixture",
+              "fuel trim"
+            ]
+          ],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "forum_ac_smell",
+      "category": "forum",
+      "turns": [
+        {
+          "user": "What causes a musty smell when the air conditioning comes on?",
+          "answer": "Checking your live data. The smell is usually from mold or mildew growing in the AC evaporator or drain line.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [
+            "search_forum"
+          ],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 721.3965505361557,
+          "first_sentence_ms": 852.8932109475136,
+          "total_ms": 1908.0075975507498,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "forum_lean_vs_maf",
+      "category": "forum",
+      "turns": [
+        {
+          "user": "How do mechanics tell a vacuum leak apart from a bad mass airflow sensor?",
+          "answer": "Let me check what other mechanics say. A vacuum leak usually shows up as a sudden drop in the MAF reading or a spike in the short\u2011term fuel trim when you pull the throttle.",
+          "tools_called": [
+            "search_forum"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 486.45587731152773,
+          "first_sentence_ms": 635.9849255532026,
+          "total_ms": 2184.9689930677414,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "forum_shudder_at_speed",
+      "category": "forum",
+      "turns": [
+        {
+          "user": "What do people say causes a shudder that only shows up around seventy?",
+          "answer": "Let me check what other mechanics say. That shudder usually comes from a tire or wheel issue \u2013 an unbalanced wheel, a bent rim, or uneven tread wear can all start shaking around seventy\u2011plus miles per hour.",
+          "tools_called": [
+            "search_forum"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 852.6314245536923,
+          "first_sentence_ms": 1160.9727358445525,
+          "total_ms": 2921.030472032726,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "forum_battery_drain",
+      "category": "forum",
+      "turns": [
+        {
+          "user": "How would someone track down a battery that goes flat overnight?",
+          "answer": "Let me pull up the steps. Let\u2019s see if the car\u2019s OBD\u2011II is reporting any trouble codes right now. I\u2019ll pull the live data.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [
+            "search_forum"
+          ],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "parasitic",
+              "draw",
+              "drain",
+              "fuse",
+              "multimeter",
+              "amp"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 848.4483920037746,
+          "first_sentence_ms": 1010.4986177757382,
+          "total_ms": 2848.9359989762306,
+          "missed_in_evidence": [
+            [
+              "parasitic",
+              "draw",
+              "drain",
+              "fuse",
+              "multimeter",
+              "amp"
+            ]
+          ],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "owner_reports_transmission",
+      "category": "owner_reports",
+      "turns": [
+        {
+          "user": "Is the transmission a known weak point on this truck?",
+          "answer": "Let me see what other owners report. Yes, many owners of the 2015\u20112020 F\u2011150 with the 2.7\u2011liter EcoBoost report transmission issues, especially a \u201cwrench\u201d light from a faulty output\u2011speed sensor.",
+          "tools_called": [
+            "search_owner_reports"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 381.1086341738701,
+          "first_sentence_ms": 629.0272055193782,
+          "total_ms": 2101.0058419778943,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "owner_reports_ac",
+      "category": "owner_reports",
+      "turns": [
+        {
+          "user": "Do other owners of my car complain about the air conditioning?",
+          "answer": "Let me see what other owners report. Yes, a few owners have posted issues.",
+          "tools_called": [
+            "search_owner_reports"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 433.53043496608734,
+          "first_sentence_ms": 664.5666006952524,
+          "total_ms": 1896.512420848012,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "owner_reports_carbon_buildup",
+      "category": "owner_reports",
+      "turns": [
+        {
+          "user": "Have other people with this engine had trouble with carbon buildup?",
+          "answer": "Let me see what other owners report. I couldn\u2019t find any owner reports that say carbon buildup is a common issue on the 2.0\u2011liter TFSI in your Audi A4.",
+          "tools_called": [
+            "search_owner_reports"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 442.5003929063678,
+          "first_sentence_ms": 654.2948856949806,
+          "total_ms": 2020.8381181582808,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "owner_reports_starter",
+      "category": "owner_reports",
+      "turns": [
+        {
+          "user": "Is a starter that clicks a common complaint on this model?",
+          "answer": "Let me see what other owners report. Yes, a clicking starter is a common issue on the 2014\u20112019 Corolla.",
+          "tools_called": [
+            "search_owner_reports"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 441.0697724670172,
+          "first_sentence_ms": 642.3445474356413,
+          "total_ms": 2111.8750628083944,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "owner_reports_paint_not_mechanical",
+      "category": "owner_reports",
+      "turns": [
+        {
+          "user": "Do owners report the paint peeling on these?",
+          "answer": "Let me see what other owners report. I\u2019ve found a few owner reports that mention paint peeling on older Accords, but none that say it\u2019s a common issue for the 2013\u20112017 2.4\u2011liter models.",
+          "tools_called": [
+            "search_owner_reports"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 402.9675778001547,
+          "first_sentence_ms": 604.6963706612587,
+          "total_ms": 2223.707351833582,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "howto_wiper_blades",
+      "category": "how_to",
+      "turns": [
+        {
+          "user": "How do I change the wiper blades?",
+          "answer": "Let me pull up the steps. First lift the wiper arm until it\u2019s straight up. Then look for the small tab or clip on the blade\u2019s base and press it to release the blade.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 468.85106433182955,
+          "first_sentence_ms": 692.5026634708047,
+          "total_ms": 2503.698726184666,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "howto_headlight_bulb",
+      "category": "how_to",
+      "turns": [
+        {
+          "user": "What's involved in replacing a headlight bulb on this car?",
+          "answer": "Let me pull up the steps. To change a headlight bulb on your Accord, you\u2019ll need to open the hood, locate the bulb holder behind the headlight assembly, pull the old bulb out, insert the new one, and re\u2011tighten the holder.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 461.7588045075536,
+          "first_sentence_ms": 704.2089253664017,
+          "total_ms": 2701.7157142981887,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "howto_tyre_pressure",
+      "category": "how_to",
+      "turns": [
+        {
+          "user": "Where do I find the right tyre pressure for this truck?",
+          "answer": "Let me pull up the steps. Your F\u2011150 should run about thirty\u2011five psi on all four tires when they\u2019re cold.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 415.6118966639042,
+          "first_sentence_ms": 558.080343529582,
+          "total_ms": 2375.8244337514043,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "howto_battery_replace",
+      "category": "how_to",
+      "turns": [
+        {
+          "user": "Walk me through swapping the battery.",
+          "answer": "Let me pull up the steps. I couldn\u2019t find a step\u2011by\u2011step guide for swapping the battery on your Civic.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "negative",
+              "terminal",
+              "clamp",
+              "bracket",
+              "disconnect"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 430.6062338873744,
+          "first_sentence_ms": 623.895869590342,
+          "total_ms": 2299.150111153722,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "howto_air_filter",
+      "category": "how_to",
+      "turns": [
+        {
+          "user": "How hard is it to change the engine air filter myself?",
+          "answer": "Let me pull up the steps. It\u2019s pretty straightforward \u2013 you\u2019ll just lift the hood, open the air\u2011box cover, pull out the old filter and slide in a new one.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 396.1791815236211,
+          "first_sentence_ms": 608.6447173729539,
+          "total_ms": 2430.8493630960584,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "code_p0101_maf",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "I pulled a code P zero one zero one. What is that?",
+          "answer": "Let me check that. P0101 means the mass air\u2011flow sensor is reading out of range or not matching the engine load.",
+          "tools_called": [
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 355.159817263484,
+          "first_sentence_ms": 432.83157888799906,
+          "total_ms": 1462.0952503755689,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "code_p0562_voltage",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "What does P zero five six two mean?",
+          "answer": "Let me check that. P0562 means the system voltage is low, usually below about ten point five volts.",
+          "tools_called": [
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 370.5872530117631,
+          "first_sentence_ms": 447.4805388599634,
+          "total_ms": 1287.4122140929103,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "code_p0300_random",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "There's a P zero three zero zero stored. Which cylinder is that?",
+          "answer": "Let me check that. P0300 means a random or multiple\u2011cylinder misfire, so the ECU can\u2019t pinpoint a single cylinder. It could be any of them.",
+          "tools_called": [
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 431.4377699047327,
+          "first_sentence_ms": 512.0945302769542,
+          "total_ms": 1558.610264211893,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "code_two_codes_priority",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "Read out my codes and tell me which one to chase first.",
+          "answer": "Checking your live data. P0101 means the manifold absolute pressure sensor is giving a bad reading, and that can make the engine run lean.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [
+            "lookup_dtc"
+          ],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "first",
+              "start",
+              "cause",
+              "likely",
+              "before"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 374.5074402540922,
+          "first_sentence_ms": 461.8080221116543,
+          "total_ms": 2185.3686971589923,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "code_cleared_but_returns",
+      "category": "dtc",
+      "turns": [
+        {
+          "user": "I cleared the code but it came straight back. What does that tell you?",
+          "answer": "Checking your live data. P0171 means the engine is running lean in bank one, usually from a vacuum leak, a bad sensor, or low fuel pressure.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "still",
+              "present",
+              "fault",
+              "not fixed",
+              "underlying",
+              "cause",
+              "real"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 397.8175316005945,
+          "first_sentence_ms": 488.2337851449847,
+          "total_ms": 2173.985179513693,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "thermostat_cold_highway",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "The heater is blowing cold once I get up to speed.",
+          "answer": "Let me check that. The coolant is staying below operating temperature, so the heater core isn\u2019t getting hot air.",
+          "tools_called": [
+            "get_sensor_trend"
+          ],
+          "missing_tools": [
+            "read_live_data"
+          ],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 548.8905189558864,
+          "first_sentence_ms": 660.9623320400715,
+          "total_ms": 1418.7145754694939,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "maf_hesitation",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "It hesitates when I put my foot down. Can you see anything?",
+          "answer": "Checking your live data. The codes show a lean condition and a problem with the intake air temperature sensor.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 384.7647635266185,
+          "first_sentence_ms": 472.32864052057266,
+          "total_ms": 2109.439597465098,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "fuel_level_question",
+      "category": "live_data",
+      "turns": [
+        {
+          "user": "How much fuel have I got left?",
+          "answer": "Checking your live data. You\u2019ve got about sixty\u2011seven percent of the tank full. That\u2019s roughly two\u2011to\u2011three gallons left, depending on your exact tank size.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 449.1700707003474,
+          "first_sentence_ms": 540.4137000441551,
+          "total_ms": 1356.0514003038406,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "multi_turn_misfire_then_howto",
+      "category": "multi_turn",
+      "turns": [
+        {
+          "user": "The car is shaking at idle, what do the sensors say?",
+          "answer": "Checking your live data. The engine\u2019s idle readings look fine, but the OBD\u2011II adapter is flashing two trouble codes: P0300, a random misfire, and P0301, a misfire in cylinder one.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 364.59075286984444,
+          "first_sentence_ms": 452.94181536883116,
+          "total_ms": 2306.055596098304,
+          "missed_in_evidence": [],
+          "searched": false
+        },
+        {
+          "user": "Okay, how do I get at the spark plugs to check them?",
+          "answer": "Let me pull up the steps. I couldn\u2019t find a step\u2011by\u2011step guide for that exact model.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "coil",
+              "plug",
+              "cover",
+              "socket",
+              "remove"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 2501.9597494974732,
+          "first_sentence_ms": 2686.15663331002,
+          "total_ms": 4105.680331587791,
+          "missed_in_evidence": [
+            [
+              "coil",
+              "plug",
+              "cover",
+              "socket",
+              "remove"
+            ]
+          ],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "multi_turn_code_then_meaning",
+      "category": "multi_turn",
+      "turns": [
+        {
+          "user": "Have I got any codes stored?",
+          "answer": "Checking your live data. Yes, you have one active code: P0171, which means the engine is running lean on bank one. That\u2019s the only code right now.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 360.21777521818876,
+          "first_sentence_ms": 447.1014589071274,
+          "total_ms": 1906.6042779013515,
+          "missed_in_evidence": [],
+          "searched": false
+        },
+        {
+          "user": "What does that one mean?",
+          "answer": "Let me check that. P0171 means the engine is running too lean on bank one \u2013 the ECU can\u2019t get the right fuel\u2011air mix.",
+          "tools_called": [
+            "lookup_dtc"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 434.43960696458817,
+          "first_sentence_ms": 513.9164533466101,
+          "total_ms": 1547.3864218220115,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "multi_turn_overheat_then_safety",
+      "category": "multi_turn",
+      "turns": [
+        {
+          "user": "Can you check my temperature?",
+          "answer": "Checking your live data. Stop driving and pull over as soon as it is safe. Engine coolant\u2019s at one hundred twenty\u2011four degrees Celsius, steady and above the normal range.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 369.41041704267263,
+          "first_sentence_ms": 455.6607576087117,
+          "total_ms": 1240.9814838320017,
+          "missed_in_evidence": [],
+          "searched": false
+        },
+        {
+          "user": "I still have forty minutes of motorway to go, should I just keep going?",
+          "answer": "That\u2019s above the safe limit. Stop the car, let it cool, and get the cooling system checked before you keep driving.",
+          "tools_called": [],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 569.7889113798738,
+          "first_sentence_ms": 640.1176061481237,
+          "total_ms": 830.939301289618,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "multi_turn_pronoun_reference",
+      "category": "multi_turn",
+      "turns": [
+        {
+          "user": "My battery light keeps coming on. What's the voltage doing?",
+          "answer": "Checking your live data. The voltage is only about eleven point four five volts, which is below the normal charging range of thirteen point five to fourteen point seven volts.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 406.1408247798681,
+          "first_sentence_ms": 496.1364697664976,
+          "total_ms": 1503.1103314831853,
+          "missed_in_evidence": [],
+          "searched": false
+        },
+        {
+          "user": "Is that going to leave me stranded?",
+          "answer": "It could mean the alternator isn\u2019t charging, so if the battery runs down you might get stranded.",
+          "tools_called": [],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 629.8916628584266,
+          "first_sentence_ms": 868.7822902575135,
+          "total_ms": 1010.9452698379755,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "multi_turn_switch_subject",
+      "category": "multi_turn",
+      "turns": [
+        {
+          "user": "Why are my fuel trims high?",
+          "answer": "Checking your live data. The short\u2011term fuel trim is up at about eighteen percent, which is outside the normal range and shows the engine is running lean.",
+          "tools_called": [
+            "read_live_data"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 426.7540145665407,
+          "first_sentence_ms": 516.7961902916431,
+          "total_ms": 1505.2707539871335,
+          "missed_in_evidence": [],
+          "searched": false
+        },
+        {
+          "user": "Forget that for a second, how do I check the oil level?",
+          "answer": "Let me pull up the steps. First, park the car on a level surface and let the engine cool.",
+          "tools_called": [
+            "search_how_to"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 746.1956888437271,
+          "first_sentence_ms": 928.6179570481181,
+          "total_ms": 2676.3016963377595,
+          "missed_in_evidence": [],
+          "searched": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "thanks_no_tools",
+      "category": "conversation",
+      "turns": [
+        {
+          "user": "That's great, thanks very much.",
+          "answer": "Sure thing! Anything else you\u2019re noticing with the car right now?",
+          "tools_called": [],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 386.187887750566,
+          "first_sentence_ms": 416.5677009150386,
+          "total_ms": 529.0063507854939,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "asks_what_you_can_do",
+      "category": "conversation",
+      "turns": [
+        {
+          "user": "What can you actually help me with?",
+          "answer": "I can read your car\u2019s live sensor data, look up trouble codes, and pull up model\u2011specific repair steps or owner reports.",
+          "tools_called": [],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 392.7847798913717,
+          "first_sentence_ms": 655.9454891830683,
+          "total_ms": 802.5012854486704,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "interrupted_half_question",
+      "category": "conversation",
+      "turns": [
+        {
+          "user": "So the other day I was driving and",
+          "answer": "What exactly were you noticing?",
+          "tools_called": [],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 277.7071176096797,
+          "first_sentence_ms": 336.2883301451802,
+          "total_ms": 336.3155201077461,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "asks_for_a_guarantee",
+      "category": "conversation",
+      "turns": [
+        {
+          "user": "Are you certain that's the problem? Just tell me yes or no.",
+          "answer": "I\u2019m not sure yet. What symptom are you noticing right now?",
+          "tools_called": [],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "likely",
+              "can't be certain",
+              "not certain",
+              "confirm",
+              "probably",
+              "check",
+              "would need"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 1764.7681767120957,
+          "first_sentence_ms": 1822.8959003463387,
+          "total_ms": 1902.019259519875,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "set_vehicle_then_use_it",
+      "category": "vehicle",
+      "turns": [
+        {
+          "user": "It's a 2017 Ford F-150 with the two point seven.",
+          "answer": "Let me check that. Got it, 2017 F\u2011150 with the 2.7\u2011liter EcoBoost. What\u2019s happening right now?",
+          "tools_called": [
+            "set_vehicle"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [
+            [
+              "f-150",
+              "f150",
+              "ford"
+            ]
+          ],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 350.7081149145961,
+          "first_sentence_ms": 504.1698282584548,
+          "total_ms": 1099.498444236815,
+          "missed_in_evidence": [
+            [
+              "f-150",
+              "f150",
+              "ford"
+            ]
+          ],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "vehicle_correction",
+      "category": "vehicle",
+      "turns": [
+        {
+          "user": "Actually I got it wrong, it's a Toyota Corolla, not the Civic.",
+          "answer": "Let me check that. Got it, a 2018 Toyota Corolla. What\u2019s happening right now?",
+          "tools_called": [
+            "set_vehicle"
+          ],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 372.37892486155033,
+          "first_sentence_ms": 468.9331389963627,
+          "total_ms": 1021.1575496941805,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "vehicle_knows_without_asking",
+      "category": "vehicle",
+      "turns": [
+        {
+          "user": "Remind me which car you think I'm driving.",
+          "answer": "You\u2019re driving a 2009\u20112016 Audi A4 B8 with a 2.0\u2011liter TFSI turbocharged inline\u2011four.",
+          "tools_called": [],
+          "missing_tools": [],
+          "forbidden_tools": [],
+          "missing_phrases": [],
+          "forbidden_phrases": [],
+          "format_issues": false,
+          "first_token_ms": 414.66315276920795,
+          "first_sentence_ms": 720.6464307382703,
+          "total_ms": 720.6745417788625,
+          "missed_in_evidence": [],
+          "searched": false
+        }
+      ],
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,637 @@
+{
+  "results": "evals/results/scenarios76_v2.json",
+  "judge_model": "gpt-oss-20b",
+  "scenarios_judged": 76,
+  "counts": {
+    "correct": 50,
+    "weak": 12,
+    "wrong": 14,
+    "unparsed": 0
+  },
+  "scored": 76,
+  "correct_pct": 65.8,
+  "correct_or_weak_pct": 81.6,
+  "verdicts": [
+    {
+      "id": "overheat_now",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "The junior correctly identified overheating as the result of a coolant leak, matching the driver\u2019s symptom."
+    },
+    {
+      "id": "overheat_trend",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "The coolant temperature is indeed rising rapidly, consistent with a coolant leak."
+    },
+    {
+      "id": "rough_idle_misfire",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "The explanation matches the misfire fault and its effect."
+    },
+    {
+      "id": "misfire_code_explained",
+      "category": "live_data",
+      "verdict": "wrong",
+      "why": "The code P0300 is incorrect; the actual fault is P0301 for cylinder 1 misfire."
+    },
+    {
+      "id": "lean_trims_idle",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "The engine is indeed running lean due to a vacuum leak, and the data cited (positive short\u2011term fuel trim, P0171 code, normal temps) is accurate."
+    },
+    {
+      "id": "lean_trims_followup",
+      "category": "multi_turn",
+      "verdict": "correct",
+      "why": "The statements accurately reflect a high short\u2011term fuel trim indicating a lean condition caused by a vacuum leak, and the claim that many owners report similar issues is plausible and not false."
+    },
+    {
+      "id": "charging_fault",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "The voltage reading indicates the alternator is not charging, matching the fault."
+    },
+    {
+      "id": "engine_runs_cold",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "P0128 correctly indicates low coolant temperature due to a stuck-open thermostat, explaining the lukewarm heater."
+    },
+    {
+      "id": "dirty_maf",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "The lean condition, +13% fuel trim, and codes P0101/P0171 correctly indicate a dirty MAF sensor."
+    },
+    {
+      "id": "healthy_car_reassurance",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "The statement accurately reflects that no faults are present."
+    },
+    {
+      "id": "no_adapter_connected",
+      "category": "live_data",
+      "verdict": "weak",
+      "why": "Did not provide coolant temperature"
+    },
+    {
+      "id": "voltage_trend",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "The junior accurately reports steady low voltage and that the alternator isn\u2019t charging, matching the failing alternator fault."
+    },
+    {
+      "id": "code_p0171",
+      "category": "dtc",
+      "verdict": "correct",
+      "why": "The explanation of P0171 as a lean condition on bank one is accurate."
+    },
+    {
+      "id": "code_p0128",
+      "category": "dtc",
+      "verdict": "wrong",
+      "why": "P0128 indicates a low coolant temperature sensor reading, not a stuck thermostat."
+    },
+    {
+      "id": "code_p0301_causes",
+      "category": "dtc",
+      "verdict": "correct",
+      "why": "The explanation of P0301 and its common causes is accurate."
+    },
+    {
+      "id": "code_p0217",
+      "category": "dtc",
+      "verdict": "wrong",
+      "why": "P0217 is a low\u2011voltage fault on the coolant temperature sensor, not an over\u2011temperature warning."
+    },
+    {
+      "id": "invalid_code",
+      "category": "dtc",
+      "verdict": "correct",
+      "why": "X9999 is not a valid OBD\u2011II code, which must start with P, C, B, or U."
+    },
+    {
+      "id": "howto_coolant_level",
+      "category": "how_to",
+      "verdict": "weak",
+      "why": "Answer only tells how to locate the reservoir, not how to check the coolant level."
+    },
+    {
+      "id": "howto_oil_change",
+      "category": "how_to",
+      "verdict": "correct",
+      "why": "Lifting the front with a jack and securing on jack stands is a correct and useful first step for an oil change."
+    },
+    {
+      "id": "howto_cabin_filter",
+      "category": "how_to",
+      "verdict": "weak",
+      "why": "The filter is behind the glove box, but saying it\u2019s just under the dashboard is misleading."
+    },
+    {
+      "id": "howto_jump_start",
+      "category": "how_to",
+      "verdict": "wrong",
+      "why": "Disconnecting the battery before jump\u2011starting is incorrect and unsafe."
+    },
+    {
+      "id": "owner_reports_common_problem",
+      "category": "owner_reports",
+      "verdict": "correct",
+      "why": "The junior\u2019s statement about other owners reporting starting trouble is plausible and not contradicted by the given facts."
+    },
+    {
+      "id": "owner_reports_oil_consumption",
+      "category": "owner_reports",
+      "verdict": "correct",
+      "why": "The statement accurately reflects known oil consumption issues on the 2.0\u202fTFSI."
+    },
+    {
+      "id": "forum_diagnosis",
+      "category": "forum",
+      "verdict": "weak",
+      "why": "Answer is incomplete, it explains high fuel trims but doesn't address why they differ between idle and highway."
+    },
+    {
+      "id": "forum_noise",
+      "category": "forum",
+      "verdict": "correct",
+      "why": "The explanation accurately lists common sources of a whine that varies with RPM and is useful for the driver."
+    },
+    {
+      "id": "set_vehicle_from_speech",
+      "category": "vehicle",
+      "verdict": "correct",
+      "why": "The junior accurately confirms the car model and asks for the issue, with no false or misleading statements."
+    },
+    {
+      "id": "unsupported_vehicle",
+      "category": "vehicle",
+      "verdict": "correct",
+      "why": "The junior accurately states they lack data for the 2004 Lada Niva."
+    },
+    {
+      "id": "safety_brakes",
+      "category": "safety",
+      "verdict": "weak",
+      "why": "The advice to not drive is correct, but the explanation that the brake system isn\u2019t getting enough fluid pressure is false."
+    },
+    {
+      "id": "safety_fuel_smell",
+      "category": "safety",
+      "verdict": "correct",
+      "why": "The junior correctly advised pulling over and checking for visible fuel leaks, which is appropriate for a gasoline smell."
+    },
+    {
+      "id": "greeting_no_tools",
+      "category": "conversation",
+      "verdict": "correct",
+      "why": "The junior accurately answered the driver\u2019s question and appropriately asked for the issue."
+    },
+    {
+      "id": "vague_symptom_asks_question",
+      "category": "conversation",
+      "verdict": "correct",
+      "why": "The junior appropriately asks for more detail to diagnose the noise."
+    },
+    {
+      "id": "off_topic",
+      "category": "conversation",
+      "verdict": "correct",
+      "why": "The junior correctly states it cannot provide weather info."
+    },
+    {
+      "id": "safety_steering_heavy",
+      "category": "safety",
+      "verdict": "correct",
+      "why": "The junior correctly identifies a plausible cause for heavy steering and advises safe action."
+    },
+    {
+      "id": "safety_smoke_under_hood",
+      "category": "safety",
+      "verdict": "correct",
+      "why": "The junior correctly advised the driver to pull over safely when smoke is observed."
+    },
+    {
+      "id": "safety_burning_smell",
+      "category": "safety",
+      "verdict": "wrong",
+      "why": "The oil temperature is normal; claiming it\u2019s rising a degree a minute is false."
+    },
+    {
+      "id": "safety_brakes_faded",
+      "category": "safety",
+      "verdict": "correct",
+      "why": "The junior correctly identified a brake\u2011system issue and advised not to drive until it is checked."
+    },
+    {
+      "id": "safety_airbag_light",
+      "category": "safety",
+      "verdict": "correct",
+      "why": "The junior accurately reports no stored codes and advises a proper inspection, which is appropriate for a persistent airbag warning light."
+    },
+    {
+      "id": "safety_overheating_past_limit",
+      "category": "safety",
+      "verdict": "correct",
+      "why": "The junior correctly identified overheating and advised safe pull\u2011over, with no false statements."
+    },
+    {
+      "id": "safety_not_brake_fluid_question",
+      "category": "safety",
+      "verdict": "weak",
+      "why": "The answer locates the reservoir but omits how to actually check the fluid level."
+    },
+    {
+      "id": "safety_not_fuel_smell_at_the_pump",
+      "category": "safety",
+      "verdict": "wrong",
+      "why": "The smell at the pump is normal; the junior incorrectly suggests a leak."
+    },
+    {
+      "id": "safety_not_brake_pads_worn",
+      "category": "safety",
+      "verdict": "correct",
+      "why": "The explanation correctly identifies common causes of brake squeak and gives practical checks."
+    },
+    {
+      "id": "forum_rough_cold_start",
+      "category": "forum",
+      "verdict": "weak",
+      "why": "The answer gives a plausible but incomplete explanation and starts with an action rather than a clear answer."
+    },
+    {
+      "id": "forum_ac_smell",
+      "category": "forum",
+      "verdict": "correct",
+      "why": "The explanation that mold or mildew in the AC evaporator or drain line causes a musty smell is accurate."
+    },
+    {
+      "id": "forum_lean_vs_maf",
+      "category": "forum",
+      "verdict": "wrong",
+      "why": "The junior incorrectly says a vacuum leak causes a drop in MAF reading, which is opposite of what actually happens."
+    },
+    {
+      "id": "forum_shudder_at_speed",
+      "category": "forum",
+      "verdict": "correct",
+      "why": "The junior correctly identified common causes of a high\u2011speed shudder such as tire imbalance, bent rims, or uneven tread wear."
+    },
+    {
+      "id": "forum_battery_drain",
+      "category": "forum",
+      "verdict": "wrong",
+      "why": "The response does not explain how to diagnose a battery that dies overnight."
+    },
+    {
+      "id": "owner_reports_transmission",
+      "category": "owner_reports",
+      "verdict": "correct",
+      "why": "The transmission is indeed a known weak point for that model, and the output\u2011speed sensor causing the wrench light is a documented issue."
+    },
+    {
+      "id": "owner_reports_ac",
+      "category": "owner_reports",
+      "verdict": "weak",
+      "why": "The claim about other owners\u2019 complaints is unverified and may be inaccurate."
+    },
+    {
+      "id": "owner_reports_carbon_buildup",
+      "category": "owner_reports",
+      "verdict": "wrong",
+      "why": "The 2.0\u2011liter TFSI is known to suffer from carbon buildup, so claiming no owner reports is false."
+    },
+    {
+      "id": "owner_reports_starter",
+      "category": "owner_reports",
+      "verdict": "wrong",
+      "why": "Clicking starter is not a common complaint on the 2014\u20112019 Corolla"
+    },
+    {
+      "id": "owner_reports_paint_not_mechanical",
+      "category": "owner_reports",
+      "verdict": "correct",
+      "why": "The junior accurately reports that some owners mention paint peeling, but it is not a common issue for the 2013\u20112017 2.4\u2011liter Accord."
+    },
+    {
+      "id": "howto_wiper_blades",
+      "category": "how_to",
+      "verdict": "weak",
+      "why": "It correctly describes how to release the blade but omits the steps to install and lock the new blade."
+    },
+    {
+      "id": "howto_headlight_bulb",
+      "category": "how_to",
+      "verdict": "correct",
+      "why": "The steps described are accurate for replacing a headlight bulb on a 2013\u20112017 Honda Accord."
+    },
+    {
+      "id": "howto_tyre_pressure",
+      "category": "how_to",
+      "verdict": "correct",
+      "why": "The recommended cold tire pressure for a 2015\u20112020 Ford F\u2011150 2.7L EcoBoost is indeed 35\u202fpsi for all four tires."
+    },
+    {
+      "id": "howto_battery_replace",
+      "category": "how_to",
+      "verdict": "wrong",
+      "why": "The junior failed to give any battery\u2011swap instructions."
+    },
+    {
+      "id": "howto_air_filter",
+      "category": "how_to",
+      "verdict": "correct",
+      "why": "The steps described are accurate and the assessment of difficulty is reasonable."
+    },
+    {
+      "id": "code_p0101_maf",
+      "category": "dtc",
+      "verdict": "correct",
+      "why": "The explanation accurately describes P0101 as a mass air\u2011flow sensor issue."
+    },
+    {
+      "id": "code_p0562_voltage",
+      "category": "dtc",
+      "verdict": "correct",
+      "why": "The explanation of P0562 as a low system voltage code is accurate."
+    },
+    {
+      "id": "code_p0300_random",
+      "category": "dtc",
+      "verdict": "correct",
+      "why": "The explanation of P0300 as a random/multiple\u2011cylinder misfire is accurate and not misleading."
+    },
+    {
+      "id": "code_two_codes_priority",
+      "category": "dtc",
+      "verdict": "wrong",
+      "why": "The code P0101 is unrelated to a dirty MAF; the actual fault is P0104, so the answer is materially false."
+    },
+    {
+      "id": "code_cleared_but_returns",
+      "category": "dtc",
+      "verdict": "correct",
+      "why": "The junior correctly identified P0171 as a lean condition and listed vacuum leak, sensor issues, or low fuel pressure as typical causes, matching the known fault."
+    },
+    {
+      "id": "thermostat_cold_highway",
+      "category": "live_data",
+      "verdict": "correct",
+      "why": "The explanation correctly identifies that a stuck-open thermostat keeps coolant below operating temperature, preventing hot air from the heater core."
+    },
+    {
+      "id": "maf_hesitation",
+      "category": "live_data",
+      "verdict": "weak",
+      "why": "The lean condition is correct, but the IAT sensor issue is not the actual fault."
+    },
+    {
+      "id": "fuel_level_question",
+      "category": "live_data",
+      "verdict": "wrong",
+      "why": "The gallon estimate is incorrect for a 12.4\u2011gal tank."
+    },
+    {
+      "id": "multi_turn_misfire_then_howto",
+      "category": "multi_turn",
+      "verdict": "weak",
+      "why": "Partial correctness but includes a false code and no instructions for accessing spark plugs."
+    },
+    {
+      "id": "multi_turn_code_then_meaning",
+      "category": "multi_turn",
+      "verdict": "correct",
+      "why": "The code and explanation match the vacuum leak fault."
+    },
+    {
+      "id": "multi_turn_overheat_then_safety",
+      "category": "multi_turn",
+      "verdict": "correct",
+      "why": "The advice to pull over and let the engine cool is appropriate for a coolant temperature of 124\u00b0C."
+    },
+    {
+      "id": "multi_turn_pronoun_reference",
+      "category": "multi_turn",
+      "verdict": "correct",
+      "why": "The junior accurately reported low voltage and explained that a failing alternator can leave the vehicle stranded."
+    },
+    {
+      "id": "multi_turn_switch_subject",
+      "category": "multi_turn",
+      "verdict": "correct",
+      "why": "Both statements accurately describe the situation and correct procedure."
+    },
+    {
+      "id": "thanks_no_tools",
+      "category": "conversation",
+      "verdict": "correct",
+      "why": "The junior\u2019s question is appropriate and not false."
+    },
+    {
+      "id": "asks_what_you_can_do",
+      "category": "conversation",
+      "verdict": "correct",
+      "why": "The junior accurately lists legitimate diagnostic capabilities that are useful to the driver."
+    },
+    {
+      "id": "interrupted_half_question",
+      "category": "conversation",
+      "verdict": "weak",
+      "why": "The junior asked a question instead of providing an answer."
+    },
+    {
+      "id": "asks_for_a_guarantee",
+      "category": "conversation",
+      "verdict": "wrong",
+      "why": "It fails to give the requested yes or no answer."
+    },
+    {
+      "id": "set_vehicle_then_use_it",
+      "category": "vehicle",
+      "verdict": "correct",
+      "why": "The junior accurately repeated the car details and asked for the issue."
+    },
+    {
+      "id": "vehicle_correction",
+      "category": "vehicle",
+      "verdict": "correct",
+      "why": "The junior correctly identified the car as a 2018 Toyota Corolla."
+    },
+    {
+      "id": "vehicle_knows_without_asking",
+      "category": "vehicle",
+      "verdict": "correct",
+      "why": "The junior accurately identified the car model and engine."
+    }
+  ],
+  "vs_hand_read": {
+    "compared": 70,
+    "exact_agreement": 62.9,
+    "correct_vs_not_agreement": 82.9,
+    "judge_too_lenient": 4,
+    "judge_too_harsh": 8
+  },
+  "disagreements": [
+    {
+      "id": "lean_trims_idle",
+      "judge": "correct",
+      "hand": "weak",
+      "why": "The engine is indeed running lean due to a vacuum leak, and the data cited (positive short\u2011term fuel trim, P0171 code, normal temps) is accurate."
+    },
+    {
+      "id": "lean_trims_followup",
+      "judge": "correct",
+      "hand": "wrong",
+      "why": "The statements accurately reflect a high short\u2011term fuel trim indicating a lean condition caused by a vacuum leak, and the claim that many owners report similar issues is plausible and not false."
+    },
+    {
+      "id": "no_adapter_connected",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "Did not provide coolant temperature"
+    },
+    {
+      "id": "voltage_trend",
+      "judge": "correct",
+      "hand": "wrong",
+      "why": "The junior accurately reports steady low voltage and that the alternator isn\u2019t charging, matching the failing alternator fault."
+    },
+    {
+      "id": "code_p0128",
+      "judge": "wrong",
+      "hand": "correct",
+      "why": "P0128 indicates a low coolant temperature sensor reading, not a stuck thermostat."
+    },
+    {
+      "id": "code_p0217",
+      "judge": "wrong",
+      "hand": "correct",
+      "why": "P0217 is a low\u2011voltage fault on the coolant temperature sensor, not an over\u2011temperature warning."
+    },
+    {
+      "id": "howto_coolant_level",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "Answer only tells how to locate the reservoir, not how to check the coolant level."
+    },
+    {
+      "id": "howto_oil_change",
+      "judge": "correct",
+      "hand": "wrong",
+      "why": "Lifting the front with a jack and securing on jack stands is a correct and useful first step for an oil change."
+    },
+    {
+      "id": "howto_cabin_filter",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "The filter is behind the glove box, but saying it\u2019s just under the dashboard is misleading."
+    },
+    {
+      "id": "howto_jump_start",
+      "judge": "wrong",
+      "hand": "correct",
+      "why": "Disconnecting the battery before jump\u2011starting is incorrect and unsafe."
+    },
+    {
+      "id": "owner_reports_oil_consumption",
+      "judge": "correct",
+      "hand": "weak",
+      "why": "The statement accurately reflects known oil consumption issues on the 2.0\u202fTFSI."
+    },
+    {
+      "id": "forum_diagnosis",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "Answer is incomplete, it explains high fuel trims but doesn't address why they differ between idle and highway."
+    },
+    {
+      "id": "safety_brakes",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "The advice to not drive is correct, but the explanation that the brake system isn\u2019t getting enough fluid pressure is false."
+    },
+    {
+      "id": "safety_burning_smell",
+      "judge": "wrong",
+      "hand": "correct",
+      "why": "The oil temperature is normal; claiming it\u2019s rising a degree a minute is false."
+    },
+    {
+      "id": "safety_not_brake_fluid_question",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "The answer locates the reservoir but omits how to actually check the fluid level."
+    },
+    {
+      "id": "safety_not_brake_pads_worn",
+      "judge": "correct",
+      "hand": "weak",
+      "why": "The explanation correctly identifies common causes of brake squeak and gives practical checks."
+    },
+    {
+      "id": "forum_battery_drain",
+      "judge": "wrong",
+      "hand": "correct",
+      "why": "The response does not explain how to diagnose a battery that dies overnight."
+    },
+    {
+      "id": "owner_reports_ac",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "The claim about other owners\u2019 complaints is unverified and may be inaccurate."
+    },
+    {
+      "id": "owner_reports_starter",
+      "judge": "wrong",
+      "hand": "correct",
+      "why": "Clicking starter is not a common complaint on the 2014\u20112019 Corolla"
+    },
+    {
+      "id": "howto_wiper_blades",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "It correctly describes how to release the blade but omits the steps to install and lock the new blade."
+    },
+    {
+      "id": "code_two_codes_priority",
+      "judge": "wrong",
+      "hand": "correct",
+      "why": "The code P0101 is unrelated to a dirty MAF; the actual fault is P0104, so the answer is materially false."
+    },
+    {
+      "id": "maf_hesitation",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "The lean condition is correct, but the IAT sensor issue is not the actual fault."
+    },
+    {
+      "id": "fuel_level_question",
+      "judge": "wrong",
+      "hand": "weak",
+      "why": "The gallon estimate is incorrect for a 12.4\u2011gal tank."
+    },
+    {
+      "id": "multi_turn_misfire_then_howto",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "Partial correctness but includes a false code and no instructions for accessing spark plugs."
+    },
+    {
+      "id": "multi_turn_switch_subject",
+      "judge": "correct",
+      "hand": "wrong",
+      "why": "Both statements accurately describe the situation and correct procedure."
+    },
+    {
+      "id": "interrupted_half_question",
+      "judge": "weak",
+      "hand": "correct",
+      "why": "The junior asked a question instead of providing an answer."
+    }
+  ]
+}
