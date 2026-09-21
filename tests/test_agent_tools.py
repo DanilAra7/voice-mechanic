@@ -158,7 +158,7 @@ def test_live_data_says_whether_a_reading_is_normal(runner_and_session):
 
 
 def test_live_data_answers_the_direction_the_driver_claimed(runner_and_session):
-    """"It keeps climbing" was being agreed with rather than checked. This car is leaking
+    """ "It keeps climbing" was being agreed with rather than checked. This car is leaking
     coolant, so the direction is real and the tool says so."""
     runner, session = runner_and_session
     out = runner.call("read_live_data", {}, session)
@@ -179,3 +179,28 @@ def test_a_steady_reading_is_not_reported_as_a_trend():
     assert "steady" in coolant["trend"]
     assert coolant["status"] == "normal"
     assert "normal for this car" in out["verdict"]
+
+
+def test_a_dying_alternator_is_not_reported_as_steady():
+    """Measured 2026-09-20: a truck losing 0.014 volts a minute, asked outright whether the
+    voltage was dropping, was told it had been steady. The flat 0.05-per-minute threshold is
+    noise for coolant and an afternoon's discharge for a battery."""
+    from mechanic.agent.tools import trend_direction
+
+    class FakeTrend:
+        def __init__(self, slope, window_s, last):
+            self.slope_per_min, self.window_s, self.last = slope, window_s, last
+
+    volts = FakeTrend(-0.014, 300, 11.48)
+    assert trend_direction(volts, 0x42, None) == "falling"
+    # Coolant wandering by the same number is the thermostat doing its job.
+    assert trend_direction(FakeTrend(-0.014, 300, 92.0), 0x05, None) == "steady"
+
+
+def test_an_empty_search_says_so(runner_and_session):
+    """A model handed an empty list tells the driver the problem does not exist."""
+    runner, session = runner_and_session
+    runner.index.hits = []
+    out = runner.call("search_owner_reports", {"query": "carbon buildup"}, session)
+    assert out["found"] == 0
+    assert "not that" in out["note"]

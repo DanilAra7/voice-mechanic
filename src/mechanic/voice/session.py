@@ -215,7 +215,7 @@ class VoiceSession:
         if not said:
             await self._emit("turn_skipped", {"reason": "nothing recognised"})
             return timings
-        self._pending_prefix = said   # kept in case this turn turns out to be half a question
+        self._pending_prefix = said  # kept in case this turn turns out to be half a question
         await self._emit("transcript", {"text": said, "ms": round(timings.asr_ms)})
 
         self._speaking = True
@@ -240,7 +240,7 @@ class VoiceSession:
             await self._emit("turn_end", {k: v for k, v in asdict(timings).items() if v is not None})
             return timings
 
-        self._pending_prefix = ""     # the answer was heard, so nothing is left hanging
+        self._pending_prefix = ""  # the answer was heard, so nothing is left hanging
 
         # A turn that produced nothing is the worst outcome for a voice agent: the driver is left
         # wondering whether the line dropped. Seen in testing when the model returned only its

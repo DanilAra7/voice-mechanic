@@ -176,10 +176,10 @@ async def test_the_tail_of_the_drivers_own_words_is_not_an_interruption():
     session, events, _ = build()
     session.detector = QuietDetector()
     session._speaking = True
-    session._speech_run_s = 0.0           # as `handle` sets it when a turn begins
+    session._speech_run_s = 0.0  # as `handle` sets it when a turn begins
 
-    session.detector.is_speaking = True   # the tail of their own sentence still reads as speech
-    await session.push_audio(np.zeros(1600, dtype=np.float32))   # 100 ms
+    session.detector.is_speaking = True  # the tail of their own sentence still reads as speech
+    await session.push_audio(np.zeros(1600, dtype=np.float32))  # 100 ms
     session.detector.is_speaking = False
     await session.push_audio(np.zeros(1600, dtype=np.float32))
 
@@ -189,13 +189,13 @@ async def test_the_tail_of_the_drivers_own_words_is_not_an_interruption():
 async def test_speaking_up_again_does_interrupt():
     session, events, _ = build()
     session.detector = QuietDetector()
-    session._confirmed.set()              # they can hear the answer, so they can talk over it
+    session._confirmed.set()  # they can hear the answer, so they can talk over it
     session._speaking = True
-    session._speaking_since = time.monotonic() - 2.0   # the answer has been running a while
+    session._speaking_since = time.monotonic() - 2.0  # the answer has been running a while
     session._speech_run_s = 0.0
 
-    session.detector.is_speaking = True   # and they keep going, unlike an echo
-    for _ in range(4):                    # 400 ms, past BARGE_IN_SPEECH_S
+    session.detector.is_speaking = True  # and they keep going, unlike an echo
+    for _ in range(4):  # 400 ms, past BARGE_IN_SPEECH_S
         await session.push_audio(np.zeros(1600, dtype=np.float32))
 
     assert "flush" in [e for e, _ in events]
@@ -207,7 +207,7 @@ async def test_the_start_of_an_answer_cannot_be_interrupted():
     session.detector = QuietDetector()
     session._confirmed.set()
     session._speaking = True
-    session._speaking_since = time.monotonic()         # just began
+    session._speaking_since = time.monotonic()  # just began
     session.detector.is_speaking = True
     for _ in range(6):
         await session.push_audio(np.zeros(1600, dtype=np.float32))
@@ -234,14 +234,14 @@ async def test_speech_during_the_grace_window_does_not_count_later():
     session._speaking_since = time.monotonic()
     session.detector.is_speaking = True
 
-    for _ in range(6):                       # 600 ms of echo, inside the grace window
+    for _ in range(6):  # 600 ms of echo, inside the grace window
         await session.push_audio(np.zeros(1600, dtype=np.float32))
     assert "flush" not in [e for e, _ in events]
 
-    session._speaking_since = time.monotonic() - 5.0   # grace has now long expired
-    session.detector.is_speaking = False               # and they are quiet
+    session._speaking_since = time.monotonic() - 5.0  # grace has now long expired
+    session.detector.is_speaking = False  # and they are quiet
     await session.push_audio(np.zeros(1600, dtype=np.float32))
-    session.detector.is_speaking = True                # one blip must not be enough
+    session.detector.is_speaking = True  # one blip must not be enough
     await session.push_audio(np.zeros(1600, dtype=np.float32))
     assert "flush" not in [e for e, _ in events], "the grace-window echo still counted"
 
@@ -252,10 +252,10 @@ async def test_nothing_is_played_before_the_turn_is_confirmed():
 
     session, events, audio = build()
     original = mod.CONFIRM_EXTRA_S
-    mod.CONFIRM_EXTRA_S = 5.0                     # confirmation will not arrive during this test
+    mod.CONFIRM_EXTRA_S = 5.0  # confirmation will not arrive during this test
     try:
         turn = asyncio.create_task(session.handle(SPEECH))
-        await asyncio.sleep(0.4)                  # long enough for recognition and the model
+        await asyncio.sleep(0.4)  # long enough for recognition and the model
         assert [e for e, _ in events], "the turn did not start"
         assert "audio_start" not in [e for e, _ in events], "spoke before the turn was confirmed"
         assert audio == [], "sent audio before the turn was confirmed"
@@ -281,15 +281,15 @@ async def test_carrying_on_drops_the_answer_and_keeps_the_words():
     )()
 
     original = mod.CONFIRM_EXTRA_S
-    mod.CONFIRM_EXTRA_S = 5.0                     # confirmation will not arrive on its own
+    mod.CONFIRM_EXTRA_S = 5.0  # confirmation will not arrive on its own
     try:
-        await session.push_audio(np.zeros(1600, dtype=np.float32))   # nothing yet
+        await session.push_audio(np.zeros(1600, dtype=np.float32))  # nothing yet
         session._turn = asyncio.create_task(session.handle(SPEECH))
         await asyncio.sleep(0.3)
         session.recognizer.text = "what does that mean"
-        await session.push_audio(np.zeros(1600, dtype=np.float32))   # they carry on
+        await session.push_audio(np.zeros(1600, dtype=np.float32))  # they carry on
         follow_up = session._turn
-        await asyncio.sleep(0.2)                  # let the new turn clear the flag, then confirm it
+        await asyncio.sleep(0.2)  # let the new turn clear the flag, then confirm it
         session._confirmed.set()
         await asyncio.wait_for(follow_up, timeout=5)
     finally:
@@ -305,15 +305,15 @@ async def test_an_unheard_answer_cannot_be_interrupted():
     session, events, _ = build()
     session.detector = QuietDetector()
     session._speaking = True
-    session._speaking_since = time.monotonic() - 5.0   # grace long gone
-    session.detector.is_speaking = True                # and they are talking
+    session._speaking_since = time.monotonic() - 5.0  # grace long gone
+    session.detector.is_speaking = True  # and they are talking
     for _ in range(6):
         await session.push_audio(np.zeros(1600, dtype=np.float32))
     assert "flush" not in [e for e, _ in events]
 
 
 async def test_reset_stops_an_answer_that_is_already_playing():
-    """"New conversation" has to silence the agent: otherwise the previous answer keeps playing
+    """ "New conversation" has to silence the agent: otherwise the previous answer keeps playing
     over the next question, and is then measured as part of it."""
     session, events, _ = build()
     session._turn = asyncio.create_task(session.handle(SPEECH))

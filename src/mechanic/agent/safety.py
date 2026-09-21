@@ -19,6 +19,11 @@ import re
 
 PULL_OVER = "Stop driving and pull over as soon as it is safe."
 DO_NOT_DRIVE = "Do not drive the car until this is checked."
+# Not an opening warning but a closing one: the driver can finish the trip, and still must not
+# assume the system will work. Measured 2026-09-20: asked about an airbag light, the model gave
+# a tidy explanation and never said to have it checked. The prompt asks for this line; asking
+# is not the same as having it.
+HAVE_IT_CHECKED = "Either way, have it looked at before you rely on it."
 
 SMELL = r"smell(?:s|ed|ing)?"
 FUEL = r"gas|gasoline|petrol|fuel"
@@ -50,6 +55,32 @@ _RULES: list[tuple[re.Pattern[str], str]] = [
     ),
     (re.compile(r"\b(lost|losing|loses)\s+(my\s+)?steering\b", re.I), DO_NOT_DRIVE),
 ]
+
+
+# A light for a system that only matters in a crash. "No code stored" does not clear it.
+_SAFETY_LIGHT = re.compile(
+    r"\b(airbag|srs|abs|brake|seat\s?belt|traction\s+control)\b[^.?!]{0,30}\b(light|lamp|warning)\b"
+    r"|\b(light|lamp|warning)\b[^.?!]{0,30}\b(airbag|srs|abs|seat\s?belt)\b",
+    re.I,
+)
+# Words that mean the driver was already told to get it seen; saying it twice sounds like a bug.
+_ALREADY_SAID = re.compile(r"\b(looked at|checked|check it|inspect|mechanic|dealer|shop|scan(ned)?)\b", re.I)
+
+
+def closing_line(user_text: str, answer: str) -> str | None:
+    """The sentence that must END the turn, or None. Unlike `safety_warning` this does not stop
+    the drive — it stops the driver from trusting a system that has told them it is unwell."""
+    if _SAFETY_LIGHT.search(user_text) and not _ALREADY_SAID.search(answer):
+        return HAVE_IT_CHECKED
+    return None
+
+
+def warning_from_readings(result: dict) -> str | None:
+    """Some dangers arrive from the adapter, not from the driver's words: they ask a neutral
+    question, and the coolant comes back at 124 °C. The reading decides, not the phrasing."""
+    verdicts = [str(r.get("status") or "") for r in result.get("readings", [])]
+    verdicts.append(str(result.get("status") or ""))
+    return PULL_OVER if any("OVERHEAT" in v.upper() for v in verdicts) else None
 
 
 def safety_warning(user_text: str) -> str | None:

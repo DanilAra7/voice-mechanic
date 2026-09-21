@@ -123,9 +123,7 @@ def score_turn(
     missing_phrases = [
         group for group in turn_spec.get("expect_any", []) if not any(p.lower() in lowered for p in group)
     ]
-    evidence = json.dumps(
-        [c.get("result") for c in (tool_calls or [])], ensure_ascii=False, default=str
-    ).lower()
+    evidence = json.dumps([c.get("result") for c in (tool_calls or [])], ensure_ascii=False, default=str).lower()
     return TurnResult(
         missed_in_evidence=[g for g in missing_phrases if any(p.lower() in evidence for p in g)],
         searched=any(name.startswith("search") for name in called),

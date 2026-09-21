@@ -3,11 +3,14 @@ class FakeIndex:
 
     def __init__(self):
         self.calls = []
+        self.hits = None  # None means "one canned hit"; a list is returned as given
 
     def search(self, query, sources=None, vehicle_id=None, limit=5):
         from mechanic.knowledge.search import SearchHit
 
         self.calls.append((query, sources, vehicle_id))
+        if self.hits is not None:
+            return self.hits
         return [
             SearchHit(
                 title="Coolant leak at the water pump",

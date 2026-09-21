@@ -155,12 +155,36 @@ def normal_range(pid: int, vehicle: Vehicle | None) -> str:
             return ""
 
 
-def describe_trend(trend) -> str:
+# How much a reading has to move before "steady" becomes a lie, as a share of the healthy band.
+TREND_SENSITIVITY = 0.05
+# For sensors with no band, the old flat threshold. Units per minute.
+TREND_FLOOR = 0.05
+
+
+def trend_direction(trend, pid: int | None = None, vehicle: Vehicle | None = None) -> str:
+    """Rising, falling or steady — judged against the band the sensor is supposed to live in.
+
+    A flat threshold across every sensor is a bug with two faces. Coolant moving 0.04 °C a minute
+    is noise; battery voltage moving 0.04 V a minute is an alternator dying over an afternoon.
+    Measured 2026-09-20: a truck with a failing alternator, asked outright whether the voltage
+    was dropping, was told it had been steady — the slope was 0.014 V per minute, under the flat
+    threshold, and the answer read as reassurance. Five percent of the healthy range is the same
+    question asked in units that mean something for each sensor.
+    """
+    moved = abs(trend.slope_per_min) * (trend.window_s / 60)
+    b = band(pid, vehicle) if pid is not None else None
+    threshold = (b.high - b.low) * TREND_SENSITIVITY if b else TREND_FLOOR * (trend.window_s / 60)
+    if moved < threshold:
+        return "steady"
+    return "rising" if trend.slope_per_min > 0 else "falling"
+
+
+def describe_trend(trend, pid: int | None = None, vehicle: Vehicle | None = None) -> str:
     """Which way a reading is going, in words, so nobody has to subtract two numbers."""
     minutes = round(trend.window_s / 60)
-    if abs(trend.slope_per_min) < 0.05:
+    direction = trend_direction(trend, pid, vehicle)
+    if direction == "steady":
         return f"steady over the last {minutes} minutes"
-    direction = "rising" if trend.slope_per_min > 0 else "falling"
     return f"{direction} {abs(trend.slope_per_min):.1f} {trend.unit} per minute over the last {minutes} minutes"
 
 
@@ -386,7 +410,7 @@ class ToolRunner:
                 # Drivers describe a direction — "it keeps climbing" — and the agent used to
                 # agree with them out of politeness. Answer it from the log instead.
                 if trend := self.store.trend(session.device, r.pid, window_s=TREND_WINDOW_S):
-                    item["trend"] = describe_trend(trend)
+                    item["trend"] = describe_trend(trend, r.pid, vehicle)
             out.append(item)
         codes = self.store.get_dtcs(session.device)
         return {
@@ -411,9 +435,11 @@ class ToolRunner:
         trend = self.store.trend(session.device, pid, window_s=int(minutes * 60))
         if not trend or trend.samples < 2:
             return {"sensor": sensor, "message": "Not enough data yet — the adapter has only just started sending."}
-        direction = "rising" if trend.slope_per_min > 0.05 else "falling" if trend.slope_per_min < -0.05 else "steady"
+        direction = trend_direction(trend, pid, session.vehicle)
         return {
             "sensor": trend.name,
+            # Which way it is going is only half the answer: steady at 11.5 volts is not good news.
+            "status": verdict(pid, trend.last, session.vehicle),
             "unit": trend.unit,
             "window_minutes": round(trend.window_s / 60, 1),
             "first": round(trend.first, 2),
@@ -446,6 +472,15 @@ class ToolRunner:
         return {
             "query": query,
             "vehicle": session.vehicle.title if session.vehicle else None,
+            # Said out loud, because a model handed an empty list will tell the driver the problem
+            # does not exist. Measured 2026-09-20: asked whether owners of a direct-injection 2.0
+            # TFSI report carbon buildup — the textbook complaint for that engine — the search came
+            # back empty and the answer was "I'm not seeing any common reports".
+            "found": len(hits),
+            "note": "Nothing matched this query. That means the search found nothing, not that "
+            "there is nothing to find - say so that way."
+            if not hits
+            else None,
             "results": [
                 {
                     "title": h.title,

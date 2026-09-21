@@ -161,8 +161,7 @@ def main() -> None:
         r = evaluate(index, pairs, use=use, boost=boost)
         results[label] = r
         print(
-            f"{label:36} {r['recall@1']:>6} {r['recall@5']:>6} "
-            f"{r['recall@10']:>6} {r['mrr@10']:>6} {r['median_ms']:>6}"
+            f"{label:36} {r['recall@1']:>6} {r['recall@5']:>6} {r['recall@10']:>6} {r['mrr@10']:>6} {r['median_ms']:>6}"
         )
 
     out = Path(args.out)

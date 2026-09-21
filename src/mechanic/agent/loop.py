@@ -19,7 +19,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from mechanic.agent.prompt import build_system_prompt
-from mechanic.agent.safety import DO_NOT_DRIVE, PULL_OVER, safety_warning
+from mechanic.agent.safety import DO_NOT_DRIVE, PULL_OVER, closing_line, safety_warning, warning_from_readings
 from mechanic.agent.tools import TOOL_SCHEMAS, Session, ToolRunner
 
 # Any tool at all is worth a spoken line: what costs seconds is the model round around it,
@@ -41,8 +41,37 @@ MAX_TOOL_ROUNDS = 4
 # the answer then runs for most of a minute, and they cannot ask the next question until it
 # stops. Told to be brief the model agrees and then is not, so the limit is enforced rather than
 # requested. The cut lands between sentences, so what they hear is always a finished thought,
-# and the sentence that crosses the line is still spoken in full: about ten seconds in practice.
+# The cut lands between sentences, so what they hear is always a finished thought, and the
+# sentence that WOULD cross the line is not started. Checking after speaking it, as this did
+# until 2026-09-21, let every answer overshoot by a whole sentence: the median answer measured
+# 190 characters against a limit of 140, which is fourteen seconds of listening, not ten.
 MAX_SPOKEN_CHARS = 140
+
+
+SEARCH_TOOLS = ("search_how_to", "search_owner_reports", "search_forum")
+# Said after the passages arrive rather than in the system prompt, because the prompt is read once
+# at the top of a long conversation and this has to hold at the moment of writing the answer. The
+# prompt already said "never give steps from memory"; measured 2026-09-20, the model then told a
+# driver to drain the oil through the filler cap and to disconnect the battery before opening the
+# hood. Five of the eight false answers in that run were invented procedures.
+GROUNDED = (
+    "Those passages are everything you have on this. Say only what is in them. If they do not "
+    "cover what the driver asked, say you do not have the steps for this car rather than "
+    "recalling them."
+)
+NOTHING_FOUND = (
+    "The search came back empty. Tell the driver you could not find anything - never that there is nothing to find."
+)
+
+
+def grounding_note(calls: list[dict]) -> str | None:
+    """What to add after a lookup, if anything: the answer is about to be written from it."""
+    searches = [c for c in calls if c["name"] in SEARCH_TOOLS]
+    if not searches:
+        return None
+    if all(not (c.get("result") or {}).get("results") for c in searches):
+        return NOTHING_FOUND
+    return GROUNDED
 
 
 def situation(session: Session) -> str:
@@ -160,18 +189,18 @@ class AgentLoop:
             text, tool_calls, sentences, enough = "", [], [], False
             async for kind, value in self._stream_completion(started, turn):
                 if kind == "sentence":
+                    if said_chars and said_chars + len(value) > MAX_SPOKEN_CHARS:
+                        # Whatever the model is still writing, the driver has heard enough for
+                        # one turn. They can always ask for more; they cannot ask for less.
+                        turn.truncated = True
+                        enough = True
+                        break
                     sentences.append(value)
                     spoken = True
                     said_chars += len(value)
                     turn.text += value + " "
                     await emit("sentence", {"text": value})
                     yield value
-                    if said_chars >= MAX_SPOKEN_CHARS:
-                        # Whatever the model is still writing, the driver has heard enough for
-                        # one turn. They can always ask for more; they cannot ask for less.
-                        turn.truncated = True
-                        enough = True
-                        break
                 elif kind == "text":
                     text = value
                 elif kind == "tool_calls":
@@ -212,6 +241,22 @@ class AgentLoop:
                 self.messages.append(
                     {"role": "tool", "tool_call_id": call["id"], "name": name, "content": json.dumps(result)[:4000]}
                 )
+                if name == "read_live_data" and not turn.safety_line:
+                    # The danger arrived from the adapter rather than from anything the driver
+                    # said, so the rule that reads their words never saw it.
+                    if (from_data := warning_from_readings(result)) is not None:
+                        turn.safety_line = from_data
+                        turn.text += from_data + " "
+                        await emit("sentence", {"text": from_data, "safety": True})
+                        yield from_data
+
+            if (note := grounding_note(turn.tool_calls[-len(tool_calls) :])) is not None:
+                self.messages.append({"role": "system", "content": note})
+
+        if (closer := closing_line(user_text, turn.text)) is not None:
+            turn.text += closer + " "
+            await emit("sentence", {"text": closer, "safety": True})
+            yield closer
 
         turn.total_ms = (time.monotonic() - started) * 1000
         turn.text = turn.text.strip()
