@@ -54,10 +54,15 @@ SEARCH_TOOLS = ("search_how_to", "search_owner_reports", "search_forum")
 # prompt already said "never give steps from memory"; measured 2026-09-20, the model then told a
 # driver to drain the oil through the filler cap and to disconnect the battery before opening the
 # hood. Five of the eight false answers in that run were invented procedures.
+# Aimed at invention, not at detail. The first wording - "say only what is in them" - fixed the
+# made-up procedures and cost the answers their substance: measured 2026-09-21, eleven answers
+# out of eighty-two shrank to a single sentence, one of them "mechanics usually look at the
+# fuel-trim numbers first" and nothing else. Being useless is a quieter failure than being wrong,
+# and it is still a failure.
 GROUNDED = (
-    "Those passages are everything you have on this. Say only what is in them. If they do not "
-    "cover what the driver asked, say you do not have the steps for this car rather than "
-    "recalling them."
+    "Answer from those passages. Give the driver the specifics they contain - the part, the step, "
+    "the number. What they do not cover, do not fill in from memory: say you do not have that "
+    "detail for this car."
 )
 NOTHING_FOUND = (
     "The search came back empty. Tell the driver you could not find anything - never that there is nothing to find."
