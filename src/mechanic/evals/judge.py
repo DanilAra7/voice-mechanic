@@ -95,12 +95,14 @@ def parse_verdict(text: str) -> tuple[str, str]:
     return "unparsed", text.strip()[:300]
 
 
-async def judge_one(client: AsyncOpenAI, model: str, scenario: dict, result: dict, effort: str) -> dict[str, Any]:
+async def judge_one(
+    client: AsyncOpenAI, model: str, scenario: dict, result: dict, effort: str, max_tokens: int
+) -> dict[str, Any]:
     response = await client.chat.completions.create(
         model=model,
         messages=[{"role": "system", "content": SYSTEM}, {"role": "user", "content": build_prompt(scenario, result)}],
         temperature=0.0,
-        max_tokens=400,
+        max_tokens=max_tokens,
         extra_body={"chat_template_kwargs": {"reasoning_effort": effort}} if effort else {},
     )
     verdict, why = parse_verdict(response.choices[0].message.content or "")
@@ -110,7 +112,7 @@ async def judge_one(client: AsyncOpenAI, model: str, scenario: dict, result: dic
 def agreement(judged: list[dict], gold: dict[str, str]) -> dict[str, Any]:
     """How much the judge can be trusted, in the only terms that matter: does it agree with the
     person who read the same answers, and when it disagrees, which way does it lean."""
-    pairs = [(j["verdict"], gold[j["id"]]) for j in judged if j["id"] in gold]
+    pairs = [(j["verdict"], gold[j["id"]]) for j in judged if j["id"] in gold and j["verdict"] != "unparsed"]
     if not pairs:
         return {}
     exact = sum(a == b for a, b in pairs) / len(pairs)
@@ -140,19 +142,23 @@ async def main_async(args) -> None:
 
     async def one(result):
         async with semaphore:
-            return await judge_one(client, args.model, scenarios[result["id"]], result, args.effort)
+            return await judge_one(client, args.model, scenarios[result["id"]], result, args.effort, args.max_tokens)
 
     judged = await asyncio.gather(*(one(r) for r in results))
 
     counts = {v: sum(j["verdict"] == v for j in judged) for v in (*VERDICTS, "unparsed")}
     total = len(judged)
+    # A verdict that never arrived is not a pass and not a failure; it is a broken measurement,
+    # and averaging over it would quietly turn a broken run into a good score.
+    scored = total - counts["unparsed"]
     report: dict[str, Any] = {
         "results": args.results,
         "judge_model": args.model,
         "scenarios_judged": total,
         "counts": counts,
-        "correct_pct": round(counts["correct"] / total * 100, 1) if total else 0.0,
-        "correct_or_weak_pct": round((counts["correct"] + counts["weak"]) / total * 100, 1) if total else 0.0,
+        "scored": scored,
+        "correct_pct": round(counts["correct"] / scored * 100, 1) if scored else 0.0,
+        "correct_or_weak_pct": round((counts["correct"] + counts["weak"]) / scored * 100, 1) if scored else 0.0,
         "verdicts": judged,
     }
     if GOLD_PATH.exists():
@@ -188,7 +194,11 @@ def main() -> None:
     p.add_argument("results", help="a run written by mechanic.evals.run")
     p.add_argument("--model", required=True)
     p.add_argument("--base-url", default="http://127.0.0.1:8001/v1")
-    p.add_argument("--effort", default="high", help="reasoning_effort for the judge; judging is offline")
+    # Reasoning tokens come out of the same budget as the answer. At effort "high" and 400
+    # tokens, 54 of 76 verdicts never reached the JSON: the judge thought until the budget ran
+    # out. Judging is offline, so the budget is cheap and the effort does not have to be heroic.
+    p.add_argument("--effort", default="medium", help="reasoning_effort for the judge; judging is offline")
+    p.add_argument("--max-tokens", type=int, default=1600)
     p.add_argument("--concurrency", type=int, default=2)
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--out", default=None)
