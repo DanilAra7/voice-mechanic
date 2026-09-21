@@ -83,6 +83,32 @@ def warning_from_readings(result: dict) -> str | None:
     return PULL_OVER if any("OVERHEAT" in v.upper() for v in verdicts) else None
 
 
+# The driver telling us their own hardware is out of action. Matched on the words people
+# actually use, including the ones a recogniser mangles into the past tense.
+_ADAPTER = r"(adapter|adaptor|dongle|obd(?:[ -]?(?:ii|2))?(?:\s+reader)?|scanner)"
+_BROKEN = r"(broken|busted|dead|faulty|unplugged|not working|does\s?n.?t work|playing up|useless|off)"
+_ADAPTER_OUT = re.compile(
+    rf"\b{_ADAPTER}\b[^.?!]{{0,40}}\b{_BROKEN}\b"
+    rf"|\bdon.?t (use|trust|rely on) (the |that )?{_ADAPTER}\b",
+    re.I,
+)
+_ADAPTER_BACK = re.compile(
+    rf"\b{_ADAPTER}\b[^.?!]{{0,40}}\b(working|fixed|plugged (back )?in|back on|fine now)\b", re.I
+)
+
+
+def adapter_claim(user_text: str) -> bool | None:
+    """True when the driver says the adapter works, False when they say it does not, None when
+    they did not mention it. They are looking at it; we are not."""
+    # Failure is checked first: "not working" contains "working", and the sentence that says the
+    # adapter is dead must never be read as the sentence that says it is alive.
+    if _ADAPTER_OUT.search(user_text):
+        return False
+    if _ADAPTER_BACK.search(user_text):
+        return True
+    return None
+
+
 def safety_warning(user_text: str) -> str | None:
     """The sentence the driver must hear first, or None when nothing dangerous was described."""
     at_the_pump = bool(_AT_THE_PUMP.search(user_text)) and not _IN_THE_CAR.search(user_text)

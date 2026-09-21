@@ -19,7 +19,14 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from mechanic.agent.prompt import build_system_prompt
-from mechanic.agent.safety import DO_NOT_DRIVE, PULL_OVER, closing_line, safety_warning, warning_from_readings
+from mechanic.agent.safety import (
+    DO_NOT_DRIVE,
+    PULL_OVER,
+    adapter_claim,
+    closing_line,
+    safety_warning,
+    warning_from_readings,
+)
 from mechanic.agent.tools import TOOL_SCHEMAS, Session, ToolRunner
 
 # Any tool at all is worth a spoken line: what costs seconds is the model round around it,
@@ -165,6 +172,11 @@ class AgentLoop:
         turn = turn or Turn()
         started = time.monotonic()
         self._refresh_system()
+        # The driver can see the dongle hanging out of the socket and we cannot. Measured on a
+        # real conversation 2026-09-21: told the adapter was broken, the agent went on asking
+        # about the readings, which is the single thing that made it look stupid.
+        if (claim := adapter_claim(user_text)) is not None:
+            self.session.adapter_trusted = claim
         self.messages.append({"role": "user", "content": user_text})
 
         async def emit(event: str, payload: dict) -> None:

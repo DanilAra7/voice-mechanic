@@ -1,0 +1,127 @@
+{
+  "wer": 2.2,
+  "wer_strict": 4.4,
+  "cer": 1.12,
+  "clips": [
+    {
+      "clip": "00.wav",
+      "reference": "my temperature gauge is climbing and it is still going up",
+      "heard": "my temperature gauge is climbing and it is still going up",
+      "word_errors": 0,
+      "words": 11,
+      "decode_ms": 113
+    },
+    {
+      "clip": "01.wav",
+      "reference": "the car shakes at idle and the check engine light came on",
+      "heard": "the car shakes at idle and the check engine light came on",
+      "word_errors": 0,
+      "words": 12,
+      "decode_ms": 137
+    },
+    {
+      "clip": "02.wav",
+      "reference": "i am getting a code p0171 what does that mean",
+      "heard": "i am getting a code p0171 what does it mean",
+      "word_errors": 1,
+      "words": 10,
+      "decode_ms": 167
+    },
+    {
+      "clip": "03.wav",
+      "reference": "is this a common problem on my car",
+      "heard": "is this a common problem on my car",
+      "word_errors": 0,
+      "words": 8,
+      "decode_ms": 92
+    },
+    {
+      "clip": "04.wav",
+      "reference": "how do i check the coolant level",
+      "heard": "how do i check the coolant level",
+      "word_errors": 0,
+      "words": 7,
+      "decode_ms": 96
+    },
+    {
+      "clip": "05.wav",
+      "reference": "my battery light keeps flickering when i slow down",
+      "heard": "my battery light keeps flickering when i slow down",
+      "word_errors": 0,
+      "words": 9,
+      "decode_ms": 138
+    },
+    {
+      "clip": "06.wav",
+      "reference": "there is a hissing noise from the engine bay and the idle is a bit high",
+      "heard": "there is a hissing noise from the engine bay and the idle is a bit high",
+      "word_errors": 0,
+      "words": 16,
+      "decode_ms": 177
+    },
+    {
+      "clip": "07.wav",
+      "reference": "what are my short term and long term fuel trims doing right now",
+      "heard": "what are my short term and long term fuel trims doing right now",
+      "word_errors": 0,
+      "words": 13,
+      "decode_ms": 140
+    },
+    {
+      "clip": "08.wav",
+      "reference": "the heater blows cold air once i get up to speed on the motorway",
+      "heard": "the heater blows cold air once and i got up to speed on the motorway",
+      "word_errors": 2,
+      "words": 14,
+      "decode_ms": 183
+    },
+    {
+      "clip": "09.wav",
+      "reference": "it hesitates when i put my foot down especially from a stop",
+      "heard": "it hesitates when i put my foot down especially from a stop",
+      "word_errors": 0,
+      "words": 12,
+      "decode_ms": 150
+    },
+    {
+      "clip": "10.wav",
+      "reference": "i smell gasoline inside the cabin while driving",
+      "heard": "i smelled gasoline inside the cabin while driving",
+      "word_errors": 1,
+      "words": 8,
+      "decode_ms": 116
+    },
+    {
+      "clip": "11.wav",
+      "reference": "my brake pedal goes almost to the floor can i drive to work tomorrow",
+      "heard": "my brake pedal goes almost to the floor can i drive to work tomorrow",
+      "word_errors": 0,
+      "words": 14,
+      "decode_ms": 185
+    },
+    {
+      "clip": "12.wav",
+      "reference": "read my codes and tell me which 1 to chase first",
+      "heard": "read my codes and tell me which 1 to chase first",
+      "word_errors": 0,
+      "words": 11,
+      "decode_ms": 128
+    },
+    {
+      "clip": "13.wav",
+      "reference": "so the other day i was driving home and the engine started making this rattling sound when i accelerated",
+      "heard": "so the other day i was driving home and the engine started making this rattling sound when i accelerated",
+      "word_errors": 0,
+      "words": 19,
+      "decode_ms": 198
+    },
+    {
+      "clip": "14.wav",
+      "reference": "can you check the live data and tell me whether the coolant temperature is normal for this car",
+      "heard": "can you check the live data and tell me whether the coolant temperature is normal for this car",
+      "word_errors": 0,
+      "words": 18,
+      "decode_ms": 201
+    }
+  ]
+}

@@ -195,6 +195,11 @@ class Session:
     device: str
     vehicle_id: str | None = None
     notes: list[str] = field(default_factory=list)
+    # The driver said the adapter is broken, unplugged or not to be trusted. They can see the
+    # thing; we can only see what it sends, and a lead-acid dongle that has come loose keeps
+    # sending the last value it managed. So their word about their own hardware wins, and the
+    # sensor tool says so instead of arguing with them.
+    adapter_trusted: bool = True
 
     @property
     def vehicle(self) -> Vehicle | None:
@@ -388,6 +393,13 @@ class ToolRunner:
         return next((pid for pid, p in PIDS.items() if key in p.full_name.lower()), None)
 
     def _read_live_data(self, session: Session, sensors: list[str] | None = None) -> dict:
+        if not session.adapter_trusted:
+            return {
+                "connected": False,
+                "message": "The driver has told you the adapter is broken and not to use it. "
+                "Do not read it again or ask them about the readings. Work from what they can "
+                "see, hear, smell and feel, and from the knowledge base.",
+            }
         readings = self.store.latest(session.device, max_age_s=30)
         if not readings:
             return {

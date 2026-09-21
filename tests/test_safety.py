@@ -74,3 +74,31 @@ def test_burning_is_caught_however_it_is_phrased():
         "It smells of burning.",
     ]:
         assert safety_warning(said) is not None, said
+
+
+def test_the_driver_can_see_the_adapter_and_we_cannot():
+    """Told the adapter was broken, the agent kept asking about the readings. That one thing is
+    what made it look stupid in front of the person testing it."""
+    from mechanic.agent.safety import adapter_claim
+
+    assert adapter_claim("I think the OBD adapter is broken") is False
+    assert adapter_claim("don't use the adapter") is False
+    assert adapter_claim("the dongle is dead") is False
+    # "not working" contains "working": the sentence saying it is dead must never read as alive.
+    assert adapter_claim("the scanner is not working") is False
+    assert adapter_claim("the adapter is plugged back in") is True
+    assert adapter_claim("my brakes are broken") is None
+
+
+def test_live_data_stands_down_when_the_driver_says_so():
+    from conftest import FakeIndex
+
+    from mechanic.agent.tools import Session, ToolRunner
+    from mechanic.knowledge.dtc import DtcDatabase
+    from mechanic.torque.store import TorqueStore
+
+    runner = ToolRunner(TorqueStore(), DtcDatabase(), FakeIndex())
+    session = Session(device="dev1", vehicle_id="audi_a4_b8", adapter_trusted=False)
+    out = runner.call("read_live_data", {}, session)
+    assert out["connected"] is False
+    assert "not to use it" in out["message"]

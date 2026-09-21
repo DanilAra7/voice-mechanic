@@ -20,6 +20,7 @@ from mechanic.agent.loop import AgentLoop
 from mechanic.voice.asr import SAMPLE_RATE, Recognizer
 from mechanic.voice.tts import Synthesiser
 from mechanic.voice.vad import TurnDetector
+from mechanic.voice.vocabulary import repair
 
 # Said when a turn would otherwise end in silence.
 NOTHING_TO_SAY = "Sorry, I did not catch that. Say it again?"
@@ -217,7 +218,9 @@ class VoiceSession:
 
         transcript = await asyncio.to_thread(self.recognizer.transcribe, speech)
         timings.asr_ms = (time.monotonic() - zero) * 1000
-        said = f"{self._pending_prefix} {transcript.text}".strip()
+        # Repaired before anything reads it: the guardrail, the agent and the panel should all
+        # see the words the driver actually said, not three different versions of them.
+        said = repair(f"{self._pending_prefix} {transcript.text}".strip())
         if not said:
             await self._emit("turn_skipped", {"reason": "nothing recognised"})
             return timings

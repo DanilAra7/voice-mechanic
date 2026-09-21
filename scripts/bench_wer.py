@@ -29,6 +29,7 @@ from pathlib import Path
 import soundfile as sf
 
 from mechanic.voice.asr import SAMPLE_RATE, Recognizer, resample, to_mono
+from mechanic.voice.vocabulary import repair
 
 CONTRACTIONS = {
     "it's": "it is", "i'm": "i am", "don't": "do not", "doesn't": "does not",
@@ -97,7 +98,9 @@ def main() -> None:
         audio, sr = sf.read(path, dtype="float32")
         transcript = recognizer.transcribe(resample(to_mono(audio), sr, SAMPLE_RATE))
         reference = normalise(truth_path.read_text(encoding="utf-8"))
-        heard = normalise(transcript.text)
+        # Scored through the same repair the live session applies, or the number would flatter
+        # a pipeline the driver never talks to.
+        heard = normalise(repair(transcript.text))
         wrong = edits(reference, heard)
         total_edits += wrong
         total_words += len(reference)
