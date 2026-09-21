@@ -8,9 +8,12 @@ import re
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
+from http.cookies import SimpleCookie
 from pathlib import Path
+from urllib.parse import parse_qs
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -87,6 +90,61 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Voice Mechanic", lifespan=lifespan)
+
+
+class AccessKey:
+    """A shared secret on the link, because an open URL is strangers on our GPU.
+
+    One card runs one conversation. A public address with no gate is not a demo, it is an
+    invitation, and the first person to find it takes the microphone away from the person we
+    sent the link to. This is deliberately the weakest thing that works: a secret in the query
+    string, swapped for a cookie on the first request so it is not re-sent on every later one.
+    It keeps out passers-by. It is not authentication and is not pretending to be - the demo
+    holds no accounts and no personal data, and when MECHANIC_ACCESS_KEY is unset (local work)
+    nothing is gated at all.
+    """
+
+    COOKIE = "mechanic_key"
+
+    def __init__(self, app, key: str):
+        self.app = app
+        self.key = key
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] not in ("http", "websocket") or scope.get("path") == "/api/health":
+            await self.app(scope, receive, send)
+            return
+
+        query = parse_qs(scope.get("query_string", b"").decode())
+        headers = dict(scope.get("headers") or [])
+        cookies = SimpleCookie(headers.get(b"cookie", b"").decode())
+        from_query = (query.get("k") or [""])[0]
+        from_cookie = cookies[self.COOKIE].value if self.COOKIE in cookies else ""
+
+        if from_query == self.key or from_cookie == self.key:
+            if from_query == self.key and scope["type"] == "http":
+                await self.app(scope, receive, self._set_cookie(send))
+            else:
+                await self.app(scope, receive, send)
+            return
+
+        if scope["type"] == "websocket":
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        await PlainTextResponse("This demo is open by link only.", status_code=401)(scope, receive, send)
+
+    def _set_cookie(self, send):
+        async def wrapped(message):
+            if message["type"] == "http.response.start":
+                cookie = f"{self.COOKIE}={self.key}; Path=/; Max-Age=86400; SameSite=Lax"
+                message.setdefault("headers", []).append((b"set-cookie", cookie.encode()))
+            await send(message)
+
+        return wrapped
+
+
+if ACCESS_KEY := os.environ.get("MECHANIC_ACCESS_KEY"):
+    app.add_middleware(AccessKey, key=ACCESS_KEY)
 
 # The deployed front end is static and hosted separately; serving it here keeps local testing
 # to one origin, which is also the only way the browser hands over a microphone without HTTPS.

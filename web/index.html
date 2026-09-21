@@ -52,6 +52,8 @@
   .stage-bar{height:7px;background:#0d1117;border-radius:4px;overflow:hidden}
   .stage-bar i{display:block;height:100%;background:var(--mil)}
   .stage-ms{font:11px var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+  .disclaimer{margin:0 0 14px;padding:10px 14px;border:1px solid var(--line);border-left:3px solid #b8860b;
+    border-radius:6px;font-size:12.5px;line-height:1.5;color:var(--muted);background:rgba(184,134,11,.06)}
   .note{padding:0 14px 13px;font-size:12px;color:var(--muted);margin:10px 0 0}
   .note b{color:var(--ink);font-weight:600}
   .switch{display:flex;align-items:center;gap:6px;font:11px var(--mono);color:var(--muted);
@@ -89,6 +91,13 @@
   <button id="connect">Connect</button>
   <span id="status">not connected</span>
 </header>
+
+<!-- The agent reads real sensor values and names real parts, which is exactly what makes it
+     sound like a verdict. It is a demo of a voice agent, not a garage, and a driver should be
+     told so before the first answer rather than after acting on one. -->
+<p class="disclaimer">Dex is a demonstration, not a garage. It can be wrong, and it cannot see,
+  hear or touch your car. Anything it says about brakes, steering, airbags, fuel or overheating
+  should be checked by a qualified mechanic before you rely on it.</p>
 
 <main>
   <section class="panel">
