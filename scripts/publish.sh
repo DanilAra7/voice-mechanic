@@ -31,15 +31,24 @@ set -euo pipefail
 
 PORT=${PORT:-8000}
 LOG=${LOG:-/workspace/tunnel.log}
+: > "$LOG"  # a fresh log, so "the newest hostname" means this run
 
 # pkill -f would match this script's own command line and kill the session running it; that has
 # cost an afternoon more than once. Match the executable name exactly instead.
 for pid in $(pgrep -x ssh || true); do kill "$pid" 2>/dev/null || true; done
 sleep 2
 
+# A free tunnel drops, and it drops silently: the demo goes dark while everything on this side
+# still looks healthy. So it is a loop, not a command. The hostname changes on every reconnect,
+# which is why the log is appended to and the newest match is the live one.
+#
 # setsid --fork, because `nohup … &` over ssh intermittently does not survive the session.
-setsid --fork bash -c "ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=20 \
-  -R 80:127.0.0.1:$PORT serveo.net > $LOG 2>&1 < /dev/null"
+setsid --fork bash -c "while true; do
+  ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=20 -o ExitOnForwardFailure=yes \
+    -R 80:127.0.0.1:$PORT serveo.net >> $LOG 2>&1 < /dev/null
+  echo \"--- tunnel dropped, reconnecting \$(date -u +%H:%M:%S) ---\" >> $LOG
+  sleep 3
+done"
 
 for _ in $(seq 1 20); do
   host=$(grep -aEo '[a-z0-9-]+[.]serveousercontent[.]com' "$LOG" 2>/dev/null | tail -1 || true)
