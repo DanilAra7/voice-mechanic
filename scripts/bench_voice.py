@@ -155,7 +155,8 @@ async def main_async(args) -> None:
             print(f'{path.name}: heard "{row.get("transcript", "")[:56]}"')
             ms = {k: round(v) if isinstance(v, int | float) else "?" for k, v in s.items()}
             print(
-                f"    asr {ms.get('asr_ms', '?')} · first sentence {ms.get('first_sentence_ms', '?')} · "
+                f"    asr {ms.get('asr_ms', '?')} · tools {ms.get('tool_ms', 0)} · "
+                f"first sentence {ms.get('first_sentence_ms', '?')} · "
                 f"first audio {ms.get('first_audio_ms', '?')} ms (client saw {row.get('first_audio_client_ms', '?')})"
                 f" · spoke {row['spoken_s']} s in {len(row.get('sentences', []))} sentences"
                 f" · tools: {', '.join(row.get('tools', [])) or 'none'}"
@@ -166,6 +167,19 @@ async def main_async(args) -> None:
         audio_ms = sorted(r["server"]["first_audio_ms"] for r in good)
         q = lambda p: round(audio_ms[min(len(audio_ms) - 1, int(p * len(audio_ms)))])  # noqa: E731
         spoken = sorted(r["spoken_s"] for r in good)
+
+        # Where the wait actually goes. Each stage is the gap from the one before it, so the
+        # rows add up to the whole wait instead of overlapping.
+        def med(key: str) -> int:
+            xs = sorted(r["server"].get(key) or 0 for r in good)
+            return round(statistics.median(xs)) if xs else 0
+
+        asr, sentence, audio, tools = med("asr_ms"), med("first_sentence_ms"), med("first_audio_ms"), med("tool_ms")
+        print("\nwhere the wait goes, medians:")
+        print(f"  recognition              {asr:5d} ms")
+        print(f"  model, tools included    {sentence - asr:5d} ms   (tools themselves {tools} ms)")
+        print(f"  synthesis to first sound {audio - sentence:5d} ms")
+        print(f"  server total             {audio:5d} ms")
         print(
             f"\n{len(good)}/{len(rows)} turns · first audio p50 {q(0.5)} ms · p95 {q(0.95)} ms · "
             f"mean {round(statistics.mean(audio_ms))} ms"
