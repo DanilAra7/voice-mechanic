@@ -55,6 +55,9 @@ class TurnTimings:
     total_ms: float | None = None
     speech_seconds: float | None = None
     tools: list[str] = field(default_factory=list)
+    # Wall time inside the tools themselves. Without it "the model was slow" and "the search was
+    # slow" are the same number, and only one of them is worth optimising.
+    tool_ms: float = 0.0
     barged_in: bool = False
     # The driver was still mid-question: this turn was dropped before anything was played.
     carried_on: bool = False
@@ -84,6 +87,8 @@ class VoiceSession:
         self._speech_run_s = 0.0
         self._cancel = asyncio.Event()
         self._turn: asyncio.Task | None = None
+        # The timings of the turn being spoken right now, so the tool-call callback can add to them.
+        self._timings: TurnTimings | None = None
         self._confirmed = asyncio.Event()
         self._confirm_timer: asyncio.Task | None = None
         self._continued = False
@@ -208,6 +213,7 @@ class VoiceSession:
             self._confirmed.clear()
             self._confirm_timer = asyncio.create_task(self._confirm_after(CONFIRM_EXTRA_S))
         timings = TurnTimings(speech_seconds=round(len(speech) / 16000, 2))
+        self._timings = timings
 
         transcript = await asyncio.to_thread(self.recognizer.transcribe, speech)
         timings.asr_ms = (time.monotonic() - zero) * 1000
@@ -259,6 +265,9 @@ class VoiceSession:
 
     async def _agent_event(self, event: str, payload: dict) -> None:
         if event == "tool_call":
+            if self._timings is not None:
+                self._timings.tools.append(payload.get("name", "?"))
+                self._timings.tool_ms += float(payload.get("duration_ms") or 0)
             await self._emit("tool", payload)
 
     async def _speak(self, sentence: str, zero: float, timings: TurnTimings) -> None:
