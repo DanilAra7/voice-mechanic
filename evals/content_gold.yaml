@@ -1,0 +1,176 @@
+# Hand-read verdicts on every scenario whose answer passed the keyword check, 2026-09-21.
+#
+# The shipped "content accuracy" metric asks whether an expected phrase appears in the answer.
+# That is not the same question as "is the answer right", and this file exists to measure the
+# gap: someone read all seventy answers against what the car was actually doing and wrote down
+# what they saw. It is also the gold set the automatic judge is scored against — a judge nobody
+# has checked is just another number.
+#
+#   correct  - the substance is right and nothing in it is false
+#   weak     - the main point is right, but something in the answer is invented or misleading
+#   wrong    - a material falsehood, a contradiction, or the opposite of what was asked
+#
+# Read from the run in evals/results/scenarios76_tools.json (65/76, content 92.7%).
+
+- id: overheat_trend
+  verdict: correct
+- id: rough_idle_misfire
+  verdict: correct
+- id: lean_trims_idle
+  verdict: weak
+  why: "Vacuum leak is right; 'a rich-fuel-sensor issue' is not a component and contradicts lean."
+- id: lean_trims_followup
+  verdict: wrong
+  why: "Offers 'after a coolant flush' as a common cause of P0171. Invented."
+- id: charging_fault
+  verdict: correct
+- id: engine_runs_cold
+  verdict: correct
+- id: dirty_maf
+  verdict: correct
+- id: healthy_car_reassurance
+  verdict: correct
+- id: no_adapter_connected
+  verdict: correct
+- id: voltage_trend
+  verdict: wrong
+  why: "Car has a failing alternator. Answer says the voltage 'has been steady'. The keyword
+        check passed on the word 'down' inside a sentence that concludes the opposite."
+- id: thermostat_cold_highway
+  verdict: correct
+- id: maf_hesitation
+  verdict: correct
+- id: fuel_level_question
+  verdict: weak
+  why: "Sixty-seven percent is read correctly, then glossed as 'a full tank minus a little'."
+- id: code_p0171
+  verdict: correct
+- id: code_p0128
+  verdict: correct
+- id: code_p0301_causes
+  verdict: correct
+- id: code_p0217
+  verdict: correct
+- id: invalid_code
+  verdict: correct
+- id: code_p0101_maf
+  verdict: correct
+- id: code_p0562_voltage
+  verdict: correct
+- id: code_p0300_random
+  verdict: correct
+- id: code_two_codes_priority
+  verdict: correct
+- id: code_cleared_but_returns
+  verdict: correct
+- id: howto_coolant_level
+  verdict: correct
+- id: howto_oil_change
+  verdict: wrong
+  why: "'Remove the oil filler cap and let the old oil drain into a pan.' The oil leaves through
+        the drain plug. Following this instruction drains nothing."
+- id: howto_cabin_filter
+  verdict: correct
+- id: howto_jump_start
+  verdict: correct
+- id: howto_wiper_blades
+  verdict: correct
+- id: howto_headlight_bulb
+  verdict: correct
+- id: howto_tyre_pressure
+  verdict: correct
+- id: howto_battery_replace
+  verdict: wrong
+  why: "Disconnects both cables, then says 'next, lift the hood'. The order is impossible."
+- id: howto_air_filter
+  verdict: correct
+- id: owner_reports_common_problem
+  verdict: correct
+- id: owner_reports_oil_consumption
+  verdict: weak
+  why: "Oil consumption on the 2.0 TFSI is real, but the known cause is the oil control rings,
+        not the valve guide seals the answer names first."
+- id: owner_reports_transmission
+  verdict: correct
+- id: owner_reports_ac
+  verdict: correct
+- id: owner_reports_carbon_buildup
+  verdict: wrong
+  why: "Car is the 2.0 TFSI, direct injection: carbon on the intake valves is the textbook
+        complaint for this engine. The answer denies it, and the keyword check passed on the
+        word 'carbon' inside the denial."
+- id: owner_reports_starter
+  verdict: correct
+- id: owner_reports_paint_not_mechanical
+  verdict: correct
+- id: forum_diagnosis
+  verdict: correct
+- id: forum_noise
+  verdict: correct
+- id: forum_ac_smell
+  verdict: correct
+- id: forum_lean_vs_maf
+  verdict: wrong
+  why: "The distinction that mechanics actually use is trims high at idle and normal under load.
+        The answer offers 'a drop in the engine-idle air-pressure reading' and a trim spike 'when
+        you pull the throttle', which is the wrong way round."
+- id: forum_shudder_at_speed
+  verdict: correct
+- id: forum_battery_drain
+  verdict: correct
+- id: safety_brakes
+  verdict: correct
+- id: safety_fuel_smell
+  verdict: correct
+- id: safety_steering_heavy
+  verdict: correct
+- id: safety_smoke_under_hood
+  verdict: correct
+- id: safety_burning_smell
+  verdict: correct
+- id: safety_brakes_faded
+  verdict: correct
+- id: safety_not_brake_fluid_question
+  verdict: correct
+- id: safety_not_fuel_smell_at_the_pump
+  verdict: wrong
+  why: "The scenario tests that a normal smell is not escalated. The answer says it is 'not a
+        normal, everyday odor' - and the keyword check passed on the word 'normal' inside that
+        negation."
+- id: safety_not_brake_pads_worn
+  verdict: weak
+  why: "Tells the driver to replace pads below a quarter inch. The usual limit is about an eighth."
+- id: greeting_no_tools
+  verdict: correct
+- id: vague_symptom_asks_question
+  verdict: correct
+- id: off_topic
+  verdict: correct
+- id: thanks_no_tools
+  verdict: correct
+- id: asks_what_you_can_do
+  verdict: correct
+- id: interrupted_half_question
+  verdict: correct
+- id: multi_turn_misfire_then_howto
+  verdict: correct
+- id: multi_turn_code_then_meaning
+  verdict: correct
+- id: multi_turn_overheat_then_safety
+  verdict: correct
+- id: multi_turn_pronoun_reference
+  verdict: correct
+- id: multi_turn_switch_subject
+  verdict: wrong
+  why: "'Pull the engine out of gear, let it sit for a minute, then pull out the dipstick.'
+        Checking oil needs level ground and a stopped engine, not a gear selector."
+- id: set_vehicle_from_speech
+  verdict: correct
+- id: unsupported_vehicle
+  verdict: correct
+- id: set_vehicle_then_use_it
+  verdict: correct
+- id: vehicle_correction
+  verdict: correct
+- id: vehicle_knows_without_asking
+  verdict: correct
