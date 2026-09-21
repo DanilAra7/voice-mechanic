@@ -105,13 +105,19 @@ class AccessKey:
     """
 
     COOKIE = "mechanic_key"
+    # /api/health is our own liveness probe. /torque is the other side of the product: a phone
+    # running Torque Pro posts readings there, and a phone has no cookie and no query string we
+    # control - the driver types that URL into an app's settings field once. Gating it locked out
+    # our own simulator, which posts over real HTTP exactly like the phone does, so the agent
+    # spent an afternoon telling drivers their adapter was unplugged.
+    OPEN_PATHS = ("/api/health", "/torque")
 
     def __init__(self, app, key: str):
         self.app = app
         self.key = key
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] not in ("http", "websocket") or scope.get("path") == "/api/health":
+        if scope["type"] not in ("http", "websocket") or scope.get("path") in self.OPEN_PATHS:
             await self.app(scope, receive, send)
             return
 

@@ -16,6 +16,9 @@ def test_an_open_url_is_strangers_on_our_gpu(monkeypatch):
 
     assert client.get("/api/catalog").status_code == 401
     assert client.get("/api/health").status_code == 200, "our own health check must stay reachable"
+    # A phone running Torque Pro has no cookie and no key: gating this endpoint told every
+    # driver their adapter was unplugged, our own simulator included.
+    assert client.get("/torque?id=demo&k5=95.0").status_code == 200
 
     opened = client.get("/api/catalog?k=secret123")
     assert opened.status_code == 200
