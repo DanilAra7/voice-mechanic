@@ -72,7 +72,11 @@ By category: `owner_reports` and `safety` 100%, `how_to` 88.9, `conversation` 85
 3. The `forum` category. The next untried idea is merging `search_forum` and
    `search_owner_reports` into one tool with a parameter, since the model does not reliably tell
    them apart even with rewritten descriptions.
-4. **Synthesis of the first sentence, 692 ms and the largest stage there is.** Found 2026-09-22
+4. **Synthesis of the first sentence, 692 ms and the largest stage there is — and the whole
+   reason the latency gate is missed.** Get it to ~100 ms and the total lands near 860 ms, inside
+   the gate, without touching anything else. Kyutai alone reaches its first frame in 350 ms; here
+   it takes twice that because llama.cpp is generating on the same card. **That ~340 ms of
+   contention is the honest target**, and it is the price of putting everything on one 16 GB card. Found 2026-09-22
    on live turns; it vanishes to 1 ms whenever the opening line is one primed at boot. The
    cheapest idea is to widen what gets primed; the honest one is that Kyutai's first frame costs
    350 ms standalone and twice that while llama-server is generating on the same card. Either
@@ -91,7 +95,7 @@ can mishear them, and it can be unbearable to wait for. Everything else is diagn
 | Strictly correct answers | ≥85% | 76.3% when last hand-read |
 | Tools | ≥90%, and zero "answered without looking" | **91.5%** |
 | Word error rate | ≤5% quiet, ≤10% in noise | **2.2% / 4.4%** |
-| Latency in the browser | p50 ≤1.0 s, p95 ≤1.5 s | p50 ~1.5 s, accepted by the user |
+| Latency in the browser | p50 ≤1.0 s, p95 ≤1.5 s | **missed: p50 1,537 ms, p95 2,245 ms.** One turn measured 847 ms — the one whose opening line was already in the synthesiser's cache |
 | Answer length | median ≤8 s | **6.9 s** |
 | Thirty-minute session | zero failures | **not run** |
 
