@@ -47,6 +47,7 @@ function renderLatency() {
   const net = t => (Number.isFinite(t.client_ms) && Number.isFinite(t.first_audio_ms)
     ? t.client_ms - t.first_audio_ms : null);
   const STAGES = [
+    ["silence", t => t.detection_ms, "hands-free only: waiting to be sure the sentence had ended"],
     ["recognition", t => t.asr_ms, "what you said, into words"],
     ["model", t => t.model_ms, "deciding what to answer"],
     ["tools", t => t.tool_ms_to_audio, "sensors, codes, search"],
@@ -63,9 +64,11 @@ function renderLatency() {
   const rows = STAGES.map(([label, get, why]) => {
     const value = get(last);
     if (!Number.isFinite(value)) return "";
+    // Push-to-talk pays nothing for turn detection. A row of zeroes is noise, not honesty.
+    if (label === "silence" && value === 0 && !median(get)) return "";
     const mid = median(get);
     return `
-    <div class="stage${label === "network" ? " net" : ""}${label === "turn hold" ? " hold" : ""}" title="${why}">
+    <div class="stage${label === "network" ? " net" : ""}${label === "turn hold" || label === "silence" ? " hold" : ""}" title="${why}">
       <span class="stage-name">${label}</span>
       <span class="stage-bar"><i style="width:${Math.min(100, 100 * value / total)}%"></i></span>
       <span class="stage-ms">${Math.round(value)}</span>

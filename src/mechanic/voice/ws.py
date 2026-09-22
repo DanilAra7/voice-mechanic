@@ -70,6 +70,7 @@ def record_client_latency(command: dict, session_id: str, server: object | None 
     # The server's own stages for the same turn. Without them the browser's number is a single
     # figure nobody can act on: it says the wait was long, not which part of it was.
     for stage in (
+        "detection_ms",
         "asr_ms",
         "first_sentence_ms",
         "first_audio_ms",
@@ -125,6 +126,8 @@ def latency_summary() -> dict:
     stages = {}
     if audio is not None:
         named = {
+            # Only hands-free pays this; a released button is an exact end of turn.
+            "silence_detection_ms": med("detection_ms"),
             "recognition_ms": med("asr_ms"),
             "model_ms": med("model_ms"),
             "tools_ms": med("tool_ms_to_audio"),
@@ -134,6 +137,9 @@ def latency_summary() -> dict:
             # it inside the model's number.
             "turn_hold_ms": med("hold_ms"),
             "server_total_ms": audio,
+            # What the driver waited from their own last word, which is the only total that
+            # matches the experience: the server's clock starts when the detector speaks up.
+            "from_last_word_ms": audio + (med("detection_ms") or 0),
             # What the browser waited beyond anything the server did: the network each way plus
             # the audio pipeline in the tab. Named rather than left as an unexplained remainder.
             "network_and_browser_ms": q(waits, 0.5) - audio,

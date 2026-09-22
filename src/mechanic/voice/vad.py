@@ -24,6 +24,12 @@ class Utterance:
 
     audio: np.ndarray
     start_sample: int
+    # Audio time between this utterance's last word and the newest sample the detector had been
+    # given when it finally admitted the turn was over. In hands-free this is the single most
+    # expensive stage of a turn and it happens before any of our clocks start, so without it the
+    # server measures a wait that begins half a second after the driver stopped talking. Zero
+    # when a button declared the turn over: there was nothing to wait for.
+    trailing_s: float = 0.0
 
     @property
     def duration_s(self) -> float:
@@ -45,6 +51,9 @@ class TurnDetector:
         self.min_speech_s = min_speech_s
         self.buffer_s = buffer_s
         self._vad = None
+        # Samples handed to the detector so far, so an utterance can say how long it sat waiting
+        # for its own silence to be long enough.
+        self._samples = 0
 
     def _load(self):
         if self._vad is None:
@@ -69,10 +78,14 @@ class TurnDetector:
     def push(self, chunk: np.ndarray) -> Iterator[Utterance]:
         """Feed microphone audio; yields each utterance once its trailing silence is long enough."""
         vad = self._load()
-        vad.accept_waveform(np.asarray(chunk, dtype=np.float32))
+        chunk = np.asarray(chunk, dtype=np.float32)
+        vad.accept_waveform(chunk)
+        self._samples += len(chunk)
         while not vad.empty():
             segment = vad.front
-            yield Utterance(audio=np.asarray(segment.samples, dtype=np.float32), start_sample=segment.start)
+            samples = np.asarray(segment.samples, dtype=np.float32)
+            waited = max(0, self._samples - (segment.start + len(samples)))
+            yield Utterance(audio=samples, start_sample=segment.start, trailing_s=waited / SAMPLE_RATE)
             vad.pop()
 
     def flush(self) -> Iterator[Utterance]:
@@ -86,8 +99,10 @@ class TurnDetector:
         vad.flush()
         while not vad.empty():
             segment = vad.front
+            # trailing_s stays 0: the driver said they had finished, so nothing was waited out.
             yield Utterance(audio=np.asarray(segment.samples, dtype=np.float32), start_sample=segment.start)
             vad.pop()
 
     def reset(self) -> None:
+        self._samples = 0
         self._load().reset()

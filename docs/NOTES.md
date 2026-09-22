@@ -711,10 +711,63 @@ Two things this made visible that were hidden before:
   already talking. The panel says so: "a further 612 ms of tool time ran while the agent was
   already talking".
 
-`latency_summary()` and `GET /api/latency` report the same five stages as medians, each over the
+`latency_summary()` and `GET /api/latency` report the same stages as medians, each over the
 turns that carried it, with `stages_from_turns` saying how many that was. Medians of disjoint
 stages need not sum to the median total, so the totals are measured in their own right rather
 than summed.
+
+### The most expensive stage happened before any clock started
+
+Every figure in a turn is stamped against `zero`, set in `handle()`. In hands-free `handle()` is
+called when the **detector** yields an utterance, which is already a third of a second after the
+driver's last word — so the server was honestly reporting a wait that begins after the most
+expensive stage of the turn, and hands-free looked almost as fast as the button.
+
+`Utterance` now carries `trailing_s`: audio consumed between the utterance's last sample and the
+newest sample the detector had when it finally committed. Measured on the three Kyutai clips:
+
+| Clip | Speech | Silence waited out |
+|---|---|---|
+| 00 | 3.68 s | **378 ms** |
+| 01 | 3.52 s | **374 ms** |
+| 02 | 5.04 s | **366 ms** |
+
+That is `min_silence_s = 0.35` plus the detector's own windowing, and it is audio time, so at a
+real-time stream it is wall time too. Day 3 measured 507 ms for the same thing feeding in real
+time through 100 ms chunks; production uses 8 ms chunks. **Roughly 0.4 s** is the honest figure.
+`flush()` leaves it at zero, which is the whole point of push-to-talk.
+
+**And the confirmation hold is almost never paid.** The design is *work early, speak on
+confirmation*: everything starts on the 0.35 s threshold and only the audio waits for the 0.55 s
+timer. Since the work takes ~849 ms and the timer 550 ms, the timer has already expired by the
+time there is a frame to hold. It bites only when the answer beats 550 ms — the safety path, at
+233 ms, which hands-free therefore delivers at about 1.0 s. Worth knowing before claiming the
+guardrail is instant in both modes.
+
+### The browser's number was filed against the previous answer
+
+`record_client_latency` read `session.last_timings`, which was assigned at `turn_end`. The
+browser sends its figure the instant it **hears** the first frame — mid-turn. So every row in
+`client_latency.jsonl` paired this turn's client wait with the previous turn's server stages.
+Medians over many turns survive it; a single row explaining one slow turn does not, and that is
+what the file is for. `last_timings` is now published where `first_audio_ms` is set.
+
+### Four explanations for the missing 600 ms, killed by measurement
+
+Server 849 ms, browser ~1,500 ms, round trip 60-71 ms. The gap is real and still unexplained,
+but it is not any of these:
+
+| Suspected | Measured | Verdict |
+|---|---|---|
+| The socket loop falling behind the microphone: it runs the detector on every chunk before reading the next message, so `end_of_speech` would queue behind backlogged audio | 0.006 ms per 128-sample chunk, **0.003x real time**, zero backlog over 6 s | dead |
+| Microphone buffering hiding the tail of the question | the AudioWorklet posts every 128 samples — 8 ms | dead |
+| The browser's output buffer | the clock is stamped when the frame **arrives**, not when it plays | dead |
+| Capture running at 48 kHz and being read as 16 kHz | `new AudioContext({ sampleRate: 16000 })`, explicit | dead |
+
+Left untested: the tunnel's handling of the first binary frame after a burst of text frames, and
+whether the 849 and the 1,500 were ever medians over the same set of turns — the pairing bug
+above means quite possibly not. Every stage is now recorded per turn, so one real conversation
+on a live box settles it.
 
 ## Day 7 (2026-09-21): hand-reading, a judge, and grounding
 

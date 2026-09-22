@@ -402,3 +402,36 @@ async def test_waiting_to_be_sure_the_driver_finished_is_charged_to_the_hold():
     assert timings.hold_ms > 100, "the first sound is held back until the turn is certain"
     stages = timings.asr_ms + timings.model_ms + timings.tool_ms_to_audio + timings.tts_ms + timings.hold_ms
     assert abs(stages - timings.first_audio_ms) < 1e-6
+
+
+async def test_the_clients_number_is_filed_against_the_turn_it_heard():
+    """The browser reports what it waited the instant it hears sound — mid-turn, not after it.
+
+    `last_timings` used to be published only at `turn_end`, so every figure the browser sent was
+    filed against the PREVIOUS answer. Medians survive that; a single row explaining one slow
+    turn does not.
+    """
+    session, events, _ = build(sentences=("Fuel trim is high at idle.",))
+    seen = []
+
+    inner = session.on_event
+
+    async def watch(event, payload):
+        if event == "audio_start":
+            # Exactly when the browser would send its own number back.
+            seen.append(session.last_timings)
+        await inner(event, payload)
+
+    session.on_event = watch
+    timings = await session.handle(SPEECH, confirmed=True)
+
+    assert seen and seen[0] is timings, "the client's wait was filed against another turn"
+
+
+async def test_the_silence_waited_out_reaches_the_timings():
+    """Hands-free spends its most expensive stage before any of these clocks start."""
+    session, _, _ = build(sentences=("Fuel trim is high at idle.",))
+
+    timings = await session.handle(SPEECH, confirmed=True, detection_ms=374.0)
+
+    assert timings.detection_ms == 374.0

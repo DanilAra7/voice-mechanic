@@ -69,6 +69,11 @@ class TurnTimings:
     # disjoint, they cover the interval from the driver falling silent to the first sound, and
     # with the browser's own figure they add up: asr + model + tools + tts + hold = first_audio,
     # and first_audio + network = what the person actually waited.
+    # Silence waited out before any of this started. In hands-free the detector cannot know the
+    # turn is over until the pause after it is long enough, and that pause is real waiting that
+    # every other figure here misses, because the clock below starts when the detector speaks up.
+    # Zero in push-to-talk: releasing the button is an exact end of turn.
+    detection_ms: float = 0.0
     tool_ms_to_audio: float = 0.0  # of `tool_ms`, the part that ran before the first sound
     tts_ms: float | None = None  # the synthesiser, first sentence, to its first frame
     # The first frame is held back until the turn is certain (see CONFIRM_EXTRA_S). Real waiting,
@@ -171,7 +176,9 @@ class VoiceSession:
                 # their own question sets off just as reliably.
                 await self._carry_on()
                 await asyncio.gather(self._turn, return_exceptions=True)
-            self._turn = asyncio.create_task(self.handle(utterance.audio, confirmed=confirmed))
+            self._turn = asyncio.create_task(
+                self.handle(utterance.audio, confirmed=confirmed, detection_ms=utterance.trailing_s * 1000)
+            )
 
     async def reset(self) -> None:
         """Start over: stop talking first. An answer already on its way would otherwise keep
@@ -218,7 +225,7 @@ class VoiceSession:
         self._speech_run_s = 0.0
         await self._emit("flush", {"reason": "barge_in"})
 
-    async def handle(self, speech: np.ndarray, confirmed: bool = False) -> TurnTimings:
+    async def handle(self, speech: np.ndarray, confirmed: bool = False, detection_ms: float = 0.0) -> TurnTimings:
         """Everything between the driver falling silent and the answer being spoken.
 
         `confirmed` means they told us the turn was over rather than us deciding from silence,
@@ -234,7 +241,7 @@ class VoiceSession:
         else:
             self._confirmed.clear()
             self._confirm_timer = asyncio.create_task(self._confirm_after(CONFIRM_EXTRA_S))
-        timings = TurnTimings(speech_seconds=round(len(speech) / 16000, 2))
+        timings = TurnTimings(speech_seconds=round(len(speech) / 16000, 2), detection_ms=detection_ms)
         self._timings = timings
 
         transcript = await asyncio.to_thread(self.recognizer.transcribe, speech)
@@ -341,6 +348,10 @@ class VoiceSession:
                 spare = timings.first_audio_ms - (timings.asr_ms or 0.0) - (timings.tts_ms or 0.0) - timings.hold_ms
                 timings.tool_ms_to_audio = min(timings.tool_ms, max(0.0, spare))
                 timings.model_ms = max(0.0, spare - timings.tool_ms_to_audio)
+                # The browser sends what it waited the instant it hears this frame, which is
+                # long before the turn ends. Publishing the timings here rather than only at
+                # turn_end stops every client figure being filed against the PREVIOUS answer.
+                self.last_timings = timings
                 await self._emit("audio_start", {"ms": round(timings.first_audio_ms)})
             if self.on_audio:
                 await self.on_audio(chunk, sample_rate)

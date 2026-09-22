@@ -43,7 +43,7 @@ Two things that have gone wrong in front of people:
 | Truthfulness (LLM judge) | **80.3%** free of falsehood; the judge agrees with a hand-read set 74% exactly |
 | Word error rate | **2.2%** quiet, **4.4%** at 10 dB SNR |
 | Server latency | **849 ms** p50 — recognition 307, model 485, synthesis 57 |
-| Client latency | p50 about **1.5 s**, network 60–71 ms |
+| Client latency | p50 about **1.5 s**, network 60–71 ms; **~600 ms of it still unattributed** |
 | Stage breakdown | measured, not derived: recognition / model / tools-before-sound / speech / turn hold / network, and they sum to the wait exactly |
 | Answer length | 6.9 s on real voice |
 | Tests | **147** green |
@@ -72,10 +72,10 @@ By category: `owner_reports` and `safety` 100%, `how_to` 88.9, `conversation` 85
 3. The `forum` category. The next untried idea is merging `search_forum` and
    `search_owner_reports` into one tool with a parameter, since the model does not reliably tell
    them apart even with rewritten descriptions.
-4. The remaining ~700 ms between the server's first audio frame and the browser playing it. Now
-   instrumented per turn as its own `network` row; if it is the audio pipeline, it is fixable.
-   The first thing to do with it is subtract the measured round trip, which the panel already
-   shows, and see what is left.
+4. The remaining ~600 ms between the server's first audio frame and the browser receiving it.
+   Four explanations were tested and killed on 2026-09-22 (see NOTES): a detector backlog in the
+   socket loop, microphone buffering, playback scheduling, a sample-rate mismatch. What is left
+   untested is the tunnel's handling of the first binary frame. Now instrumented per turn.
 5. VRAM headroom is 577 MiB. Reduce llama-server's batch or context and re-measure.
 
 ## Ship gates, set 2026-09-21
@@ -121,7 +121,10 @@ less than one that names them.
 - Cars outside the five.
 - The adapter dropping mid-sentence. There is "no data"; there is no "the data stopped halfway".
 - Hands-free end to end. Under a bonnet both hands are busy, so it is the only honest mode, and
-  it costs roughly 880 ms more than push-to-talk.
+  it costs roughly 0.4 s more than push-to-talk — the silence the detector has to wait out, now
+  measured per turn (366-378 ms of audio time on three clips) and carried into `detection_ms`.
+  The browser never measures hands-free at all: `client_ms` is stamped on button release, and
+  there is no button, so the panel falls back to the server's own figure.
 
 **Closed since that list was written**: the public address, the access key, the disclaimer, the
 cold-start warm-up, noise measurement, and the safety scenarios.

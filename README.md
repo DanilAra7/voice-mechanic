@@ -117,7 +117,7 @@ Browser ── microphone ──► WebSocket ──► Silero VAD ──► Par
 | Language model | **gpt-oss-20b**, MXFP4, 8k context, `reasoning_effort: low` | The only model that leaves room for a streaming voice beside it. Qwen3-30B-A3B scored better on scenarios (71.9% vs 65.6%) and no voice fits next to it. |
 | Speech synthesis | **Kyutai TTS 1.6B** | It emits audio frames while still generating: first sound at 350 ms against 1,186 ms for a non-streaming model of the same quality. On a 16 GB card, the voice dictates the model. |
 | Speech recognition | **Parakeet TDT 0.6B int8**, offline, on the **CPU** | 147 ms median, and it leaves the GPU entirely to the other two. The streaming build of the same model runs at 1.69× real time — it cannot keep up with speech. |
-| Turn detection | **Silero VAD v5** + push-to-talk | Releasing a button is an exact end-of-turn. Hands-free pays roughly 880 ms of waiting for silence. |
+| Turn detection | **Silero VAD v5** + push-to-talk | Releasing a button is an exact end-of-turn. Hands-free pays roughly 0.4 s waiting for the silence to prove itself. |
 | Transport | **WebSocket**, hand-written | Tunnels do not carry UDP, so not WebRTC. Pipecat was tried and dropped: the timings are part of what is being delivered and needed exact control. |
 | Search | **BM25 + dense vectors**, fused with RRF, boosted toward the driver's car | Jargon like "P0171" needs exact matching; "it hesitates when I accelerate" needs meaning. 56k passages, ~6 ms a query. |
 
@@ -137,11 +137,12 @@ heard and the median of your session:
 
 | Row | What it is |
 |---|---|
+| `silence` | hands-free only: waiting for the pause after your sentence to prove it was a pause |
 | `recognition` | Parakeet turning what you said into words, on the CPU |
 | `model` | gpt-oss-20b deciding what to answer |
 | `tools` | sensors, trouble codes and search — **only the part that ran before you heard anything** |
 | `speech` | Kyutai turning the first sentence into sound |
-| `turn hold` | deliberate silence: the agent waits to be sure you had finished. Zero in push-to-talk, up to 550 ms hands-free |
+| `turn hold` | the first sound held back until the turn is certain — see below |
 | `network` | the wire both ways, plus the audio pipeline in your own tab |
 
 Each piece is timed where it happens rather than subtracted from the one before it. That sounds
@@ -150,19 +151,62 @@ keeps searching **while it talks**, so the first sentence lands before the tool 
 breakdown built by subtraction reports negative model time on exactly those turns. The panel
 instead tells you how much tool time you never waited for.
 
-Measured on 15 recordings of a real human voice, driven through the whole pipeline, push-to-talk:
+### Holding the button
+
+This is the mode the headline number is measured in. The clock starts the instant you let go.
 
 | Stage | Median | What it is |
 |---|---|---|
-| Recognition | **307 ms** | Parakeet on the CPU, after you stop speaking |
+| Silence detection | **0 ms** | releasing the button is an exact end of turn; nothing to wait out |
+| Recognition | **307 ms** | Parakeet on the CPU |
 | Language model, tools included | **485 ms** | to the first sentence worth speaking; the tools themselves are **0 ms** at the median, 149 ms at worst |
 | Synthesis to first sound | **57 ms** | near zero because the opening lines are synthesised at boot and replayed from cache |
 | Turn hold | **0 ms** | the button already said the turn was over |
 | **Server total** | **849 ms** | p95 1,733 ms, 15/15 turns completed |
 | Network, Kyiv → Frankfurt | **60–71 ms** | round trip, measured in the browser |
-| In the browser | the rest | audio pipeline and the tail of the microphone stream |
+| In the browser | **the rest** | see the honest note below |
 
 End to end in a real browser in another country: **p50 about 1.5 s**.
+
+### Hands-free
+
+With no button, the end of your turn has to be *detected*, and that is the most expensive stage
+in the system. It also happens **before every clock above starts** — the server's zero is the
+moment the detector speaks up, not the moment you stopped talking.
+
+- **Silence detection: 366–378 ms** of audio time, measured on three clips
+  (`min_silence_s = 0.35` plus the detector's own windowing). Day 3 measured 507 ms wall-clock
+  from the last sample, feeding the stream in real time; the difference is chunking and
+  smoothing, and the honest range is **roughly 0.4 s**.
+- **Turn hold: usually 0 ms.** The design is *work early, speak on confirmation* — recognition,
+  the model and the voice all start on the short 0.35 s threshold, while the audio is held until
+  a longer 0.55 s timer agrees the turn really ended. Because the work takes ~849 ms and the
+  timer only 550 ms, the timer has almost always expired by the time there is anything to play.
+  It bites only when the answer is faster than 550 ms — which is exactly the **safety** path, so
+  a 233 ms warning is heard at about 1.0 s hands-free instead of 233 ms on the button.
+
+So hands-free costs **roughly 0.4 s more**, putting it near **1.25 s** server-side and **1.9 s**
+in a browser across a border. Why a threshold that long: ordinary spoken questions contain
+pauses of 0.6–0.9 s. At 0.35 s alone, *"I am getting a code P0171, what does that mean?"* splits
+into two turns and the agent answers the first half.
+
+### The part that is still not attributed
+
+The server says 849 ms; the browser says about 1,500 ms. The round trip through the tunnel
+measures 60–71 ms, so **roughly 600 ms is unexplained**, and calling it "the network" would be a
+guess. Ruled out by measurement rather than by argument:
+
+- **The server falling behind the microphone.** The socket loop runs the detector on every
+  incoming chunk before reading the next one, so a backlog would delay the button release behind
+  queued audio. Measured: 0.006 ms per chunk, **0.003× real time**. No backlog.
+- **Microphone buffering.** The browser posts every 128 samples — 8 ms.
+- **Playback scheduling.** The browser stamps its clock when the first audio frame *arrives*, not
+  when it is audible, so the 20 ms output buffer is not in the number.
+- **A sample-rate mismatch.** The capture context is pinned to 16 kHz explicitly.
+
+What is left is the tunnel's handling of the first binary frame after a burst of text frames, and
+that has not been measured. The panel now carries every stage per turn, so the first real
+conversation on a live box will either account for it or narrow it further.
 
 The answer itself has a **median length of 6.9 seconds**, down from 24 s before the length cap —
 the wait before the first word is only half of what being kept waiting feels like.
