@@ -69,6 +69,8 @@ def record_client_latency(command: dict, session_id: str, server: object | None 
         # browser had not finished sending by then. Between them they either explain the gap
         # between the server's clock and the listener's or rule the network out of it.
         "turn_rtt_ms": command.get("turn_rtt_ms"),
+        # Round trip of the button release itself, answered before the server did any work.
+        "ack_ms": command.get("ack_ms"),
         "send_queued_bytes": command.get("send_queued_bytes"),
         "hands_free": bool(command.get("hands_free")),
     }
@@ -148,8 +150,14 @@ def latency_summary() -> dict:
             # What the browser waited beyond anything the server did: the network each way plus
             # the audio pipeline in the tab. Named rather than left as an unexplained remainder.
             "network_and_browser_ms": q(waits, 0.5) - audio,
+            # The two halves of that remainder, once the release's own round trip is known.
+            "uplink_ms": round(ack / 2) if (ack := med("ack_ms")) is not None else None,
+            "downlink_and_browser_ms": (
+                q(waits, 0.5) - audio - round(med("ack_ms") / 2) if med("ack_ms") is not None else None
+            ),
             # The same remainder, priced against a round trip measured under the turn's own load.
             "turn_rtt_ms": med("turn_rtt_ms"),
+            "ack_ms": med("ack_ms"),
             "send_queued_bytes": med("send_queued_bytes"),
         }
         stages = {k: v for k, v in named.items() if v is not None}
@@ -244,6 +252,11 @@ def build_router(store: TorqueStore, models: SharedModels) -> APIRouter:
                         # Button down: hold everything until they let go, however long they pause.
                         session.start_of_speech()
                     case "end_of_speech":
+                        # Answered before any work starts, carrying the browser's own timestamp
+                        # straight back. That splits the listener's wait into the wire and the
+                        # server, which no clock on either side can do alone.
+                        if (stamp := command.get("t")) is not None:
+                            await ws.send_json({"type": "turn_ack", "t": stamp})
                         # Push-to-talk button released: the turn is over because they said so.
                         await session.end_of_speech()
                     case "client_latency":

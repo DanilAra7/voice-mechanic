@@ -13,6 +13,10 @@ const state = {
   // seconds on an idle socket; a turn ends on a socket that has just carried four seconds of
   // microphone audio, which is not the same connection at all.
   sendQueued: null, turnRtt: null,
+  // Round trip of the button release itself, answered by the server before it starts any work.
+  // This is the one measurement that splits "the server was slow" from "the message was slow",
+  // and without it the difference between the two clocks can only be argued about.
+  ackMs: null,
 };
 
 function log(kind, text, meta = "") {
@@ -49,6 +53,12 @@ function renderLatency() {
   // Disjoint slices of one wait, not milestones on a timeline. The server times each where it
   // happens: subtracting milestones from one another gives negative model time on any turn where
   // a filler is spoken before the tools have finished, which is the turn worth explaining.
+  // Half the control message's round trip: what the release itself took to reach the server.
+  const up = t => (Number.isFinite(t.ack_ms) ? t.ack_ms / 2 : null);
+  // Whatever is left once the wire up and the server's own work are taken out: the audio frame
+  // coming back. Kept as a remainder on purpose — it is the only piece nothing can time directly.
+  const down = t => (Number.isFinite(t.client_ms) && Number.isFinite(t.first_audio_ms)
+    ? t.client_ms - t.first_audio_ms - (up(t) ?? 0) : null);
   const net = t => (Number.isFinite(t.client_ms) && Number.isFinite(t.first_audio_ms)
     ? t.client_ms - t.first_audio_ms : null);
   const STAGES = [
@@ -58,8 +68,13 @@ function renderLatency() {
     ["tools", t => t.tool_ms_to_audio, "sensors, codes, search"],
     ["speech", t => t.tts_ms, "words into sound"],
     ["turn hold", t => t.hold_ms, "waiting to be sure you had finished"],
-    ["network", net, "the wire, and the audio pipeline in this tab"],
+    ["to server", up, "half the round trip of the button release, answered before any work"],
+    ["back to you", down, "the audio frame's journey home, and this tab's audio stack"],
   ];
+  // Before a turn has ever been acknowledged there is nothing to split, so show the lump.
+  if (!done.some(t => Number.isFinite(t.ack_ms))) {
+    STAGES.splice(-2, 2, ["network", net, "the wire, and the audio pipeline in this tab"]);
+  }
   // Across this session, so one slow turn does not read as the shape of the thing.
   const median = get => {
     const xs = done.map(get).filter(Number.isFinite).sort((a, b) => a - b);
@@ -73,7 +88,7 @@ function renderLatency() {
     if (label === "silence" && value === 0 && !median(get)) return "";
     const mid = median(get);
     return `
-    <div class="stage${label === "network" ? " net" : ""}${label === "turn hold" || label === "silence" ? " hold" : ""}" title="${why}">
+    <div class="stage${["network", "to server", "back to you"].includes(label) ? " net" : ""}${label === "turn hold" || label === "silence" ? " hold" : ""}" title="${why}">
       <span class="stage-name">${label}</span>
       <span class="stage-bar"><i style="width:${Math.min(100, 100 * value / total)}%"></i></span>
       <span class="stage-ms">${Math.round(value)}</span>
@@ -114,6 +129,7 @@ function report(clientMs) {
       rtt_ms: rtt === null ? null : Math.round(rtt),
       // Everything the server cannot see about the gap between its clock and this one.
       turn_rtt_ms: state.turnRtt ? Math.round(state.turnRtt) : null,
+      ack_ms: state.ackMs === null ? null : Math.round(state.ackMs),
       send_queued_bytes: state.sendQueued,
       hands_free: state.handsFree,
     }));
@@ -190,6 +206,11 @@ async function connect() {
         break;
       case "pong":
         notePong(m.t);
+        break;
+      case "turn_ack":
+        // Sent the moment the release was read, before a single frame of work. Everything after
+        // this point is the server's own 849 ms; everything before it is the wire.
+        state.ackMs = performance.now() - m.t;
         break;
       case "transcript":
         state.turn = { asr_ms: m.ms };
@@ -518,7 +539,8 @@ function wire() {
     // it added. A non-zero figure here means the browser was still shipping the question when
     // the driver was already waiting for the answer.
     state.sendQueued = state.ws?.bufferedAmount ?? null;
-    state.ws?.send(JSON.stringify({ type: "end_of_speech" }));
+    state.ackMs = null;
+    state.ws?.send(JSON.stringify({ type: "end_of_speech", t: state.askedAt }));
     state.turnRtt = 0;  // armed; the next pong fills it in
     ping();
   };

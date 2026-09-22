@@ -83,3 +83,31 @@ def test_an_unknown_car_is_refused_rather_than_silently_forgetting_the_current_o
         # Still the car we started with, so the next answer is not about nothing.
         ws.send_json({"type": "vehicle", "vehicle": "audi_a4_b8"})
         assert ws.receive_json()["vehicle"] == "audi_a4_b8"
+
+
+def test_the_button_release_is_acknowledged_before_any_work(client):
+    """The one measurement that separates a slow server from a slow wire.
+
+    The browser stamps its clock when the button comes up and again when sound arrives. Between
+    those two the server does ~850 ms of work, and the difference between the two clocks has to
+    be the network — but only if the network can be measured on its own. So the release is
+    echoed straight back, before recognition has been handed a single sample.
+    """
+    with client.websocket_connect("/ws/voice") as ws:
+        ws.send_json({"type": "hello", "device": "t"})
+        assert ws.receive_json()["type"] == "ready"
+        ws.send_json({"type": "end_of_speech", "t": 1234.5})
+        ack = ws.receive_json()
+
+    assert ack["type"] == "turn_ack"
+    assert ack["t"] == 1234.5, "the browser's own clock must come back untouched"
+
+
+def test_a_release_without_a_stamp_is_not_acknowledged(client):
+    """An older tab must not be answered with a message it will not understand."""
+    with client.websocket_connect("/ws/voice") as ws:
+        ws.send_json({"type": "hello", "device": "t"})
+        assert ws.receive_json()["type"] == "ready"
+        ws.send_json({"type": "end_of_speech"})
+        ws.send_json({"type": "ping", "t": 7})
+        assert ws.receive_json()["type"] == "pong"
