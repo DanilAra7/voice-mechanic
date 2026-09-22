@@ -49,7 +49,23 @@ echo
 echo "== warming the models so the lead does not pay for it"
 # One throwaway conversation. The first sentence of a cold process is minutes; after this it is
 # under a second, and the fixed lines are in the synthesiser's cache.
-uv run python scripts/bench_voice.py --url ws://127.0.0.1:8000/ws/voice \
-  --audio evals/audio/real --limit 2 --device warmup --out /tmp/warmup.json 2>&1 | tail -3
+#
+# The key goes on the socket URL too. Without it this step got a silent 403 and the script
+# carried on announcing itself ready, because `| tail -3` hands the pipeline tail's exit status
+# and `set -e` never saw the failure. The models then loaded in front of the first visitor.
+uv run python scripts/bench_voice.py --url "ws://127.0.0.1:8000/ws/voice?k=$MECHANIC_ACCESS_KEY" \
+  --audio evals/audio/real --limit 2 --device warmup --out /tmp/warmup.json > /tmp/warmup.log 2>&1 \
+  || { echo "WARM-UP FAILED - do not send the link yet"; tail -20 /tmp/warmup.log; exit 1; }
+tail -3 /tmp/warmup.log
+
+# Proof rather than a hopeful message: a cold synthesiser cannot answer this quickly.
+python3 - <<'CHECK' || { echo "WARM-UP DID NOT PRODUCE AUDIO - do not send the link yet"; exit 1; }
+import json, sys
+rows = json.load(open("/tmp/warmup.json"))
+spoke = [r for r in rows if r.get("first_audio_client_ms")]
+print(f"warmed on {len(spoke)}/{len(rows)} turns, first sound {min(r['first_audio_client_ms'] for r in spoke)} ms")
+sys.exit(0 if spoke else 1)
+CHECK
+
 echo
 echo "ready. send the link above."
