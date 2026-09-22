@@ -65,6 +65,11 @@ def record_client_latency(command: dict, session_id: str, server: object | None 
         "device": session_id,
         "client_ms": round(client_ms),
         "rtt_ms": command.get("rtt_ms"),
+        # Measured at the moment the turn started rather than between turns, and the bytes the
+        # browser had not finished sending by then. Between them they either explain the gap
+        # between the server's clock and the listener's or rule the network out of it.
+        "turn_rtt_ms": command.get("turn_rtt_ms"),
+        "send_queued_bytes": command.get("send_queued_bytes"),
         "hands_free": bool(command.get("hands_free")),
     }
     # The server's own stages for the same turn. Without them the browser's number is a single
@@ -143,6 +148,9 @@ def latency_summary() -> dict:
             # What the browser waited beyond anything the server did: the network each way plus
             # the audio pipeline in the tab. Named rather than left as an unexplained remainder.
             "network_and_browser_ms": q(waits, 0.5) - audio,
+            # The same remainder, priced against a round trip measured under the turn's own load.
+            "turn_rtt_ms": med("turn_rtt_ms"),
+            "send_queued_bytes": med("send_queued_bytes"),
         }
         stages = {k: v for k, v in named.items() if v is not None}
         stages["stages_from_turns"] = measured

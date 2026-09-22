@@ -204,9 +204,21 @@ guess. Ruled out by measurement rather than by argument:
   when it is audible, so the 20 ms output buffer is not in the number.
 - **A sample-rate mismatch.** The capture context is pinned to 16 kHz explicitly.
 
-What is left is the tunnel's handling of the first binary frame after a burst of text frames, and
-that has not been measured. The panel now carries every stage per turn, so the first real
-conversation on a live box will either account for it or narrow it further.
+- **The socket loop being slow to notice the button.** `scripts/bench_transport.py` runs the real
+  receive loop and the real detector over a real WebSocket, streaming audio at the rate a browser
+  sends it: **0.4 ms** to dequeue the button release, **7.2 ms** to the first audio frame back.
+  Remove the pacing and the same bench shows 41 ms, so it can see a backlog when one exists.
+
+**The likeliest explanation is that the 600 ms was never one number.** 849 and 1,500 are medians
+over *different sets of turns*: the server's stages were filed from a field that is empty on the
+first turn of every session, so first turns dropped out of the stage medians while staying in the
+client median — and the first turn after a start costs about 1,880 ms while the synthesiser
+compiles its kernels. That is enough to manufacture most of the gap. The round trip is the other
+half of the doubt: 60–71 ms was sampled by a timer that fires *between* turns, never during one.
+
+Both are now instrumented instead of argued about: the browser reports the bytes still unsent
+when the button came up and a round trip measured at that exact moment, and client and server
+figures are finally recorded against the same turn. One real conversation settles it.
 
 The answer itself has a **median length of 6.9 seconds**, down from 24 s before the length cap —
 the wait before the first word is only half of what being kept waiting feels like.

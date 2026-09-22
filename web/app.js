@@ -8,6 +8,11 @@ const state = {
   // performance.now() when the driver let go of the button. The one number the server cannot
   // know: everything it reports starts from its own clock, after the network.
   askedAt: null, rtts: [], handsFree: false,
+  // Bytes still sitting in this tab's own send buffer when the button came up, and the round
+  // trip measured at that same moment. The 60-71 ms the panel shows is sampled every four
+  // seconds on an idle socket; a turn ends on a socket that has just carried four seconds of
+  // microphone audio, which is not the same connection at all.
+  sendQueued: null, turnRtt: null,
 };
 
 function log(kind, text, meta = "") {
@@ -107,6 +112,9 @@ function report(clientMs) {
       type: "client_latency",
       client_ms: Math.round(clientMs),
       rtt_ms: rtt === null ? null : Math.round(rtt),
+      // Everything the server cannot see about the gap between its clock and this one.
+      turn_rtt_ms: state.turnRtt ? Math.round(state.turnRtt) : null,
+      send_queued_bytes: state.sendQueued,
       hands_free: state.handsFree,
     }));
   } catch { /* a closed socket must never cost the listener their answer */ }
@@ -117,6 +125,9 @@ function ping() {
 }
 
 function notePong(sent) {
+  // A pong that answers the ping fired on button release prices the network under the load the
+  // turn actually ran on, rather than between turns.
+  if (state.turnRtt === 0) state.turnRtt = performance.now() - sent;
   state.rtts.push(performance.now() - sent);
   const sorted = [...state.rtts].sort((a, b) => a - b);
   els("rtt").textContent = `${Math.round(sorted[Math.floor(sorted.length / 2)])} ms to the server`;
@@ -503,7 +514,13 @@ function wire() {
     // Letting go is the driver stating the turn is over. Telling the server saves it waiting out
     // the silence to work that out for itself, and starts the clock this browser measures.
     state.askedAt = performance.now();
+    // Read before the send, so it is what `end_of_speech` had to queue behind rather than what
+    // it added. A non-zero figure here means the browser was still shipping the question when
+    // the driver was already waiting for the answer.
+    state.sendQueued = state.ws?.bufferedAmount ?? null;
     state.ws?.send(JSON.stringify({ type: "end_of_speech" }));
+    state.turnRtt = 0;  // armed; the next pong fills it in
+    ping();
   };
   talk.addEventListener("mousedown", press);
   talk.addEventListener("touchstart", e => { e.preventDefault(); press(); });

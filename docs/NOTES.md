@@ -764,10 +764,43 @@ but it is not any of these:
 | The browser's output buffer | the clock is stamped when the frame **arrives**, not when it plays | dead |
 | Capture running at 48 kHz and being read as 16 kHz | `new AudioContext({ sampleRate: 16000 })`, explicit | dead |
 
-Left untested: the tunnel's handling of the first binary frame after a burst of text frames, and
-whether the 849 and the 1,500 were ever medians over the same set of turns — the pairing bug
-above means quite possibly not. Every stage is now recorded per turn, so one real conversation
-on a live box settles it.
+A fifth was killed with a bench rather than an argument. `scripts/bench_transport.py` runs the
+**real** receive loop, the real detector and a real WebSocket over loopback, streaming
+microphone-shaped audio at the rate a browser sends it (128-sample messages, 125 a second), with
+stand-ins for the three models so that nothing but transport and scheduling is being measured:
+
+| | button up -> server dequeued it | button up -> first audio at the client |
+|---|---|---|
+| Paced like a microphone | **0.4 ms** | **7.2 ms** |
+| Sent as fast as the socket allows | 41.5 ms | 44.0 ms |
+
+Four seconds of speech, 500 messages. At the rate a microphone actually produces audio the
+socket loop is never behind, so `end_of_speech` is dequeued immediately. The second row is the
+same test with the pacing removed: it proves the bench can see a backlog when one exists, which
+is the only reason to trust the first row.
+
+### The likeliest answer is that the gap was never one number
+
+849 and 1,500 are medians. The pairing bug above means they are medians over **different sets of
+turns**:
+
+- `client_ms` is recorded for every turn the browser hears.
+- The server's stages were taken from `last_timings`, which on the **first turn of a session is
+  `None`** — so first turns contribute a client figure and no stages at all, and drop out of
+  every stage median while staying in the client median.
+- The first turn after a start costs about **1,880 ms** (torch kernel compilation in the
+  synthesiser; see day 4 above). With a handful of turns per session, that is enough to
+  manufacture most of a 600 ms "gap" out of nothing.
+
+The round trip is the other half of the doubt: 60-71 ms was sampled by a timer every four
+seconds, which fires **between** turns. A turn ends on a socket that has just carried four
+seconds of microphone audio. Those may not be the same connection.
+
+Both are now instrumented rather than argued about. On button release the browser reads
+`ws.bufferedAmount` — bytes of question it had **not finished sending** when the driver started
+waiting — and fires a ping immediately, so `turn_rtt_ms` prices the network under the turn's own
+load. `last_timings` is published when the first sound is emitted, so client and server figures
+finally describe the same turn. One real conversation settles it.
 
 ## Day 7 (2026-09-21): hand-reading, a judge, and grounding
 

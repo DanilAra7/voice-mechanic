@@ -43,7 +43,7 @@ Two things that have gone wrong in front of people:
 | Truthfulness (LLM judge) | **80.3%** free of falsehood; the judge agrees with a hand-read set 74% exactly |
 | Word error rate | **2.2%** quiet, **4.4%** at 10 dB SNR |
 | Server latency | **849 ms** p50 — recognition 307, model 485, synthesis 57 |
-| Client latency | p50 about **1.5 s**, network 60–71 ms; **~600 ms of it still unattributed** |
+| Client latency | p50 about **1.5 s**, network 60–71 ms (sampled between turns); **~600 ms unattributed, and probably not one number** |
 | Stage breakdown | measured, not derived: recognition / model / tools-before-sound / speech / turn hold / network, and they sum to the wait exactly |
 | Answer length | 6.9 s on real voice |
 | Tests | **147** green |
@@ -72,10 +72,12 @@ By category: `owner_reports` and `safety` 100%, `how_to` 88.9, `conversation` 85
 3. The `forum` category. The next untried idea is merging `search_forum` and
    `search_owner_reports` into one tool with a parameter, since the model does not reliably tell
    them apart even with rewritten descriptions.
-4. The remaining ~600 ms between the server's first audio frame and the browser receiving it.
-   Four explanations were tested and killed on 2026-09-22 (see NOTES): a detector backlog in the
-   socket loop, microphone buffering, playback scheduling, a sample-rate mismatch. What is left
-   untested is the tunnel's handling of the first binary frame. Now instrumented per turn.
+4. The ~600 ms between the server's first audio frame and the browser receiving it. Five
+   explanations were tested and killed on 2026-09-22 (see NOTES), the last with
+   `scripts/bench_transport.py`: the whole transport costs **7 ms** at a microphone's pace. The
+   standing hypothesis is now that the gap was never one number — the two medians were taken
+   over different sets of turns because of the pairing bug, and the round trip was only ever
+   sampled between turns. Instrumented; one live conversation settles it.
 5. VRAM headroom is 577 MiB. Reduce llama-server's batch or context and re-measure.
 
 ## Ship gates, set 2026-09-21
