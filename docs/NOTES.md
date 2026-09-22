@@ -211,6 +211,30 @@ Qwen, and cutting it saved about 900 MiB — exactly what was missing. The same 
 
 **655 ms is a floor**: a shortened prompt, no tool calls, no recognition.
 
+### "Why not a newer Qwen?" (asked 2026-09-22, answered honestly)
+
+Qwen3.5 shipped in **February 2026** and Qwen3.8-27B on **2026-08-14**, both before this project
+started on 2026-09-17. **Neither was benchmarked, and that is a real gap, not a considered
+choice.** The candidate list was drawn up from what was already on hand from earlier work.
+
+What the published sizes say when our own measured rule is applied to them. Everything in the
+"fits?" column is arithmetic from figures we measured, not a measurement (?):
+
+| Candidate | Shape | ~Q4 size | Our verdict, and which measurement it rests on |
+|---|---|---|---|
+| Qwen3.5-397B-A17B | MoE | ~220 GB | absurd on one 16 GB card |
+| Qwen3.5-122B-A10B | MoE | ~70 GB | same |
+| **Qwen3.5-35B-A3B** | MoE, 3B active | ~22 GB | **the one that deserved a run.** Same shape as the model that beat gpt-oss on our scenarios. But Qwen3-30B-A3B at Q2 measured **12,960 MiB**; scaling 30→35B puts Q2 near **15,100 MiB (?)**, leaving ~1.2 GB where Kyutai needs 4,522. Fails the same memory test as its smaller sibling, by a wider margin |
+| Qwen3.5-27B / Qwen3.8-27B | dense | ~15 / ~17 GB | dense loses on physics. Qwen3-14B (9.8 GB dense) measured **35 tok/s and 2,027 ms to the first sentence**; twice the weights at the same 448 GB/s is roughly half that again **(?)**. Dead on latency before quality is discussed |
+| **Qwen3.5-9B** | dense | ~5.5 GB | **the genuinely open question.** It fits beside Kyutai with room to spare, and a February-2026 9B may well beat a 20B from before it. Untested |
+
+So the defensible part of the answer is that the **rule** was measured, not the shortlist: take the
+most capable model for which the whole stack fits in 16 GB, the first sentence lands near 500 ms
+and tool accuracy clears 90%. Applying that rule to the newer line-up rejects everything above
+9B for reasons we measured on their predecessors. Whether Qwen3.5-9B beats gpt-oss-20b is an
+open question worth **one GPU hour**: `mechanic.evals.run` already drove four candidates through
+the same 32 scenarios, and adding a fifth is a download and a config line.
+
 ### Why Qwen3-30B-A3B Q2 lost despite scoring better
 
 Q2 takes 12,960 MiB and leaves 3,416. Kyutai (4,522) does not fit at all; Chatterbox (3,556)

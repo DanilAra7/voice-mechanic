@@ -126,6 +126,23 @@ Browser ── microphone ──► WebSocket ──► Silero VAD ──► Par
 Everything is resident at once and peaks at **15,819 MiB of the card's 16,376**. The margin is
 577 MiB, and it is not a comfortable one.
 
+### Why not a newer model?
+
+The rule was *the most capable model for which the whole stack fits in 16 GB and the first
+sentence lands near 500 ms* — not *the newest*. Four candidates went through the same 32
+scenarios, and the winner was not the one that scored best: **Qwen3-30B-A3B Q2 beat gpt-oss-20b
+71.9% to 65.6%** and was rejected because at 12,960 MiB it left no room for a streaming voice.
+On this budget the voice chooses the model.
+
+**Qwen3.5 (February 2026) and Qwen3.8-27B (August 2026) were not benchmarked.** Both predate
+this project and the shortlist was drawn from models already on hand — that is a gap, not a
+decision. Applying the measured rule to their published sizes rejects most of the line-up for
+reasons measured on their predecessors: 35B-A3B extrapolates past the memory budget the 30B
+already failed, and both 27B dense variants repeat the bandwidth failure that put Qwen3-14B at
+35 tok/s and 2 s to the first sentence. **Qwen3.5-9B is the one that genuinely deserves a run**
+— it fits beside the voice with room to spare. The harness takes a fifth candidate as a
+download and a config line; see `docs/NOTES.md` for the full comparison.
+
 ---
 
 ## Latency: where the wait goes
