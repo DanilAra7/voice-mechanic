@@ -41,24 +41,55 @@ function renderLatency() {
   els("p50").textContent = q(audio, 0.5);
   els("p95").textContent = q(audio, 0.95);
   const last = done[done.length - 1];
-  const bar = (label, value, total) => `
-    <div class="stage">
+  // Disjoint slices of one wait, not milestones on a timeline. The server times each where it
+  // happens: subtracting milestones from one another gives negative model time on any turn where
+  // a filler is spoken before the tools have finished, which is the turn worth explaining.
+  const net = t => (Number.isFinite(t.client_ms) && Number.isFinite(t.first_audio_ms)
+    ? t.client_ms - t.first_audio_ms : null);
+  const STAGES = [
+    ["recognition", t => t.asr_ms, "what you said, into words"],
+    ["model", t => t.model_ms, "deciding what to answer"],
+    ["tools", t => t.tool_ms_to_audio, "sensors, codes, search"],
+    ["speech", t => t.tts_ms, "words into sound"],
+    ["turn hold", t => t.hold_ms, "waiting to be sure you had finished"],
+    ["network", net, "the wire, and the audio pipeline in this tab"],
+  ];
+  // Across this session, so one slow turn does not read as the shape of the thing.
+  const median = get => {
+    const xs = done.map(get).filter(Number.isFinite).sort((a, b) => a - b);
+    return xs.length ? xs[Math.floor(xs.length / 2)] : null;
+  };
+  const total = Math.max(last.client_ms ?? last.first_audio_ms ?? 1, 1);
+  const rows = STAGES.map(([label, get, why]) => {
+    const value = get(last);
+    if (!Number.isFinite(value)) return "";
+    const mid = median(get);
+    return `
+    <div class="stage${label === "network" ? " net" : ""}${label === "turn hold" ? " hold" : ""}" title="${why}">
       <span class="stage-name">${label}</span>
       <span class="stage-bar"><i style="width:${Math.min(100, 100 * value / total)}%"></i></span>
       <span class="stage-ms">${Math.round(value)}</span>
+      <span class="stage-mid">${mid === null ? "—" : Math.round(mid)}</span>
     </div>`;
-  const total = Math.max(last.client_ms ?? last.first_audio_ms, 1);
-  const lag = last.client_ms ? last.client_ms - last.first_audio_ms : null;
-  els("breakdown").innerHTML =
-    bar("recognised", last.asr_ms ?? 0, total) +
-    bar("first sentence", last.first_sentence_ms ?? 0, total) +
-    bar("first audio", last.first_audio_ms ?? 0, total) +
-    (lag !== null ? `
-    <div class="stage net">
-      <span class="stage-name">network</span>
-      <span class="stage-bar"><i style="width:${Math.min(100, 100 * lag / total)}%"></i></span>
-      <span class="stage-ms">+${Math.round(lag)}</span>
-    </div>` : "");
+  }).join("");
+  const accounted = STAGES.reduce((sum, [, get]) => {
+    const v = get(last);
+    return sum + (Number.isFinite(v) ? v : 0);
+  }, 0);
+  // The tools row counts only what ran before the driver heard anything. On a slow lookup the
+  // agent says a holding line and keeps searching while it talks, so most of the tool time costs
+  // the driver nothing — which is invisible unless it is said.
+  const covered = Math.round((last.tool_ms ?? 0) - (last.tool_ms_to_audio ?? 0));
+  els("breakdown").innerHTML = `
+    <div class="stage head"><span class="stage-name">stage</span><span></span>
+      <span class="stage-ms">last</span><span class="stage-mid">med</span></div>`
+    + rows + `
+    <div class="stage total"><span class="stage-name">total</span><span></span>
+      <span class="stage-ms">${Math.round(accounted)}</span>
+      <span class="stage-mid">${Math.round(median(t => t.client_ms ?? t.first_audio_ms) ?? 0)}</span>
+    </div>`
+    + (covered > 20 ? `<div class="aside">a further <b>${covered} ms</b> of tool time ran while
+       the agent was already talking, so you never waited for it</div>` : "");
 }
 
 /** Round trip to the server on the browser's own clock, so the network has a number of its own

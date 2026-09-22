@@ -132,13 +132,32 @@ The site lets you measure it yourself: the panel times from **the moment you rel
 to **the first audio sample your browser plays**, on your clock, not ours. Every turn is also
 recorded server-side, so the numbers survive the tab being closed.
 
-Measured on 15 recordings of a real human voice, driven through the whole pipeline:
+The panel cuts that wait into pieces **that do not overlap**, showing both the answer you just
+heard and the median of your session:
+
+| Row | What it is |
+|---|---|
+| `recognition` | Parakeet turning what you said into words, on the CPU |
+| `model` | gpt-oss-20b deciding what to answer |
+| `tools` | sensors, trouble codes and search — **only the part that ran before you heard anything** |
+| `speech` | Kyutai turning the first sentence into sound |
+| `turn hold` | deliberate silence: the agent waits to be sure you had finished. Zero in push-to-talk, up to 550 ms hands-free |
+| `network` | the wire both ways, plus the audio pipeline in your own tab |
+
+Each piece is timed where it happens rather than subtracted from the one before it. That sounds
+pedantic and is not: when a lookup will be slow the agent says *"Let me check that"* first and
+keeps searching **while it talks**, so the first sentence lands before the tool has finished. Any
+breakdown built by subtraction reports negative model time on exactly those turns. The panel
+instead tells you how much tool time you never waited for.
+
+Measured on 15 recordings of a real human voice, driven through the whole pipeline, push-to-talk:
 
 | Stage | Median | What it is |
 |---|---|---|
 | Recognition | **307 ms** | Parakeet on the CPU, after you stop speaking |
 | Language model, tools included | **485 ms** | to the first sentence worth speaking; the tools themselves are **0 ms** at the median, 149 ms at worst |
 | Synthesis to first sound | **57 ms** | near zero because the opening lines are synthesised at boot and replayed from cache |
+| Turn hold | **0 ms** | the button already said the turn was over |
 | **Server total** | **849 ms** | p95 1,733 ms, 15/15 turns completed |
 | Network, Kyiv → Frankfurt | **60–71 ms** | round trip, measured in the browser |
 | In the browser | the rest | audio pipeline and the tail of the microphone stream |

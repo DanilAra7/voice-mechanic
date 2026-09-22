@@ -668,6 +668,54 @@ there is a bill.**
   vowels. Leave it alone; change the sample instead.
 - `MECHANIC_VOICE` and `MECHANIC_VOICE_TEMP` make both settable without a rebuild.
 
+**Shipped the calm sample on 2026-09-22.** The bill was known before it was paid: 7.9% more
+speech time, roughly half a second on a 6.9-second answer, and nothing at all on time to first
+sound. Taken because a mechanic telling you your brakes are gone should not sound pleased about
+it, and because the extra half second lands after the driver already has their answer, where a
+wait costs least. `narration` at +4.2% is the fallback if it ever matters more than the delivery.
+
+## The latency panel was showing milestones, not stages (2026-09-22)
+
+Four rows called "recognised / first sentence / first audio / network", each a stamp on one
+timeline from the same zero. Three of them nest inside each other, so the bars grew to the right
+and overlapped, the model and the tools never appeared as numbers of their own, and the only way
+to read a stage off the panel was to subtract two rows by eye.
+
+Worse, the obvious fix is wrong. Deriving the model's share as
+`first_sentence_ms - asr_ms - tool_ms` **goes negative on any turn with a slow tool**, because
+the agent speaks a filler before it looks: the first sentence — and the first sound — happen
+before the tool has finished. That is exactly the turn a breakdown is worth having.
+
+So the stages are now timed where they happen, in `TurnTimings`:
+
+| Field | Measured | Note |
+|---|---|---|
+| `asr_ms` | already was | recognition, wall clock |
+| `tts_ms` | new | the synthesiser of the first sentence, to its first frame |
+| `hold_ms` | new | the first frame held back until the turn is confirmed (`CONFIRM_EXTRA_S`) |
+| `tool_ms_to_audio` | new | of `tool_ms`, the part that ran before the driver heard anything |
+| `model_ms` | new | the remainder |
+
+Recognition, synthesis and the hold are disjoint wall-clock intervals inside `first_audio_ms`, so
+their remainder is real. The tools report their own durations, which are measured around the call
+and can overrun that remainder by a hair, so the tool share is capped at what is left — which
+makes the five pieces add up to `first_audio_ms` exactly, asserted in
+`test_the_stages_of_a_filler_turn_are_slices_not_milestones`.
+
+Two things this made visible that were hidden before:
+
+- **The turn hold is 550 ms of deliberate silence**, and it used to be charged to the model. Zero
+  in push-to-talk (the button declares the turn over); the whole 550 ms hands-free. Part of the
+  "hands-free costs about 880 ms" figure, now with its own row rather than folded into the wait.
+- **Tool time the driver never waits for.** On a filler turn the search runs while the agent is
+  already talking. The panel says so: "a further 612 ms of tool time ran while the agent was
+  already talking".
+
+`latency_summary()` and `GET /api/latency` report the same five stages as medians, each over the
+turns that carried it, with `stages_from_turns` saying how many that was. Medians of disjoint
+stages need not sum to the median total, so the totals are measured in their own right rather
+than summed.
+
 ## Day 7 (2026-09-21): hand-reading, a judge, and grounding
 
 ### The headline metric was lying, and by how much

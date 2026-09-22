@@ -358,3 +358,47 @@ def test_latency_can_be_asked_for_before_a_turn_has_finished():
     like the network and was not."""
     session, _, _ = build()
     assert session.last_timings is None
+
+
+class FillerThenSlowToolAgent:
+    """Speaks before it looks, the way the real loop does when a tool will be slow."""
+
+    async def stream(self, text, on_event=None, **kwargs):
+        yield "Let me check that."
+        if on_event:
+            await on_event("tool_call", {"name": "search_forum", "duration_ms": 400})
+        yield "Your fuel trim is high at idle."
+
+
+async def test_the_stages_of_a_filler_turn_are_slices_not_milestones():
+    """The turn a breakdown is worth having is the one subtraction gets wrong.
+
+    When a tool will be slow the agent says a holding line first, so the first sentence — and the
+    first sound — happen BEFORE the tool has run. Deriving the model's share by subtracting the
+    tool time from the first sentence therefore goes negative on exactly these turns.
+    """
+    session, _, _ = build()
+    session.agent = FillerThenSlowToolAgent()
+
+    timings = await session.handle(SPEECH, confirmed=True)
+
+    # The old, derived figure. Kept here so the reason for the change cannot quietly stop being true.
+    assert timings.first_sentence_ms - timings.asr_ms - timings.tool_ms < 0
+
+    assert timings.tool_ms == 400, "the whole turn's tool time is still reported"
+    assert timings.tool_ms_to_audio == 0, "no tool had run when the driver heard the first word"
+    assert timings.model_ms >= 0
+    assert timings.hold_ms == 0.0, "the driver said they had finished; nothing to wait for"
+    stages = timings.asr_ms + timings.model_ms + timings.tool_ms_to_audio + timings.tts_ms + timings.hold_ms
+    assert abs(stages - timings.first_audio_ms) < 1e-6, "the slices must cover the wait exactly"
+
+
+async def test_waiting_to_be_sure_the_driver_finished_is_charged_to_the_hold():
+    """Deliberate silence is not the model being slow, and must not be reported as it."""
+    session, _, _ = build(sentences=("Fuel trim is high at idle.",))
+
+    timings = await session.handle(SPEECH)  # unconfirmed: the detector guessed from silence
+
+    assert timings.hold_ms > 100, "the first sound is held back until the turn is certain"
+    stages = timings.asr_ms + timings.model_ms + timings.tool_ms_to_audio + timings.tts_ms + timings.hold_ms
+    assert abs(stages - timings.first_audio_ms) < 1e-6

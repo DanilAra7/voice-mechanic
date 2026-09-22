@@ -16,8 +16,18 @@ from dataclasses import dataclass, field
 # Kyutai clones whatever voice it is handed a sample of, so the sample IS the personality. The
 # Expresso set ships the same speaker (ex03) acted in a dozen moods; the candidates are compared
 # by scripts/bench_voice_style.py.
-DEFAULT_VOICE = os.environ.get("MECHANIC_VOICE") or "expresso/ex03-ex01_happy_001_channel1_334s.wav"
-# Sampling temperature for the audio tokens: lower means flatter, more predictable delivery.
+#
+# The same actor reading calmly, not the "happy" take we shipped on day 3. A mechanic telling you
+# your brakes are gone should not sound pleased about it, and the first take sold a burnt smell
+# with the same lift as a clean bill of health. It is not free: calm speech is 7.9% longer over
+# the same ten lines, about half a second on a typical answer. Time to the FIRST sound is
+# unchanged — 616-622 ms for every sample measured, because that is the codec's frame rate and
+# not a property of the voice. `expresso/ex03-ex02_narration_001_channel1_674s.wav` is the middle
+# option at +4.2% if the extra half second ever matters more than the delivery.
+DEFAULT_VOICE = os.environ.get("MECHANIC_VOICE") or "expresso/ex03-ex01_calm_001_channel1_1143s.wav"
+# Sampling temperature for the audio tokens. Lowering it does NOT flatten the delivery, it
+# stretches it: 0.4 costs another 15-17% of speech time in pauses and drawn-out vowels. Change
+# the sample, not this.
 DEFAULT_TEMP = float(os.environ.get("MECHANIC_VOICE_TEMP") or 0.6)
 SAMPLE_RATE = 24000
 

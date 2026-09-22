@@ -85,11 +85,12 @@ def main() -> None:
     from moshi.models.loaders import CheckpointInfo
     from moshi.models.tts import DEFAULT_DSM_TTS_REPO, TTSModel
 
+    from mechanic.voice.tts import DEFAULT_TEMP, DEFAULT_VOICE
+
     info = CheckpointInfo.from_hf_repo(DEFAULT_DSM_TTS_REPO)
-    tts = TTSModel.from_checkpoint_info(info, n_q=32, temp=0.6, device=torch.device("cuda"))
-    cond = tts.make_condition_attributes(
-        [tts.get_voice_path("expresso/ex03-ex01_happy_001_channel1_334s.wav")], cfg_coef=2.0
-    )
+    # Whatever is shipped, not a sample pinned here: this measures the pipeline as delivered.
+    tts = TTSModel.from_checkpoint_info(info, n_q=32, temp=DEFAULT_TEMP, device=torch.device("cuda"))
+    cond = tts.make_condition_attributes([tts.get_voice_path(DEFAULT_VOICE)], cfg_coef=2.0)
     both = gpu_mib()
     print(f"VRAM with both loaded:     {both} MiB  (synthesiser added {both - llm_only} MiB)", flush=True)
 

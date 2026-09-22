@@ -59,6 +59,22 @@ class TurnTimings:
     # Wall time inside the tools themselves. Without it "the model was slow" and "the search was
     # slow" are the same number, and only one of them is worth optimising.
     tool_ms: float = 0.0
+
+    # --- the stages of the wait, measured rather than subtracted -------------------------------
+    # Everything above is a milestone: a stamp on one timeline. Milestones only decompose into
+    # stages if you subtract them, and here subtraction lies. When a tool is slow the agent speaks
+    # a filler first, so `first_sentence_ms` lands BEFORE the tools have run and
+    # `first_sentence_ms - asr_ms - tool_ms` goes negative — on exactly the turns where a
+    # breakdown is worth having. So the pieces below are timed where they happen. They are
+    # disjoint, they cover the interval from the driver falling silent to the first sound, and
+    # with the browser's own figure they add up: asr + model + tools + tts + hold = first_audio,
+    # and first_audio + network = what the person actually waited.
+    tool_ms_to_audio: float = 0.0  # of `tool_ms`, the part that ran before the first sound
+    tts_ms: float | None = None  # the synthesiser, first sentence, to its first frame
+    # The first frame is held back until the turn is certain (see CONFIRM_EXTRA_S). Real waiting,
+    # charged to nothing else, and invisible until it has a row of its own.
+    hold_ms: float = 0.0
+    model_ms: float | None = None  # the remainder: the model deciding what to say
     barged_in: bool = False
     # The driver was still mid-question: this turn was dropped before anything was played.
     carried_on: bool = False
@@ -287,6 +303,7 @@ class VoiceSession:
         def on_frame(chunk: np.ndarray) -> None:
             loop.call_soon_threadsafe(queue.put_nowait, chunk)
 
+        synthesis_started = time.monotonic()
         work = asyncio.create_task(asyncio.to_thread(self.synthesiser.say, sentence, on_frame))
         sample_rate = self.synthesiser_sample_rate
 
@@ -295,16 +312,35 @@ class VoiceSession:
                 chunk = await asyncio.wait_for(queue.get(), timeout=0.05)
             except TimeoutError:
                 return True
-            if timings.first_audio_ms is None and not self._confirmed.is_set():
+            first = timings.first_audio_ms is None
+            if first and timings.tts_ms is None:
+                # Frames exist. Whatever happens to this one next is no longer the synthesiser.
+                timings.tts_ms = (time.monotonic() - synthesis_started) * 1000
+            if first and not self._confirmed.is_set():
                 # Hold the very first sound until the turn is certain. Everything up to here —
                 # recognition, the model, the synthesiser — has already run.
+                held_from = time.monotonic()
                 while not self._confirmed.is_set() and not self._cancel.is_set():
                     await asyncio.sleep(0.02)
+                timings.hold_ms = (time.monotonic() - held_from) * 1000
             if self._cancel.is_set():
                 timings.barged_in = True
                 return False
             if timings.first_audio_ms is None:
                 timings.first_audio_ms = (time.monotonic() - zero) * 1000
+                # `tool_ms` is still growing; this instant is the only place its pre-sound share
+                # can be read off. What is left over after the stages that were timed directly is
+                # the model and our own plumbing, and it is labelled as the model because that is
+                # what dominates it.
+                #
+                # Recognition, synthesis and the hold are wall clock on this timeline and cannot
+                # overlap, so whatever is left of `first_audio_ms` after them is real. The tools
+                # report their own durations, which are measured around the call and can overrun
+                # that remainder by a hair; capping the tool share keeps the pieces adding up to
+                # the wait exactly rather than to slightly more than it.
+                spare = timings.first_audio_ms - (timings.asr_ms or 0.0) - (timings.tts_ms or 0.0) - timings.hold_ms
+                timings.tool_ms_to_audio = min(timings.tool_ms, max(0.0, spare))
+                timings.model_ms = max(0.0, spare - timings.tool_ms_to_audio)
                 await self._emit("audio_start", {"ms": round(timings.first_audio_ms)})
             if self.on_audio:
                 await self.on_audio(chunk, sample_rate)

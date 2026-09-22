@@ -44,6 +44,7 @@ Two things that have gone wrong in front of people:
 | Word error rate | **2.2%** quiet, **4.4%** at 10 dB SNR |
 | Server latency | **849 ms** p50 — recognition 307, model 485, synthesis 57 |
 | Client latency | p50 about **1.5 s**, network 60–71 ms |
+| Stage breakdown | measured, not derived: recognition / model / tools-before-sound / speech / turn hold / network, and they sum to the wait exactly |
 | Answer length | 6.9 s on real voice |
 | Tests | **147** green |
 
@@ -72,7 +73,9 @@ By category: `owner_reports` and `safety` 100%, `how_to` 88.9, `conversation` 85
    `search_owner_reports` into one tool with a parameter, since the model does not reliably tell
    them apart even with rewritten descriptions.
 4. The remaining ~700 ms between the server's first audio frame and the browser playing it. Now
-   instrumented per turn; if it is the audio pipeline, it is fixable.
+   instrumented per turn as its own `network` row; if it is the audio pipeline, it is fixable.
+   The first thing to do with it is subtract the measured round trip, which the panel already
+   shows, and see what is left.
 5. VRAM headroom is 577 MiB. Reduce llama-server's batch or context and re-measure.
 
 ## Ship gates, set 2026-09-21
@@ -171,8 +174,10 @@ No state may depend on the browser pane being alive. Dev servers start by name f
 ## Key parameters
 
 - Language model: gpt-oss-20b MXFP4, 8k context, `reasoning_effort: low` **set on the server**.
-- Voice: Kyutai 1.6B, `n_q=32`, sample `expresso/ex03-ex01_happy_001_channel1_334s.wav`.
-  Five calmer samples were measured and are waiting on the user's ear; see NOTES.
+- Voice: Kyutai 1.6B, `n_q=32`, sample `expresso/ex03-ex01_calm_001_channel1_1143s.wav` since
+  2026-09-22 — the same actor reading calmly instead of the day-3 "happy" take. Costs 7.9% of
+  speech time, about half a second on a typical answer; time to the first sound is unchanged.
+  Do not lower `MECHANIC_VOICE_TEMP` to flatten it: that stretches the delivery instead. See NOTES.
 - Recognition: parakeet-tdt-0.6b-v2 int8 **offline**, threads `min(8, cgroup budget)` —
   `os.cpu_count()` lies inside a container.
 - Answer length capped by `MAX_SPOKEN_CHARS = 140` in `agent/loop.py`; synthesis speaks about
@@ -200,4 +205,4 @@ No state may depend on the browser pane being alive. Dev servers start by name f
 - **2026-09-19** — first working end-to-end spoken run.
 - **2026-09-20** — the Garage; fixed phrases primed at boot; answer length capped; ASR threads from the cgroup budget; 15 real voice recordings made and the whole pipeline measured on them; two real safety holes found and closed.
 - **2026-09-21** — all seventy passing answers read by hand against the injected fault; the LLM judge and the pooled retrieval judge written; grounding moved to where the passages arrive; trend direction made band-relative; safety rules made deterministic; noise measurement; the public address, the access key and the disclaimer; the vocabulary repair; a dropped-connection bug that looked like a flaky tunnel and was an `AttributeError`.
-- **2026-09-22** — README and documentation written in English for a reader who knows nothing about the project.
+- **2026-09-22** — README and documentation written in English for a reader who knows nothing about the project. Shipped the calm voice sample, paying 7.9% of speech time for delivery that suits the job. Replaced the latency panel's cumulative milestones with five stages timed where they happen, which add up to the wait exactly and finally give the confirmation hold and the tool time a row each.

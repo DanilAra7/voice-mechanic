@@ -69,7 +69,17 @@ def record_client_latency(command: dict, session_id: str, server: object | None 
     }
     # The server's own stages for the same turn. Without them the browser's number is a single
     # figure nobody can act on: it says the wait was long, not which part of it was.
-    for stage in ("asr_ms", "first_sentence_ms", "first_audio_ms", "total_ms", "tool_ms"):
+    for stage in (
+        "asr_ms",
+        "first_sentence_ms",
+        "first_audio_ms",
+        "total_ms",
+        "tool_ms",
+        "tool_ms_to_audio",
+        "model_ms",
+        "tts_ms",
+        "hold_ms",
+    ):
         value = getattr(server, stage, None)
         if isinstance(value, int | float):
             row[stage] = round(value)
@@ -105,18 +115,31 @@ def latency_summary() -> dict:
         xs = sorted(r[key] for r in rows if isinstance(r.get(key), int | float))
         return round(xs[len(xs) // 2]) if xs else None
 
-    asr, sentence, audio = med("asr_ms"), med("first_sentence_ms"), med("first_audio_ms")
+    # One median per stage, each over the turns that reported it. The stages are timed where they
+    # happen rather than subtracted from each other, because a filler spoken while a tool is still
+    # running puts `first_sentence_ms` before the tool finished and makes subtraction produce
+    # negative model time. Medians of disjoint stages do not have to add up to the median total
+    # exactly, and the totals below are measured in their own right rather than summed.
+    audio = med("first_audio_ms")
+    measured = sum(1 for r in rows if isinstance(r.get("model_ms"), int | float))
     stages = {}
-    if asr and sentence and audio:
-        stages = {
-            "recognition_ms": asr,
-            "model_ms": sentence - asr,
-            "synthesis_ms": audio - sentence,
+    if audio is not None:
+        named = {
+            "recognition_ms": med("asr_ms"),
+            "model_ms": med("model_ms"),
+            "tools_ms": med("tool_ms_to_audio"),
+            "synthesis_ms": med("tts_ms"),
+            # Deliberate silence, not slowness: the first sound is held back until the turn
+            # detector is sure the driver has finished. It shows up as a row so nobody hunts for
+            # it inside the model's number.
+            "turn_hold_ms": med("hold_ms"),
             "server_total_ms": audio,
             # What the browser waited beyond anything the server did: the network each way plus
             # the audio pipeline in the tab. Named rather than left as an unexplained remainder.
             "network_and_browser_ms": q(waits, 0.5) - audio,
         }
+        stages = {k: v for k, v in named.items() if v is not None}
+        stages["stages_from_turns"] = measured
     return {
         "turns": len(waits),
         **stages,

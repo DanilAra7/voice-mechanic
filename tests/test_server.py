@@ -53,15 +53,30 @@ def test_the_browsers_number_is_filed_with_the_servers_stages(tmp_path, monkeypa
     from mechanic.voice.session import TurnTimings
 
     monkeypatch.setattr(ws, "LATENCY_LOG", tmp_path / "lat.jsonl")
-    stages = TurnTimings(asr_ms=300.4, first_sentence_ms=800.2, first_audio_ms=860.0, total_ms=4000.0)
+    stages = TurnTimings(
+        asr_ms=300.4,
+        first_sentence_ms=800.2,
+        first_audio_ms=860.0,
+        total_ms=4000.0,
+        model_ms=320.0,
+        tool_ms=410.0,
+        tool_ms_to_audio=180.0,
+        tts_ms=60.0,
+        hold_ms=0.0,
+    )
     stages.tools = ["read_live_data"]
     for waited in (1500, 1600, 1700):
         ws.record_client_latency({"client_ms": waited, "rtt_ms": 60}, session_id="demo", server=stages)
 
     out = ws.latency_summary()
     assert out["recognition_ms"] == 300
-    assert out["model_ms"] == 500
+    assert out["model_ms"] == 320
+    assert out["tools_ms"] == 180
     assert out["synthesis_ms"] == 60
+    assert out["turn_hold_ms"] == 0
     assert out["server_total_ms"] == 860
+    assert out["stages_from_turns"] == 3
+    # The pieces are slices of the same wait, not milestones that happen to be in order.
+    assert out["recognition_ms"] + out["model_ms"] + out["tools_ms"] + out["synthesis_ms"] == 860
     # The remainder is named, not left for somebody to subtract and guess at.
     assert out["network_and_browser_ms"] == out["client_p50_ms"] - 860
