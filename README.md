@@ -20,6 +20,7 @@ of it when the opening line is one the synthesiser already holds.
 - [Latency: where the wait goes](#latency-where-the-wait-goes)
 - [Quality: what was measured and how](#quality-what-was-measured-and-how)
 - [What it cannot do](#what-it-cannot-do)
+- [Running the demo](#running-the-demo-for-whoever-owns-the-rental)
 - [Running it yourself](#running-it-yourself)
 - [Repository layout](#repository-layout)
 - [Data sources and licences](#data-sources-and-licences)
@@ -390,6 +391,26 @@ Written down because a demo that hides these is worth less than one that names t
 - It is a demo, not a garage. The page says so above the conversation.
 
 ---
+
+## Running the demo (for whoever owns the rental)
+
+Two commands. Both read `.env`, so no key is ever typed into a shell or shown on a screen share.
+
+```bash
+./scripts/demo.sh        # about 10 minutes, nearly all of it models loading
+```
+
+It starts the instance if it is stopped, ships the current commit, brings up the model, the API
+behind the access key, a car on the ramp and the public address, **warms the models on a
+throwaway conversation**, and prints the link. Run it before anyone opens the tab: the first
+sentence of a cold process takes minutes and is the first thing they would hear.
+
+```bash
+./scripts/demo_down.sh   # stop paying for the GPU
+```
+
+Stops, does not destroy. The disk keeps every model at $0.019/h and the ngrok domain is
+reserved, so the same link works after the next `demo.sh`.
 
 ## Running it yourself
 
