@@ -13,18 +13,18 @@ is reserved, so the address does not change between sessions:
 https://cruncher-wieldable-pork.ngrok-free.dev/app/?k=<MECHANIC_ACCESS_KEY>
 ```
 
-```bash
-vastai start instance 51763823            # about 3 minutes
-vastai ssh-url 51763823                   # the port changes on every start
+Two commands, both reading `.env` so no secret reaches a shell history or a screen share:
 
-MECHANIC_ACCESS_KEY=… MECHANIC_NGROK_DOMAIN=cruncher-wieldable-pork.ngrok-free.dev \
-  ssh -p <port> root@<host> 'bash -s' < scripts/demo_up.sh
+```bash
+./scripts/demo.sh        # about 10 minutes, nearly all of it models loading
+./scripts/demo_down.sh   # stop paying
 ```
 
-`demo_up.sh` starts the model, the API behind the key, a car on the ramp, the public address, and
-**warms the models on a throwaway conversation**. About ten minutes, nearly all of it loading
-models. Do it **before** anyone opens the tab: the first sentence of a cold process takes minutes
-and is the first thing they would hear.
+`demo.sh` starts the instance if it is stopped, waits for it, reads the **reassigned** SSH port,
+ships the current commit, then runs `demo_up.sh` on the box: model, API behind the key, a car on
+the ramp, the public address, and **a throwaway conversation to warm the models**. Do it
+**before** anyone opens the tab: the first sentence of a cold process takes minutes and is the
+first thing they would hear. Verified end to end on 2026-09-22.
 
 Two things that have gone wrong in front of people:
 
@@ -168,7 +168,9 @@ No state may depend on the browser pane being alive. Dev servers start by name f
 
 ### Money
 
-- **$3.86 of $5 spent**, $1.14 left. No card is attached, so overspending is impossible.
+- **$4.19 of $5 spent, $0.81 left** (2026-09-22, after the live latency session). No card is
+  attached, so overspending is impossible. That is about 42 hours of stopped disk, or roughly
+  six more hours of demo.
 - **95% of the bill was traffic, not GPU.** One session: downloads $0.844, GPU hours $0.037,
   disk $0.006. Of 21.6 GB downloaded, 7 GB was Python and CUDA wheels.
 - A stopped instance costs $0.019/h for its disk. Reinstalling from scratch costs $0.85 on a host
@@ -209,4 +211,10 @@ No state may depend on the browser pane being alive. Dev servers start by name f
 - **2026-09-19** — first working end-to-end spoken run.
 - **2026-09-20** — the Garage; fixed phrases primed at boot; answer length capped; ASR threads from the cgroup budget; 15 real voice recordings made and the whole pipeline measured on them; two real safety holes found and closed.
 - **2026-09-21** — all seventy passing answers read by hand against the injected fault; the LLM judge and the pooled retrieval judge written; grounding moved to where the passages arrive; trend direction made band-relative; safety rules made deterministic; noise measurement; the public address, the access key and the disclaimer; the vocabulary repair; a dropped-connection bug that looked like a flaky tunnel and was an `AttributeError`.
-- **2026-09-22** — README and documentation written in English for a reader who knows nothing about the project. Shipped the calm voice sample, paying 7.9% of speech time for delivery that suits the job. Replaced the latency panel's cumulative milestones with five stages timed where they happen, which add up to the wait exactly and finally give the confirmation hold and the tool time a row each.
+- **2026-09-22** — the demo run live against a browser in another country, which finally
+  answered where the latency goes: **synthesis of an uncached first sentence, ~700 ms**, not the
+  network (67 ms at the button release, 0 bytes queued). The day-6 headline of 849 ms was a
+  median over tool-calling turns, which open with a cached filler — the cheapest turn in the
+  system, quoted as the average. Corrected everywhere to **1,537 ms p50, 847 ms best**. Also
+  found `demo_up.sh` warming nothing because the warm-up hit our own access gate and `| tail -3`
+  swallowed the failure. README and documentation written in English for a reader who knows nothing about the project. Shipped the calm voice sample, paying 7.9% of speech time for delivery that suits the job. Replaced the latency panel's cumulative milestones with five stages timed where they happen, which add up to the wait exactly and finally give the confirmation hold and the tool time a row each.
