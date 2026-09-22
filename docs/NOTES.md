@@ -211,29 +211,45 @@ Qwen, and cutting it saved about 900 MiB — exactly what was missing. The same 
 
 **655 ms is a floor**: a shortened prompt, no tool calls, no recognition.
 
-### "Why not a newer Qwen?" (asked 2026-09-22, answered honestly)
+### "Why not a newer Qwen?" — the shortlist was not researched (2026-09-22)
 
-Qwen3.5 shipped in **February 2026** and Qwen3.8-27B on **2026-08-14**, both before this project
-started on 2026-09-17. **Neither was benchmarked, and that is a real gap, not a considered
-choice.** The candidate list was drawn up from what was already on hand from earlier work.
+**Qwen3.5 shipped in February 2026, seven months before this project started. Qwen3.8-27B
+shipped on 2026-08-14, five weeks before. Neither was benchmarked, and neither was so much as
+considered.** On day 3 the candidate list was written from models already known, and nothing was
+checked against what had actually been released. That is a research failure at the first
+decision of the project — the one every other decision hangs off.
 
-What the published sizes say when our own measured rule is applied to them. Everything in the
-"fits?" column is arithmetic from figures we measured, not a measurement (?):
+There is no timeline defence and none should be offered.
 
-| Candidate | Shape | ~Q4 size | Our verdict, and which measurement it rests on |
-|---|---|---|---|
-| Qwen3.5-397B-A17B | MoE | ~220 GB | absurd on one 16 GB card |
-| Qwen3.5-122B-A10B | MoE | ~70 GB | same |
-| **Qwen3.5-35B-A3B** | MoE, 3B active | ~22 GB | **the one that deserved a run.** Same shape as the model that beat gpt-oss on our scenarios. But Qwen3-30B-A3B at Q2 measured **12,960 MiB**; scaling 30→35B puts Q2 near **15,100 MiB (?)**, leaving ~1.2 GB where Kyutai needs 4,522. Fails the same memory test as its smaller sibling, by a wider margin |
-| Qwen3.5-27B / Qwen3.8-27B | dense | ~15 / ~17 GB | dense loses on physics. Qwen3-14B (9.8 GB dense) measured **35 tok/s and 2,027 ms to the first sentence**; twice the weights at the same 448 GB/s is roughly half that again **(?)**. Dead on latency before quality is discussed |
-| **Qwen3.5-9B** | dense | ~5.5 GB | **the genuinely open question.** It fits beside Kyutai with room to spare, and a February-2026 9B may well beat a 20B from before it. Untested |
+**The first version of this section offered one anyway, and it was wrong.** It argued that
+Qwen3.5-35B-A3B would fail the memory test by extrapolating from Qwen3-30B-A3B's measured 12,960
+MiB. That arithmetic came from the old architecture. Qwen3.5 is a hybrid: three Gated DeltaNet
+layers for every full-attention layer, 48 layers keeping **no conventional KV cache at all** —
+about 2 GB at 32k context where a conventional model of that size needs four times as much.
 
-So the defensible part of the answer is that the **rule** was measured, not the shortlist: take the
-most capable model for which the whole stack fits in 16 GB, the first sentence lands near 500 ms
-and tool accuracy clears 90%. Applying that rule to the newer line-up rejects everything above
-9B for reasons we measured on their predecessors. Whether Qwen3.5-9B beats gpt-oss-20b is an
-open question worth **one GPU hour**: `mechanic.evals.run` already drove four candidates through
-the same 32 scenarios, and adding a fifth is a download and a config line.
+The KV cache is exactly what beat us. Cutting gpt-oss from 16k to 8k saved ~900 MiB and that was
+the entire difference between fitting and an out-of-memory. **Rejecting the newer architecture
+by extrapolating the constraint it was designed to remove is the worst kind of wrong** — it
+looks like diligence.
+
+What survives the correction, and what does not:
+
+| Candidate | ~Q4 weights | Standing |
+|---|---|---|
+| Qwen3.5-397B-A17B / 122B-A10B | ~220 / ~70 GB | out of reach on one 16 GB card |
+| Qwen3.5-35B-A3B | ~22 GB | the **KV** objection was wrong; the **weight** objection stands. Q2 weights alone land near 13-14 GB (?), leaving ~2.3 GB where Kyutai needs 4.5. Probably still out, for a different reason than first claimed |
+| Qwen3.5-27B / Qwen3.8-27B | ~15 / ~17 GB | dense, so bandwidth-bound. Qwen3-14B measured **35 tok/s, 2,027 ms to the first sentence**; twice the weights at 448 GB/s is worse again (?) |
+| **Qwen3.5-9B** | **~5.5 GB** | **fits beside Kyutai with ~6 GB to spare, and nothing about it was ever checked.** GGUF builds exist. This is the candidate that should have been in the day-3 run |
+
+Practical note: llama.cpp registers the architecture as `qwen35` and needs a build newer than the
+b11037 on the box; older builds refuse the file outright. A download, not a blocker.
+
+**The honest summary for anyone reviewing this work: the selection *rule* was sound and was
+followed — we rejected the model that scored highest because the voice would not fit beside it —
+but the *shortlist the rule was applied to* was not researched, and a strong candidate that fits
+comfortably was never tried. It is entirely possible this project shipped the wrong model.**
+Settling it costs one GPU hour and about $0.35 of bandwidth; `mechanic.evals.run` already drove
+four candidates through the same 32 scenarios.
 
 ### Why Qwen3-30B-A3B Q2 lost despite scoring better
 
