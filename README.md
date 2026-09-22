@@ -7,7 +7,8 @@ No LLM APIs. Every model — speech recognition, the language model, speech synt
 one rented GPU inside a hard budget of **16 GB of VRAM**, and the whole system is built around
 one number: how long you wait before it starts talking back.
 
-**From the end of your sentence to the first sound of the answer: 849 ms.**
+**From the end of your sentence to the first sound of the answer: about 1.5 seconds** — 850 ms
+of it when the opening line is one the synthesiser already holds.
 
 ---
 
@@ -154,19 +155,41 @@ instead tells you how much tool time you never waited for.
 ### Holding the button
 
 This is the mode the headline number is measured in. The clock starts the instant you let go.
+Measured on 2026-09-22 in a browser in Kyiv against a box in Estonia, with every stage timed
+where it happens:
 
 | Stage | Median | What it is |
 |---|---|---|
 | Silence detection | **0 ms** | releasing the button is an exact end of turn; nothing to wait out |
-| Recognition | **307 ms** | Parakeet on the CPU |
-| Language model, tools included | **485 ms** | to the first sentence worth speaking; the tools themselves are **0 ms** at the median, 149 ms at worst |
-| Synthesis to first sound | **57 ms** | near zero because the opening lines are synthesised at boot and replayed from cache |
+| Recognition | **113 ms** | Parakeet on the CPU |
+| Language model | **582 ms** | to the first sentence worth speaking |
+| Tools | **0 ms** | these turns needed none; when they do, most of it is covered by the filler |
+| **Synthesis to first sound** | **692 ms** | **the largest single stage** — see below |
 | Turn hold | **0 ms** | the button already said the turn was over |
-| **Server total** | **849 ms** | p95 1,733 ms, 15/15 turns completed |
-| Network, Kyiv → Frankfurt | **60–71 ms** | round trip, measured in the browser |
-| In the browser | **the rest** | see the honest note below |
+| **Server total** | **1,277 ms** | |
+| Network, round trip | **67 ms** | measured at the button release itself, under the turn's own load |
+| **What you actually wait** | **≈1.5 s** | p50 1,537 ms, best 847 ms |
 
-End to end in a real browser in another country: **p50 about 1.5 s**.
+### Why synthesis is the biggest number, and why it sometimes vanishes
+
+Four consecutive turns, straight from `data/cache/client_latency.jsonl`:
+
+| Turn | Recognition | Model | Synthesis | Server | You waited |
+|---|---|---|---|---|---|
+| 1 | 109 | 316 | **657** | 1,082 | 1,152 |
+| 2 | 117 | 550 | **1** | 667 | **847** |
+| 3 | 107 | 626 | **739** | 1,472 | 1,537 |
+| 4 | 135 | 615 | **728** | 1,477 | 1,546 |
+
+Turn 2 opened with a sentence the synthesiser had already spoken at boot and kept in memory, so
+it cost **one millisecond** and the whole answer arrived in 847 ms. The other three opened with
+a sentence nobody had said before, and paid ~700 ms to turn it into sound.
+
+That is the entire spread. **An earlier version of this file claimed 849 ms with 57 ms of
+synthesis.** That figure was real but unrepresentative: it was a median over turns that began
+with a cached filler because they called a tool. Quoting it as typical made a best case look
+like an average, and the gap between it and what the browser showed went unexplained for two
+days. The number above is what a person waits.
 
 ### Hands-free
 
@@ -180,21 +203,26 @@ moment the detector speaks up, not the moment you stopped talking.
   smoothing, and the honest range is **roughly 0.4 s**.
 - **Turn hold: usually 0 ms.** The design is *work early, speak on confirmation* — recognition,
   the model and the voice all start on the short 0.35 s threshold, while the audio is held until
-  a longer 0.55 s timer agrees the turn really ended. Because the work takes ~849 ms and the
-  timer only 550 ms, the timer has almost always expired by the time there is anything to play.
+  a longer 0.55 s timer agrees the turn really ended. Because the work takes ~1,280 ms and the
+  timer only 550 ms, the timer has always expired by the time there is anything to play.
   It bites only when the answer is faster than 550 ms — which is exactly the **safety** path, so
   a 233 ms warning is heard at about 1.0 s hands-free instead of 233 ms on the button.
 
-So hands-free costs **roughly 0.4 s more**, putting it near **1.25 s** server-side and **1.9 s**
+So hands-free costs **roughly 0.4 s more**, putting it near **1.7 s** server-side and **1.9 s**
 in a browser across a border. Why a threshold that long: ordinary spoken questions contain
 pauses of 0.6–0.9 s. At 0.35 s alone, *"I am getting a code P0171, what does that mean?"* splits
 into two turns and the agent answers the first half.
 
-### The part that is still not attributed
+### The 600 ms that looked like the network, and was not
 
-The server says 849 ms; the browser says about 1,500 ms. The round trip through the tunnel
-measures 60–71 ms, so **roughly 600 ms is unexplained**, and calling it "the network" would be a
-guess. Ruled out by measurement rather than by argument:
+For two days the server accounted for 849 ms while the browser reported about 1,500, and the
+round trip measured 65. The gap was assumed to be the tunnel. It was **synthesis on turns that
+did not start with a cached line**, plus two medians taken over different sets of turns. The
+network, measured at the button release under the turn's own load, is **67 ms**, and the browser
+had **0 bytes** still queued when the button came up.
+
+These were ruled out by measurement on the way, and are kept because knowing where it is *not*
+was most of the work:
 
 - **The server falling behind the microphone.** The socket loop runs the detector on every
   incoming chunk before reading the next one, so a backlog would delay the button release behind
@@ -209,16 +237,15 @@ guess. Ruled out by measurement rather than by argument:
   sends it: **0.4 ms** to dequeue the button release, **7.2 ms** to the first audio frame back.
   Remove the pacing and the same bench shows 41 ms, so it can see a backlog when one exists.
 
-**The likeliest explanation is that the 600 ms was never one number.** 849 and 1,500 are medians
-over *different sets of turns*: the server's stages were filed from a field that is empty on the
-first turn of every session, so first turns dropped out of the stage medians while staying in the
-client median — and the first turn after a start costs about 1,880 ms while the synthesiser
-compiles its kernels. That is enough to manufacture most of the gap. The round trip is the other
-half of the doubt: 60–71 ms was sampled by a timer that fires *between* turns, never during one.
+**And the two numbers were never over the same turns.** `GET /api/latency` still shows this if
+the log spans several sessions: `client_p50_ms` counts every turn anyone has ever waited through,
+while each stage median counts only the turns that recorded that stage. Compare a client figure
+with a server figure and check `stages_from_turns` first — if it is much smaller than `turns`,
+the two are describing different conversations.
 
-Both are now instrumented instead of argued about: the browser reports the bytes still unsent
-when the button came up and a round trip measured at that exact moment, and client and server
-figures are finally recorded against the same turn. One real conversation settles it.
+The lesson, kept because it cost two days: **a latency figure is only as honest as the turns it
+was taken over.** 849 ms was measured, reproducible and true, and it described the cheapest kind
+of turn this system has.
 
 The answer itself has a **median length of 6.9 seconds**, down from 24 s before the length cap —
 the wait before the first word is only half of what being kept waiting feels like.

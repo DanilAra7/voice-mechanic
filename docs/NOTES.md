@@ -779,7 +779,42 @@ socket loop is never behind, so `end_of_speech` is dequeued immediately. The sec
 same test with the pacing removed: it proves the bench can see a backlog when one exists, which
 is the only reason to trust the first row.
 
-### The likeliest answer is that the gap was never one number
+### Answered on live turns (2026-09-22): it was synthesis, not the network
+
+Four turns through a browser in Kyiv against the box in Estonia, every stage timed where it
+happens, taken from `data/cache/client_latency.jsonl`:
+
+| Turn | asr | model | tools | **speech** | server | client | ack |
+|---|---|---|---|---|---|---|---|
+| 1 | 109 | 316 | 0 | **657** | 1,082 | 1,152 | 68 |
+| 2 | 117 | 550 | 0 | **1** | 667 | **847** | 64 |
+| 3 | 107 | 626 | 0 | **739** | 1,472 | 1,537 | 66 |
+| 4 | 135 | 615 | 0 | **728** | 1,477 | 1,546 | 68 |
+
+`ack_ms` is the round trip of the button release, answered before the server did any work, under
+the turn's own load: **64-68 ms**, against 71 ms sampled idle. `send_queued_bytes` was **0** on
+every turn. The network was exactly what it always claimed to be, and the uplink theory is dead.
+
+**Turn 2 is the whole story.** It opened with a sentence the synthesiser had spoken at boot and
+kept in memory, so speech cost **one millisecond** and the answer landed in 847 ms. The other
+three opened with a sentence nobody had said before and paid ~700 ms.
+
+So the day-6 figure — 849 ms, synthesis 57 ms — was real, reproducible and **unrepresentative**.
+It was a median over turns that began with a cached filler, which is what happens when the model
+calls a tool. These four turns called none (`tools_ms 0`), so nothing was cached and the whole
+cost was visible. Quoting the tool-turn median as the headline made the cheapest turn in the
+system look like the average one, and manufactured a 600 ms "network" mystery that cost two days.
+
+**What to do about it** (not done, deliberately, and worth saying to anyone who asks):
+
+- Priming more openings is a few lines and would move most turns to the 847 ms case. It is also
+  fitting the test unless the primed lines are ones the agent genuinely wants to say.
+- Kyutai's first frame is 350 ms standalone and ~700 ms here, because llama-server is still
+  generating on the same card. That is the real cost and the honest place to attack it.
+- The instrument is right either way: the panel has said ~1.5 s all along. It was the README
+  that was wrong.
+
+### The gap was also never one number
 
 849 and 1,500 are medians. The pairing bug above means they are medians over **different sets of
 turns**:
@@ -796,7 +831,12 @@ The round trip is the other half of the doubt: 60-71 ms was sampled by a timer e
 seconds, which fires **between** turns. A turn ends on a socket that has just carried four
 seconds of microphone audio. Those may not be the same connection.
 
-Both are now instrumented rather than argued about. On button release the browser reads
+Both were instrumented rather than argued about, and `GET /api/latency` still shows the mismatch
+when the log spans sessions: on the box after this run, `turns: 50` but `stages_from_turns: 4`.
+`client_p50_ms` counted fifty turns from two days; every stage median counted four from one.
+**Check `stages_from_turns` before comparing a client figure with a server one.**
+
+On button release the browser reads
 `ws.bufferedAmount` — bytes of question it had **not finished sending** when the driver started
 waiting — and fires a ping immediately, so `turn_rtt_ms` prices the network under the turn's own
 load. `last_timings` is published when the first sound is emitted, so client and server figures

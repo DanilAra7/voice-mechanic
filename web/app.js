@@ -231,7 +231,9 @@ async function connect() {
         log("sys", "interrupted");
         break;
       case "turn_end":
-        state.turns.push({ ...state.turn, ...m });
+        // ack_ms is measured before the turn object exists, so it is merged in here rather than
+        // stamped where it is taken. Without this the panel cannot split the network row.
+        state.turns.push({ ...state.turn, ...m, ack_ms: state.ackMs ?? undefined });
         // A turn that produced no sound must not leave the stopwatch running into the next one.
         state.askedAt = null;
         renderLatency();

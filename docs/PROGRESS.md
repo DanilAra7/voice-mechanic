@@ -42,8 +42,8 @@ Two things that have gone wrong in front of people:
 | Scenarios passed whole | 60/76 = 78.9% |
 | Truthfulness (LLM judge) | **80.3%** free of falsehood; the judge agrees with a hand-read set 74% exactly |
 | Word error rate | **2.2%** quiet, **4.4%** at 10 dB SNR |
-| Server latency | **849 ms** p50 — recognition 307, model 485, synthesis 57 |
-| Client latency | p50 about **1.5 s**, network 60–71 ms (sampled between turns); **~600 ms unattributed, and probably not one number** |
+| **What a person waits** | **1,537 ms** p50 on live browser turns, 847 ms best — recognition 113, model 582, **synthesis 692**, network 67 |
+| Where the 600 ms went | **synthesis of a first sentence that is not in the cache**, plus two medians over different sets of turns. Not the network: 67 ms at the release, 0 bytes queued |
 | Stage breakdown | measured, not derived: recognition / model / tools-before-sound / speech / turn hold / network, and they sum to the wait exactly |
 | Answer length | 6.9 s on real voice |
 | Tests | **147** green |
@@ -72,12 +72,11 @@ By category: `owner_reports` and `safety` 100%, `how_to` 88.9, `conversation` 85
 3. The `forum` category. The next untried idea is merging `search_forum` and
    `search_owner_reports` into one tool with a parameter, since the model does not reliably tell
    them apart even with rewritten descriptions.
-4. The ~600 ms between the server's first audio frame and the browser receiving it. Five
-   explanations were tested and killed on 2026-09-22 (see NOTES), the last with
-   `scripts/bench_transport.py`: the whole transport costs **7 ms** at a microphone's pace. The
-   standing hypothesis is now that the gap was never one number — the two medians were taken
-   over different sets of turns because of the pairing bug, and the round trip was only ever
-   sampled between turns. Instrumented; one live conversation settles it.
+4. **Synthesis of the first sentence, 692 ms and the largest stage there is.** Found 2026-09-22
+   on live turns; it vanishes to 1 ms whenever the opening line is one primed at boot. The
+   cheapest idea is to widen what gets primed; the honest one is that Kyutai's first frame costs
+   350 ms standalone and twice that while llama-server is generating on the same card. Either
+   way this, not the network, is where a second of the wait lives.
 5. VRAM headroom is 577 MiB. Reduce llama-server's batch or context and re-measure.
 
 ## Ship gates, set 2026-09-21
